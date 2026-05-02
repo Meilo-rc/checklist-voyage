@@ -235,12 +235,32 @@
       min-width: 0;
     }
 
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
     .toolbar-title h2,
     .card-title {
       margin: 0;
       font-size: 1.05rem;
       line-height: 1.2;
       font-weight: 820;
+    }
+
+    .code-button {
+      min-height: 26px;
+      padding: 0 8px;
+      border-radius: 999px;
+      border: 1px solid #bfd2ff;
+      background: var(--blue-soft);
+      color: #1e4fc0;
+      font-size: .76rem;
+      font-weight: 850;
+      letter-spacing: .04em;
     }
 
     .toolbar-title p,
@@ -741,6 +761,29 @@
       display: flex;
     }
 
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + var(--safe-bottom));
+      z-index: 80;
+      transform: translate(-50%, 14px);
+      opacity: 0;
+      pointer-events: none;
+      min-height: 40px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: #111827;
+      color: white;
+      font-weight: 800;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, .24);
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
     .sheet {
       width: min(100%, 560px);
       max-height: calc(100dvh - 36px);
@@ -833,7 +876,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v10</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v11</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -875,8 +918,10 @@
     </section>
   </div>
 
+  <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
+
   <script>
-    const VERSION = "v10";
+    const VERSION = "v11";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -888,6 +933,7 @@
     let pendingRemoteVoyage = null;
     let statusText = "Local";
     let draftDateRange = { start: "", end: "", next: "start" };
+    let toastTimer = null;
 
     const state = {
       tab: "voyages",
@@ -1560,10 +1606,20 @@
 
     function copyCode(code) {
       if (navigator.clipboard) {
-        navigator.clipboard.writeText(code).then(() => setStatus("Code copié"));
+        navigator.clipboard.writeText(code).then(() => showToast("Code copié"));
       } else {
         window.prompt("Code à copier", code);
+        showToast("Code copié");
       }
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      if (!toast) return;
+      toast.textContent = message;
+      toast.classList.add("show");
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 1600);
     }
 
     function render() {
@@ -1643,7 +1699,10 @@
         <section class="section panel panel-pad">
           <div class="toolbar">
             <div class="toolbar-title">
-              <h2>${escapeHTML(voyage.name)}</h2>
+              <div class="title-row">
+                <h2>${escapeHTML(voyage.name)}</h2>
+                <button class="code-button" type="button" onclick="copyCode('${voyage.code}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
+              </div>
               <p>${progress.done}/${progress.total} éléments prêts${voyage.date ? ` · ${escapeHTML(voyage.date)}` : ""}</p>
             </div>
             <div class="category-actions">
@@ -1654,7 +1713,6 @@
                   <button class="menu-item" type="button" onclick="addCategory()">Ajouter une catégorie</button>
                   <button class="menu-item" type="button" onclick="renameCurrentVoyage()">Renommer le voyage</button>
                   <button class="menu-item" type="button" onclick="resetVoyageLists('${voyage.id}')">Réinitialiser les listes</button>
-                  <button class="menu-item" type="button" onclick="copyCode('${voyage.code}')">Copier le code ${escapeHTML(voyage.code)}</button>
                   <button class="menu-item red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer le voyage</button>
                 </div>
               </details>
@@ -1664,9 +1722,6 @@
         </section>
         <section class="grid">
           ${categories || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez une catégorie pour commencer.</p></div>`}
-        </section>
-        <section class="notice blue section" style="margin-top:14px">
-          Code de partage de ce voyage : <strong>${escapeHTML(voyage.code)}</strong>
         </section>
       `;
     }
