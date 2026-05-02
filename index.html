@@ -166,6 +166,7 @@
       font-size: .74rem;
       font-weight: 700;
       white-space: nowrap;
+      text-decoration: none;
     }
 
     .badge.blue {
@@ -1059,7 +1060,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v17</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v18</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1078,7 +1079,11 @@
       </div>
       <form class="grid section" onsubmit="createVoyage(event)">
         <div class="field">
-          <label for="voyageLocation">Lieu</label>
+          <label for="voyageName">Nom du voyage</label>
+          <input id="voyageName" name="tripName" autocomplete="off" placeholder="Ex. Vacances été, ski février...">
+        </div>
+        <div class="field">
+          <label for="voyageLocation">Destination</label>
           <input id="voyageLocation" name="location" autocomplete="off" placeholder="Rechercher une destination" oninput="searchDestination(this.value)" onfocus="showDestinationSuggestions()">
           <div class="suggestions" id="destinationSuggestions"></div>
         </div>
@@ -1135,7 +1140,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
   <script>
-    const VERSION = "v17";
+    const VERSION = "v18";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1451,6 +1456,7 @@
     }
 
     function openVoyageSheet() {
+      document.getElementById("voyageName").value = "";
       document.getElementById("voyageLocation").value = "";
       selectedDestination = null;
       renderDestinationSuggestions([]);
@@ -1460,7 +1466,7 @@
         input.checked = false;
       });
       document.getElementById("voyageSheet").classList.add("open");
-      setTimeout(() => document.getElementById("voyageLocation").focus(), 50);
+      setTimeout(() => document.getElementById("voyageName").focus(), 50);
     }
 
     function closeSheet(id) {
@@ -1475,8 +1481,9 @@
       event.preventDefault();
       const form = event.currentTarget;
       const submit = form.querySelector("button[type='submit']");
-      const name = form.elements.location.value.trim();
-      if (!name) {
+      const tripName = form.elements.tripName.value.trim();
+      const destinationText = form.elements.location.value.trim();
+      if (!destinationText) {
         alert("Choisis une destination pour créer le voyage.");
         return;
       }
@@ -1491,9 +1498,10 @@
         submit.disabled = true;
         submit.textContent = "Création...";
       }
-      options.enrichment = await fetchTripEnrichment(name, options.startDate, options.endDate, selectedDestination);
-      options.destination = selectedDestination || options.enrichment?.location || null;
-      const voyage = makeVoyage(name, date, options);
+      options.destination = selectedDestination || await resolveDestination(destinationText);
+      options.enrichment = null;
+      const voyageName = tripName || options.destination?.name || destinationText || "Nouveau voyage";
+      const voyage = makeVoyage(voyageName, date, options);
       state.voyages.unshift(voyage);
       state.currentVoyageId = voyage.id;
       state.tab = "liste";
@@ -1576,6 +1584,26 @@
         input.value = [selectedDestination.name, selectedDestination.admin1, selectedDestination.country].filter(Boolean).join(", ");
       }
       renderDestinationSuggestions([]);
+    }
+
+    async function resolveDestination(place) {
+      if (!place) return null;
+      try {
+        const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=1&language=fr&format=json`;
+        const response = await fetch(url);
+        const data = await response.json();
+        const result = data.results?.[0];
+        if (!result) return null;
+        return {
+          name: result.name,
+          admin1: result.admin1 || "",
+          country: result.country || "",
+          latitude: result.latitude,
+          longitude: result.longitude
+        };
+      } catch (error) {
+        return null;
+      }
     }
 
     async function fetchTripEnrichment(place, startDate, endDate, destination = null) {
@@ -1678,6 +1706,29 @@
     function truncateText(text, maxLength) {
       if (text.length <= maxLength) return text;
       return `${text.slice(0, maxLength - 1).trim()}…`;
+    }
+
+    function destinationCountry(voyage) {
+      return voyage.destination?.country || voyage.enrichment?.location?.country || "";
+    }
+
+    function destinationSearchLabel(voyage) {
+      const destination = voyage.destination || voyage.enrichment?.location || null;
+      if (!destination) return voyage.name;
+      return [destination.name, destination.admin1, destination.country].filter(Boolean).join(" ");
+    }
+
+    function weatherUrl(voyage) {
+      const query = ["météo", destinationSearchLabel(voyage), voyage.startDate || "", voyage.endDate || ""]
+        .filter(Boolean)
+        .join(" ");
+      return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    }
+
+    function renderDestinationLink(voyage) {
+      const country = destinationCountry(voyage);
+      if (!country) return "";
+      return `<a class="badge blue" href="${weatherUrl(voyage)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Voir la météo">${escapeHTML(country)}</a>`;
     }
 
     function resetDraftDateRange() {
@@ -2175,7 +2226,10 @@
           <article class="voyage-card clickable ${isCurrent ? "active" : ""}" onclick="selectVoyage('${voyage.id}')">
             <div class="voyage-main">
               <div>
-                <h2 class="voyage-name">${escapeHTML(voyage.name)}</h2>
+                <div class="title-row">
+                  <h2 class="voyage-name">${escapeHTML(voyage.name)}</h2>
+                  ${renderDestinationLink(voyage)}
+                </div>
                 <div class="voyage-meta">
                   ${voyage.date ? `<span class="badge">${escapeHTML(voyage.date)}</span>` : ""}
                   <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
@@ -2221,6 +2275,7 @@
             <div class="toolbar-title">
               <div class="title-row">
                 <h2>${escapeHTML(voyage.name)}</h2>
+                ${renderDestinationLink(voyage)}
                 <button class="code-button" type="button" onclick="copyCode('${voyage.code}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
               </div>
               <p>${progress.done}/${progress.total} éléments prêts${voyage.date ? ` · ${escapeHTML(voyage.date)}` : ""}</p>
@@ -2239,32 +2294,10 @@
             </div>
           </div>
           <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
-          ${renderEnrichment(voyage)}
         </section>
         <section class="grid">
           ${categories || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez une catégorie pour commencer.</p></div>`}
         </section>
-      `;
-    }
-
-    function renderEnrichment(voyage) {
-      const info = voyage.enrichment;
-      if (!info) return "";
-      const placeLabel = info.location ? `${info.location.name}${info.location.country ? `, ${info.location.country}` : ""}` : info.place;
-      return `
-        <div class="info-card">
-          <h3>${escapeHTML(placeLabel || "Infos du voyage")}</h3>
-          <div class="info-grid">
-            <div class="info-item">
-              <strong>Météo</strong>
-              <p>${escapeHTML(info.weather?.summary || "Météo indisponible pour le moment.")}</p>
-            </div>
-            <div class="info-item">
-              <strong>${escapeHTML(info.tourism?.title || "Tourisme")}</strong>
-              <p>${escapeHTML(info.tourism?.summary || "Infos touristiques indisponibles pour le moment.")}</p>
-            </div>
-          </div>
-        </div>
       `;
     }
 
