@@ -100,6 +100,13 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      padding: 0;
     }
 
     .brand-mark {
@@ -823,13 +830,13 @@
     <div class="shell">
       <header class="topbar">
         <div class="topbar-inner">
-          <div class="brand">
+          <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v09</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v10</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
-          </div>
+          </button>
         </div>
       </header>
 
@@ -848,15 +855,10 @@
           <label for="voyageLocation">Lieu</label>
           <input id="voyageLocation" name="location" autocomplete="off" placeholder="Ex. Bretagne, Espagne, ski...">
         </div>
-        <div class="grid date-grid">
-          <div class="field">
-            <label for="voyageStartDate">Départ</label>
-            <input id="voyageStartDate" name="startDate" type="date">
-          </div>
-          <div class="field">
-            <label for="voyageEndDate">Retour</label>
-            <input id="voyageEndDate" name="endDate" type="date">
-          </div>
+        <div class="field">
+          <label for="voyageRangeDate">Dates du voyage</label>
+          <input id="voyageRangeDate" name="rangeDate" type="date" onchange="handleDateRangePick(this.value)">
+          <div class="muted" id="voyageRangeStatus">Choisissez la date de départ, puis la date de retour.</div>
         </div>
         <div class="button-row">
           <button class="btn blue full" type="submit">Créer</button>
@@ -874,7 +876,7 @@
   </div>
 
   <script>
-    const VERSION = "v09";
+    const VERSION = "v10";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -885,6 +887,7 @@
     let syncTimer = null;
     let pendingRemoteVoyage = null;
     let statusText = "Local";
+    let draftDateRange = { start: "", end: "", next: "start" };
 
     const state = {
       tab: "voyages",
@@ -1130,8 +1133,7 @@
 
     function openVoyageSheet() {
       document.getElementById("voyageLocation").value = "";
-      document.getElementById("voyageStartDate").value = "";
-      document.getElementById("voyageEndDate").value = "";
+      resetDraftDateRange();
       document.getElementById("sheetJoinCode").value = "";
       document.getElementById("voyageSheet").classList.add("open");
       setTimeout(() => document.getElementById("voyageLocation").focus(), 50);
@@ -1149,7 +1151,7 @@
       event.preventDefault();
       const form = event.currentTarget;
       const name = form.elements.location.value.trim();
-      const date = formatDateRange(form.elements.startDate.value, form.elements.endDate.value);
+      const date = formatDateRange(draftDateRange.start, draftDateRange.end);
       const voyage = makeVoyage(name, date);
       state.voyages.unshift(voyage);
       state.currentVoyageId = voyage.id;
@@ -1157,6 +1159,37 @@
       closeSheet("voyageSheet");
       saveAndSync(voyage, { immediate: true });
       render();
+    }
+
+    function resetDraftDateRange() {
+      draftDateRange = { start: "", end: "", next: "start" };
+      const picker = document.getElementById("voyageRangeDate");
+      const status = document.getElementById("voyageRangeStatus");
+      if (picker) picker.value = "";
+      if (status) status.textContent = "Choisissez la date de départ, puis la date de retour.";
+    }
+
+    function handleDateRangePick(value) {
+      if (!value) return;
+      if (draftDateRange.next === "start" || (draftDateRange.start && draftDateRange.end)) {
+        draftDateRange = { start: value, end: "", next: "end" };
+      } else {
+        draftDateRange.end = value;
+        if (draftDateRange.end < draftDateRange.start) {
+          const previousStart = draftDateRange.start;
+          draftDateRange.start = draftDateRange.end;
+          draftDateRange.end = previousStart;
+        }
+        draftDateRange.next = "start";
+      }
+
+      const picker = document.getElementById("voyageRangeDate");
+      const status = document.getElementById("voyageRangeStatus");
+      if (picker) picker.value = "";
+      if (status) {
+        const label = formatDateRange(draftDateRange.start, draftDateRange.end);
+        status.textContent = draftDateRange.end ? label : `${label} - choisissez la date de retour`;
+      }
     }
 
     function formatDateRange(start, end) {
@@ -1573,17 +1606,7 @@
                   <span class="badge blue">${escapeHTML(voyage.code)}</span>
                 </div>
               </div>
-              <div class="category-actions">
-                <div class="status">${progress.percent}%</div>
-                <details class="voyage-menu" onclick="event.stopPropagation()">
-                  <summary class="icon-btn" title="Options du voyage">⋮</summary>
-                  <div class="voyage-menu-panel">
-                    <button class="menu-item" type="button" onclick="renameVoyage('${voyage.id}')">Renommer</button>
-                    <button class="menu-item" type="button" onclick="resetVoyageLists('${voyage.id}')">Réinitialiser les listes</button>
-                    <button class="menu-item red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer</button>
-                  </div>
-                </details>
-              </div>
+              <div class="status">${progress.percent}%</div>
             </div>
             <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
           </article>
@@ -1623,15 +1646,21 @@
               <h2>${escapeHTML(voyage.name)}</h2>
               <p>${progress.done}/${progress.total} éléments prêts${voyage.date ? ` · ${escapeHTML(voyage.date)}` : ""}</p>
             </div>
-            <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
+            <div class="category-actions">
+              <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
+              <details class="voyage-menu">
+                <summary class="icon-btn" title="Options du voyage">⋮</summary>
+                <div class="voyage-menu-panel">
+                  <button class="menu-item" type="button" onclick="addCategory()">Ajouter une catégorie</button>
+                  <button class="menu-item" type="button" onclick="renameCurrentVoyage()">Renommer le voyage</button>
+                  <button class="menu-item" type="button" onclick="resetVoyageLists('${voyage.id}')">Réinitialiser les listes</button>
+                  <button class="menu-item" type="button" onclick="copyCode('${voyage.code}')">Copier le code ${escapeHTML(voyage.code)}</button>
+                  <button class="menu-item red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer le voyage</button>
+                </div>
+              </details>
+            </div>
           </div>
           <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
-          <div class="button-row" style="margin-top:12px">
-            <button class="btn ghost" type="button" onclick="goHome()">Retour</button>
-            <button class="btn ghost" type="button" onclick="renameCurrentVoyage()">Renommer</button>
-            <button class="btn soft-blue" type="button" onclick="copyCode('${voyage.code}')">Code ${escapeHTML(voyage.code)}</button>
-            <button class="btn green" type="button" onclick="addCategory()">Ajouter une catégorie</button>
-          </div>
         </section>
         <section class="grid">
           ${categories || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez une catégorie pour commencer.</p></div>`}
