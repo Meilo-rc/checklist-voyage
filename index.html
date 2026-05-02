@@ -953,29 +953,70 @@ let state = {
   openCats: {},
 };
 
+const STORAGE_PREFIX = 'voyage-data-';
+
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char]));
+}
+
+function applySavedState(data) {
+  state.voyages = Array.isArray(data?.voyages) ? data.voyages : [];
+  state.currentVoyageId = data?.currentVoyageId || null;
+}
+
+function readLocalState(key) {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + key);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) {
+    return null;
+  }
+}
+
+async function readRemoteState(key, shared) {
+  if (!window.storage) return null;
+  try {
+    const result = await window.storage.get(STORAGE_PREFIX + key, shared);
+    return result?.value ? JSON.parse(result.value) : null;
+  } catch(e) {
+    return null;
+  }
+}
+
+async function readSavedState(key, shared = false) {
+  const remoteData = await readRemoteState(key, shared);
+  return remoteData || readLocalState(key);
+}
+
 // ===== STORAGE =====
 async function saveState() {
   const key = state.shareCode || 'local';
+  const payload = JSON.stringify({
+    voyages: state.voyages,
+    currentVoyageId: state.currentVoyageId,
+  });
+
   try {
-    await window.storage.set('voyage-data-' + key, JSON.stringify({
-      voyages: state.voyages,
-      currentVoyageId: state.currentVoyageId,
-    }), state.shareCode ? true : false);
+    localStorage.setItem(STORAGE_PREFIX + key, payload);
+    if (window.storage) {
+      await window.storage.set(STORAGE_PREFIX + key, payload, !!state.shareCode);
+    }
   } catch(e) {}
 }
 
 async function loadState(code) {
   const key = code || state.shareCode || 'local';
-  const shared = !!code;
-  try {
-    const result = await window.storage.get('voyage-data-' + key, shared);
-    if (result && result.value) {
-      const data = JSON.parse(result.value);
-      state.voyages = data.voyages || [];
-      state.currentVoyageId = data.currentVoyageId || null;
-      return true;
-    }
-  } catch(e) {}
+  const data = await readSavedState(key, !!code || !!state.shareCode);
+  if (data) {
+    applySavedState(data);
+    return true;
+  }
   return false;
 }
 
@@ -1054,13 +1095,13 @@ function renderVoyages(c) {
       html += `<div class="voyage-card ${isActive ? 'active' : ''}" onclick="selectVoyage('${v.id}')">
         <div class="voyage-card-header">
           <div>
-            <div class="voyage-name">${v.name}</div>
+            <div class="voyage-name">${escapeHTML(v.name)}</div>
             <div class="voyage-date">${v.date ? '📅 ' + formatDate(v.date) : ''}</div>
           </div>
           <div class="voyage-progress">${checked}/${total}</div>
         </div>
         <div class="voyage-tags">
-          ${v.types.map(t => `<span class="tag">${t.icon} ${t.label}</span>`).join('')}
+          ${v.types.map(t => `<span class="tag">${t.icon} ${escapeHTML(t.label)}</span>`).join('')}
         </div>
         <button onclick="event.stopPropagation();deleteVoyage('${v.id}')" 
           style="margin-top:8px;font-family:'Caveat',cursive;font-size:13px;background:none;border:none;color:var(--red-stamp);cursor:pointer;opacity:0.6">
@@ -1121,7 +1162,7 @@ function renderChecklist(c) {
 
   let html = `<div class="checklist-header">
     <div>
-      <div class="checklist-title">${voyage.name}</div>
+      <div class="checklist-title">${escapeHTML(voyage.name)}</div>
       <div class="checklist-overall">${checked}/${total} · ${pct}%</div>
     </div>
   </div>
@@ -1149,7 +1190,7 @@ function renderChecklist(c) {
     html += `<div class="cat-block ${isOpen ? 'open' : ''}" id="cat-${cat.id}">
       <div class="cat-header" onclick="toggleCat('${cat.id}')">
         <span class="cat-icon">${cat.icon}</span>
-        <span class="cat-name">${cat.label}</span>
+        <span class="cat-name">${escapeHTML(cat.label)}</span>
         <span class="cat-count ${isComplete ? 'complete' : ''}">${catChecked}/${catTotal}</span>
         <span class="cat-chevron">▼</span>
       </div>
@@ -1158,8 +1199,8 @@ function renderChecklist(c) {
     sorted.forEach(item => {
       html += `<div class="item-row ${item.checked ? 'checked' : ''}" onclick="toggleItem('${cat.id}','${item.id}')">
         <div class="checkbox"><span class="checkmark">✓</span></div>
-        <span class="item-name">${item.name}</span>
-        ${item.qty ? `<span class="item-qty">${item.qty}</span>` : ''}
+        <span class="item-name">${escapeHTML(item.name)}</span>
+        ${item.qty ? `<span class="item-qty">${escapeHTML(item.qty)}</span>` : ''}
         <button class="item-delete" onclick="event.stopPropagation();deleteItem('${cat.id}','${item.id}')">✕</button>
       </div>`;
     });
@@ -1218,10 +1259,11 @@ function deleteItem(catId, itemId) {
 // ===== PARTAGE TAB =====
 function renderPartage(c) {
   const code = state.shareCode || '—';
+  const safeCode = escapeHTML(code);
   c.innerHTML = `
     <div class="section-label">Mon code de partage</div>
     <div style="text-align:center;padding:20px;background:var(--cream-dark);border-radius:4px;margin-bottom:16px;border:1px dashed var(--kraft)">
-      <div style="font-family:'Playfair Display',serif;font-size:42px;letter-spacing:6px;color:var(--ink);font-weight:700">${code}</div>
+      <div style="font-family:'Playfair Display',serif;font-size:42px;letter-spacing:6px;color:var(--ink);font-weight:700">${safeCode}</div>
       <div style="font-family:'Caveat',cursive;font-size:14px;color:var(--ink-faded);margin-top:6px">Partage ce code avec ta famille</div>
       <button class="btn btn-primary" style="margin-top:12px" onclick="copyCode()">📋 Copier le code</button>
     </div>
@@ -1266,10 +1308,11 @@ async function joinVoyage() {
 }
 
 async function doJoin(code) {
-  state.shareCode = code;
-  localStorage.setItem('travelShareCode', code);
-  const found = await loadState(code);
-  if (found) {
+  const data = await readSavedState(code, true);
+  if (data) {
+    state.shareCode = code;
+    localStorage.setItem('travelShareCode', code);
+    applySavedState(data);
     showToast('✓ Connecté ! Code : ' + code);
     startPolling();
     render();
@@ -1301,7 +1344,7 @@ function renderTypeGrid() {
     <div class="cat-option ${state.selectedTypes.includes(t.id) ? 'selected' : ''}"
       onclick="toggleType('${t.id}')">
       <span class="icon">${t.icon}</span>
-      ${t.label}
+      ${escapeHTML(t.label)}
     </div>
   `).join('');
 }
@@ -1319,7 +1362,7 @@ function createVoyage() {
   const name = document.getElementById('newVoyageName').value.trim();
   if (!name) { showToast('Donne un nom au voyage'); return; }
 
-  const types = state.selectedTypes.map(id => PRESET_TYPES.find(t => t.id === id));
+  const types = state.selectedTypes.map(id => PRESET_TYPES.find(t => t.id === id)).filter(Boolean);
 
   // Build default categories from selection + common
   const cats = [];
