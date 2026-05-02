@@ -285,6 +285,43 @@
       gap: 6px;
     }
 
+    .choice-block {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-soft);
+    }
+
+    .choice-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .choice {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: white;
+      color: var(--text);
+      font-size: .86rem;
+      font-weight: 750;
+    }
+
+    .choice input {
+      width: 16px;
+      height: 16px;
+      min-height: 0;
+      padding: 0;
+      accent-color: var(--blue);
+    }
+
     label {
       color: var(--muted);
       font-size: .82rem;
@@ -876,7 +913,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v13</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v14</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -903,6 +940,36 @@
           <input id="voyageRangeDate" name="rangeDate" type="date" onchange="handleDateRangePick(this.value)">
           <div class="muted" id="voyageRangeStatus">Choisissez la date de départ, puis la date de retour.</div>
         </div>
+        <div class="choice-block">
+          <label>Transport</label>
+          <div class="choice-grid">
+            <label class="choice"><input type="checkbox" name="transport" value="avion">Avion</label>
+            <label class="choice"><input type="checkbox" name="transport" value="train">Train</label>
+            <label class="choice"><input type="checkbox" name="transport" value="voiture">Voiture</label>
+            <label class="choice"><input type="checkbox" name="transport" value="bus">Bus</label>
+            <label class="choice"><input type="checkbox" name="transport" value="bateau">Bateau</label>
+          </div>
+        </div>
+        <div class="choice-block">
+          <label>Logement</label>
+          <div class="choice-grid">
+            <label class="choice"><input type="checkbox" name="lodging" value="hotel">Hôtel</label>
+            <label class="choice"><input type="checkbox" name="lodging" value="camping">Camping</label>
+            <label class="choice"><input type="checkbox" name="lodging" value="famille">Famille</label>
+            <label class="choice"><input type="checkbox" name="lodging" value="location">Location</label>
+          </div>
+        </div>
+        <div class="choice-block">
+          <label>Activités</label>
+          <div class="choice-grid">
+            <label class="choice"><input type="checkbox" name="activity" value="ski">Ski</label>
+            <label class="choice"><input type="checkbox" name="activity" value="plage">Plage</label>
+            <label class="choice"><input type="checkbox" name="activity" value="randonnee">Randonnée</label>
+            <label class="choice"><input type="checkbox" name="activity" value="velo">Vélo</label>
+            <label class="choice"><input type="checkbox" name="activity" value="visites">Visites</label>
+            <label class="choice"><input type="checkbox" name="activity" value="bebe">Bébé / enfant</label>
+          </div>
+        </div>
         <div class="button-row">
           <button class="btn blue full" type="submit">Créer</button>
         </div>
@@ -921,7 +988,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
   <script>
-    const VERSION = "v13";
+    const VERSION = "v14";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -968,6 +1035,30 @@
         ]
       }
     ];
+
+    const presetItems = {
+      transport: {
+        avion: ["Billets d'avion", "Passeports / cartes d'identité", "Bagages cabine", "Étiquettes bagages", "Liquides en format cabine", "Arrivée à l'aéroport"],
+        train: ["Billets de train", "Carte de réduction", "Collations trajet", "Lecture / écouteurs", "Plan de correspondance"],
+        voiture: ["Permis de conduire", "Carte grise / assurance", "Plein de carburant", "Contrôle pneus", "Chargeur voiture", "Snacks trajet"],
+        bus: ["Billets de bus", "Oreiller de voyage", "Gourde", "Pull léger", "Écouteurs"],
+        bateau: ["Billets bateau", "Documents véhicule", "Médicament mal de mer", "Veste coupe-vent", "Sac de cabine"]
+      },
+      lodging: {
+        hotel: ["Confirmation hôtel", "Moyen de paiement", "Trousse de toilette compacte", "Tenue restaurant", "Chargeur près du lit"],
+        camping: ["Tente", "Duvets", "Matelas gonflables", "Lampe frontale", "Réchaud", "Anti-moustiques", "Glacière"],
+        famille: ["Cadeau hôtes", "Draps si besoin", "Serviettes si besoin", "Jeux à partager", "Informations d'arrivée"],
+        location: ["Contrat de location", "Codes / clés", "Draps", "Serviettes", "Torchons", "Produits vaisselle", "Courses premier soir"]
+      },
+      activity: {
+        ski: ["Vestes de ski", "Pantalons de ski", "Gants", "Bonnets", "Masques / lunettes", "Sous-couches thermiques", "Chaussettes de ski", "Forfaits"],
+        plage: ["Maillots de bain", "Serviettes de plage", "Crème solaire", "Casquettes", "Lunettes de soleil", "Gourdes", "Sac étanche"],
+        randonnee: ["Chaussures de randonnée", "Sac à dos", "Gourdes", "Carte / itinéraire", "Coupe-vent", "Trousse premiers secours"],
+        velo: ["Casques", "Antivols", "Gourdes vélo", "Kit réparation", "Gants vélo", "Charge éclairage"],
+        visites: ["Billets visites", "Guide / appli hors-ligne", "Batterie externe", "Chaussures confortables", "Liste restaurants"],
+        bebe: ["Couches", "Lingettes", "Doudou", "Poussette / porte-bébé", "Repas bébé", "Trousse médicaments enfant"]
+      }
+    };
 
     function uid(prefix) {
       return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1017,8 +1108,8 @@
       return state.voyages.find(voyage => voyage.id === state.currentVoyageId) || state.voyages[0] || null;
     }
 
-    function createDefaultCategories() {
-      return defaultCategories.map(category => ({
+    function createDefaultCategories(options = {}) {
+      const categories = defaultCategories.map(category => ({
         id: uid("cat"),
         name: category.name,
         items: category.items.map(item => ({
@@ -1028,9 +1119,33 @@
           done: false
         }))
       }));
+      enrichCategories(categories, "Transport", options.transport || [], presetItems.transport);
+      enrichCategories(categories, "Logement", options.lodging || [], presetItems.lodging);
+      enrichCategories(categories, "Activités", options.activity || [], presetItems.activity);
+      return categories;
     }
 
-    function makeVoyage(name, date) {
+    function enrichCategories(categories, categoryName, choices, presets) {
+      const names = [];
+      choices.forEach(choice => {
+        (presets[choice] || []).forEach(name => {
+          if (!names.includes(name)) names.push(name);
+        });
+      });
+      if (!names.length) return;
+      categories.push({
+        id: uid("cat"),
+        name: categoryName,
+        items: names.map(name => ({
+          id: uid("item"),
+          name,
+          qty: 1,
+          done: false
+        }))
+      });
+    }
+
+    function makeVoyage(name, date, options = {}) {
       const voyage = {
         id: uid("voyage"),
         code: generateCode(),
@@ -1038,7 +1153,7 @@
         date: date || "",
         shared: false,
         remoteRecordId: "",
-        categories: createDefaultCategories(),
+        categories: createDefaultCategories(options),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1181,6 +1296,9 @@
       document.getElementById("voyageLocation").value = "";
       resetDraftDateRange();
       document.getElementById("sheetJoinCode").value = "";
+      document.querySelectorAll("#voyageSheet input[type='checkbox']").forEach(input => {
+        input.checked = false;
+      });
       document.getElementById("voyageSheet").classList.add("open");
       setTimeout(() => document.getElementById("voyageLocation").focus(), 50);
     }
@@ -1198,13 +1316,22 @@
       const form = event.currentTarget;
       const name = form.elements.location.value.trim();
       const date = formatDateRange(draftDateRange.start, draftDateRange.end);
-      const voyage = makeVoyage(name, date);
+      const options = getVoyagePresetOptions(form);
+      const voyage = makeVoyage(name, date, options);
       state.voyages.unshift(voyage);
       state.currentVoyageId = voyage.id;
       state.tab = "liste";
       closeSheet("voyageSheet");
       saveAndSync(voyage, { immediate: true });
       render();
+    }
+
+    function getVoyagePresetOptions(form) {
+      return {
+        transport: Array.from(form.querySelectorAll("input[name='transport']:checked")).map(input => input.value),
+        lodging: Array.from(form.querySelectorAll("input[name='lodging']:checked")).map(input => input.value),
+        activity: Array.from(form.querySelectorAll("input[name='activity']:checked")).map(input => input.value)
+      };
     }
 
     function resetDraftDateRange() {
