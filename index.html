@@ -1,1659 +1,1634 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Carnet de Voyage ✈</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Caveat:wght@400;600&family=Source+Serif+4:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --kraft: #c8a96e;
-    --kraft-light: #e8d5b0;
-    --kraft-dark: #8b6f3e;
-    --ink: #2c1f0e;
-    --ink-faded: #6b5535;
-    --red-stamp: #c0392b;
-    --blue-ink: #2c5f8a;
-    --green-check: #2d6a4f;
-    --cream: #f5ead8;
-    --cream-dark: #ede0c4;
-    --shadow: rgba(44,31,14,0.15);
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  html {
-    min-height: 100%;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  body {
-    font-family: 'Source Serif 4', serif;
-    background: #3d2b1a;
-    min-height: 100vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 20px;
-    background-image: 
-      repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(0,0,0,.03) 35px, rgba(0,0,0,.03) 70px);
-  }
-
-  .app {
-    width: 100%;
-    max-width: 480px;
-    min-height: 100vh;
-  }
-
-  /* ===== PAPER TEXTURE ===== */
-  .paper {
-    background: var(--cream);
-    border-radius: 2px;
-    box-shadow: 
-      0 2px 4px var(--shadow),
-      0 8px 24px rgba(0,0,0,0.3),
-      inset 0 0 60px rgba(180,140,80,0.1);
-    position: relative;
-    overflow: visible;
-  }
-
-  .paper::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* ===== HEADER ===== */
-  .header {
-    padding: 28px 24px 20px;
-    text-align: center;
-    border-bottom: 2px dashed var(--kraft);
-    position: relative;
-    z-index: 1;
-  }
-
-  .header h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 28px;
-    color: var(--ink);
-    letter-spacing: 1px;
-    line-height: 1.2;
-  }
-
-  .header h1 em {
-    font-style: italic;
-    color: var(--kraft-dark);
-  }
-
-  .version-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 8px;
-    padding: 2px 7px;
-    border: 1px dashed var(--kraft);
-    border-radius: 4px;
-    color: var(--blue-ink);
-    font-family: 'Caveat', cursive;
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0;
-    vertical-align: middle;
-    background: rgba(255,255,255,0.45);
-  }
-
-  .header-subtitle {
-    font-family: 'Caveat', cursive;
-    font-size: 15px;
-    color: var(--ink-faded);
-    margin-top: 4px;
-  }
-
-  .header-decorations {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 10px;
-    font-size: 20px;
-    opacity: 0.7;
-  }
-
-  /* ===== TABS ===== */
-  .tabs {
-    display: flex;
-    border-bottom: 2px solid var(--kraft-light);
-    background: var(--cream-dark);
-    position: relative;
-    z-index: 1;
-  }
-
-  .tab {
-    flex: 1;
-    padding: 12px 8px;
-    text-align: center;
-    font-family: 'Caveat', cursive;
-    font-size: 16px;
-    color: var(--ink-faded);
-    cursor: pointer;
-    transition: all 0.2s;
-    border: none;
-    background: none;
-    border-bottom: 3px solid transparent;
-  }
-
-  .tab.active {
-    color: var(--ink);
-    border-bottom-color: var(--kraft-dark);
-    background: var(--cream);
-  }
-
-  /* ===== CONTENT ===== */
-  .content {
-    padding: 16px;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* ===== SHARE BANNER ===== */
-  .share-banner {
-    background: var(--blue-ink);
-    color: white;
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    font-family: 'Caveat', cursive;
-    font-size: 15px;
-    position: relative;
-    z-index: 1;
-  }
-
-  .share-banner.hidden { display: none; }
-
-  .share-code {
-    font-weight: 600;
-    font-size: 18px;
-    letter-spacing: 2px;
-    background: rgba(255,255,255,0.2);
-    padding: 2px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .share-btn-small {
-    background: rgba(255,255,255,0.25);
-    border: 1px solid rgba(255,255,255,0.4);
-    color: white;
-    padding: 4px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: 'Caveat', cursive;
-    font-size: 14px;
-    white-space: nowrap;
-  }
-
-  /* ===== VOYAGE LIST ===== */
-  .voyage-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .voyage-card {
-    background: white;
-    border: 1px solid var(--kraft-light);
-    border-radius: 4px;
-    padding: 14px 16px;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 2px 2px 0 var(--kraft-light);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .voyage-card::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 4px;
-    background: var(--kraft);
-  }
-
-  .voyage-card:hover {
-    transform: translateX(2px);
-    box-shadow: 4px 4px 0 var(--kraft-light);
-  }
-
-  .voyage-card.active::before { background: var(--green-check); }
-
-  .voyage-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .voyage-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 17px;
-    color: var(--ink);
-    font-weight: 700;
-  }
-
-  .voyage-date {
-    font-family: 'Caveat', cursive;
-    font-size: 14px;
-    color: var(--ink-faded);
-    margin-top: 2px;
-  }
-
-  .voyage-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 8px;
-  }
-
-  .tag {
-    font-family: 'Caveat', cursive;
-    font-size: 12px;
-    background: var(--cream-dark);
-    border: 1px solid var(--kraft-light);
-    border-radius: 20px;
-    padding: 2px 8px;
-    color: var(--ink-faded);
-  }
-
-  .voyage-progress {
-    font-family: 'Caveat', cursive;
-    font-size: 14px;
-    color: var(--green-check);
-    font-weight: 600;
-  }
-
-  /* ===== BUTTONS ===== */
-  .btn {
-    font-family: 'Caveat', cursive;
-    font-size: 16px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    border-radius: 4px;
-    padding: 10px 18px;
-  }
-
-  .btn-primary {
-    background: var(--kraft-dark);
-    color: white;
-    box-shadow: 2px 2px 0 var(--ink);
-  }
-
-  .btn-primary:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 var(--ink);
-  }
-
-  .btn-primary:active {
-    transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0 var(--ink);
-  }
-
-  .btn-ghost {
-    background: transparent;
-    color: var(--ink-faded);
-    border: 1px dashed var(--kraft);
-  }
-
-  .btn-ghost:hover { background: var(--cream-dark); }
-
-  .btn-danger {
-    background: var(--red-stamp);
-    color: white;
-  }
-
-  .btn-sm { padding: 6px 12px; font-size: 14px; }
-
-  /* ===== STAMP BUTTON (new voyage) ===== */
-  .stamp-btn {
-    width: 100%;
-    padding: 14px;
-    background: transparent;
-    border: 2px dashed var(--kraft);
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: 'Caveat', cursive;
-    font-size: 18px;
-    color: var(--ink-faded);
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .stamp-btn:hover {
-    background: var(--cream-dark);
-    border-color: var(--kraft-dark);
-    color: var(--ink);
-  }
-
-  /* ===== MODAL ===== */
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 20px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s;
-  }
-
-  .modal-overlay.open {
-    opacity: 1;
-    pointer-events: all;
-  }
-
-  .modal {
-    background: var(--cream);
-    border-radius: 4px;
-    padding: 24px;
-    width: 100%;
-    max-width: 420px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-    transform: translateY(20px);
-    transition: transform 0.2s;
-    position: relative;
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-
-  .modal-overlay.open .modal { transform: translateY(0); }
-
-  .modal h2 {
-    font-family: 'Playfair Display', serif;
-    font-size: 20px;
-    color: var(--ink);
-    margin-bottom: 16px;
-    padding-bottom: 10px;
-    border-bottom: 1px dashed var(--kraft);
-  }
-
-  .modal-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    margin-top: 20px;
-  }
-
-  /* ===== FORM ===== */
-  .field {
-    margin-bottom: 14px;
-  }
-
-  .field label {
-    display: block;
-    font-family: 'Caveat', cursive;
-    font-size: 15px;
-    color: var(--ink-faded);
-    margin-bottom: 4px;
-  }
-
-  .field input, .field textarea {
-    width: 100%;
-    padding: 8px 12px;
-    background: white;
-    border: 1px solid var(--kraft-light);
-    border-radius: 4px;
-    font-family: 'Source Serif 4', serif;
-    font-size: 15px;
-    color: var(--ink);
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .field input:focus, .field textarea:focus {
-    border-color: var(--kraft-dark);
-  }
-
-  /* ===== CATEGORY GRID (voyage creation) ===== */
-  .cat-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-top: 6px;
-  }
-
-  .cat-option {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    padding: 10px 6px;
-    border: 2px solid var(--kraft-light);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-    background: white;
-    font-family: 'Caveat', cursive;
-    font-size: 13px;
-    color: var(--ink-faded);
-    text-align: center;
-  }
-
-  .cat-option .icon { font-size: 24px; }
-
-  .cat-option.selected {
-    border-color: var(--green-check);
-    background: #edf7f2;
-    color: var(--green-check);
-    font-weight: 600;
-  }
-
-  .cat-option:hover:not(.selected) {
-    border-color: var(--kraft);
-    background: var(--cream-dark);
-  }
-
-  /* ===== CHECKLIST VIEW ===== */
-  .checklist-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .back-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 20px;
-    color: var(--ink-faded);
-    padding: 4px;
-    transition: color 0.2s;
-  }
-
-  .back-btn:hover { color: var(--ink); }
-
-  .checklist-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 20px;
-    color: var(--ink);
-    flex: 1;
-  }
-
-  .checklist-overall {
-    font-family: 'Caveat', cursive;
-    font-size: 14px;
-    color: var(--green-check);
-    font-weight: 600;
-  }
-
-  /* ===== CATEGORY BLOCK ===== */
-  .cat-block {
-    margin-bottom: 10px;
-    border: 1px solid var(--kraft-light);
-    border-radius: 4px;
-    overflow: hidden;
-    box-shadow: 1px 1px 0 var(--kraft-light);
-  }
-
-  .cat-header {
-    display: flex;
-    align-items: center;
-    padding: 12px 14px;
-    background: var(--cream-dark);
-    cursor: pointer;
-    transition: background 0.15s;
-    gap: 10px;
-    user-select: none;
-  }
-
-  .cat-header:hover { background: var(--kraft-light); }
-
-  .cat-icon { font-size: 20px; }
-
-  .cat-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 16px;
-    color: var(--ink);
-    flex: 1;
-  }
-
-  .cat-count {
-    font-family: 'Caveat', cursive;
-    font-size: 15px;
-    color: var(--green-check);
-    font-weight: 600;
-  }
-
-  .cat-count.complete {
-    color: var(--green-check);
-  }
-
-  .cat-chevron {
-    color: var(--ink-faded);
-    font-size: 12px;
-    transition: transform 0.2s;
-  }
-
-  .cat-block.open .cat-chevron { transform: rotate(180deg); }
-
-  .cat-items {
-    display: none;
-    padding: 6px 0;
-    background: white;
-  }
-
-  .cat-block.open .cat-items { display: block; }
-
-  /* ===== ITEM ===== */
-  .item-row {
-    display: flex;
-    align-items: center;
-    padding: 9px 14px;
-    gap: 12px;
-    cursor: pointer;
-    transition: background 0.1s;
-    position: relative;
-  }
-
-  .item-row:hover { background: #fafaf8; }
-
-  .item-row.checked {
-    opacity: 0.5;
-  }
-
-  .item-row.checked .item-name {
-    text-decoration: line-through;
-    color: var(--ink-faded);
-  }
-
-  .checkbox {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--kraft);
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.15s;
-    background: white;
-  }
-
-  .item-row.checked .checkbox {
-    background: var(--green-check);
-    border-color: var(--green-check);
-  }
-
-  .checkmark {
-    color: white;
-    font-size: 12px;
-    opacity: 0;
-    transform: scale(0);
-    transition: all 0.15s;
-  }
-
-  .item-row.checked .checkmark {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  .item-name {
-    font-size: 15px;
-    color: var(--ink);
-    flex: 1;
-  }
-
-  .item-qty {
-    font-family: 'Caveat', cursive;
-    font-size: 13px;
-    color: var(--ink-faded);
-    background: var(--cream-dark);
-    padding: 1px 6px;
-    border-radius: 10px;
-  }
-
-  .item-delete {
-    opacity: 0;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--red-stamp);
-    font-size: 14px;
-    padding: 2px 4px;
-    transition: opacity 0.15s;
-  }
-
-  .item-row:hover .item-delete { opacity: 1; }
-
-  /* ===== ADD ITEM ===== */
-  .add-item-row {
-    display: flex;
-    align-items: center;
-    padding: 8px 14px;
-    gap: 8px;
-    border-top: 1px dashed var(--kraft-light);
-    margin-top: 4px;
-  }
-
-  .add-item-input {
-    flex: 1;
-    padding: 6px 8px;
-    border: 1px dashed var(--kraft-light);
-    border-radius: 4px;
-    font-family: 'Source Serif 4', serif;
-    font-size: 14px;
-    background: transparent;
-    color: var(--ink);
-    outline: none;
-  }
-
-  .add-item-input:focus {
-    border-color: var(--kraft-dark);
-    background: white;
-  }
-
-  .add-item-btn {
-    background: var(--kraft-dark);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    width: 28px;
-    height: 28px;
-    cursor: pointer;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-
-  .add-item-btn:hover { background: var(--ink); }
-
-  /* ===== ADD CATEGORY ===== */
-  .add-cat-row {
-    margin-top: 8px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
-  /* ===== PROGRESS BAR ===== */
-  .progress-bar-wrap {
-    background: var(--cream-dark);
-    border-radius: 10px;
-    height: 6px;
-    margin: 12px 0 8px;
-    overflow: hidden;
-  }
-
-  .progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--green-check), #52b788);
-    border-radius: 10px;
-    transition: width 0.4s ease;
-  }
-
-  /* ===== SEPARATOR ===== */
-  .section-label {
-    font-family: 'Caveat', cursive;
-    font-size: 13px;
-    color: var(--ink-faded);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin: 16px 0 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .section-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--kraft-light);
-  }
-
-  /* ===== EMPTY STATE ===== */
-  .empty {
-    text-align: center;
-    padding: 32px 16px;
-    color: var(--ink-faded);
-  }
-
-  .empty .empty-icon { font-size: 48px; margin-bottom: 12px; }
-  .empty p { font-family: 'Caveat', cursive; font-size: 18px; }
-
-  /* ===== TOAST ===== */
-  .toast {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--ink);
-    color: var(--cream);
-    padding: 10px 20px;
-    border-radius: 4px;
-    font-family: 'Caveat', cursive;
-    font-size: 16px;
-    z-index: 200;
-    transition: transform 0.3s ease;
-    white-space: nowrap;
-  }
-
-  .toast.show { transform: translateX(-50%) translateY(0); }
-
-  /* ===== LIVE INDICATOR ===== */
-  .live-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #52b788;
-    display: inline-block;
-    margin-right: 4px;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  /* ===== JOIN SECTION ===== */
-  .join-section {
-    background: var(--cream-dark);
-    border: 1px dashed var(--kraft);
-    border-radius: 4px;
-    padding: 14px;
-    margin-bottom: 16px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .join-section input {
-    flex: 1;
-    padding: 8px 10px;
-    border: 1px solid var(--kraft-light);
-    border-radius: 4px;
-    font-family: 'Caveat', cursive;
-    font-size: 18px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    background: white;
-    color: var(--ink);
-    outline: none;
-    text-align: center;
-  }
-
-  /* ===== SCROLLBAR ===== */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--cream-dark); }
-  ::-webkit-scrollbar-thumb { background: var(--kraft); border-radius: 3px; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Checklist voyage</title>
+  <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.26.2/dist/pocketbase.umd.js"></script>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --line: #e5e7eb;
+      --line-strong: #d1d5db;
+      --text: #172033;
+      --muted: #667085;
+      --blue: #2563eb;
+      --blue-soft: #e8f0ff;
+      --green: #168a4a;
+      --green-soft: #e7f7ee;
+      --red: #dc2626;
+      --red-soft: #fee2e2;
+      --amber: #b7791f;
+      --amber-soft: #fff7df;
+      --shadow: 0 12px 30px rgba(15, 23, 42, .08);
+      --radius: 8px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .app {
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(244, 245, 247, .92) 280px),
+        var(--bg);
+    }
+
+    .shell {
+      width: min(100%, 760px);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(255, 255, 255, .96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 1px 0 rgba(15, 23, 42, .02);
+    }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 56px;
+      padding: 10px 14px;
+    }
+
+    .brand {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      background: var(--blue);
+      color: white;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .brand-title {
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.1;
+      font-weight: 800;
+    }
+
+    .headline-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 3px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: .78rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 21px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: .74rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge.blue {
+      border-color: #bfd2ff;
+      background: var(--blue-soft);
+      color: #1e4fc0;
+    }
+
+    .badge.green {
+      border-color: #b9e9c9;
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .badge.red {
+      border-color: #fecaca;
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .badge.amber {
+      border-color: #fde68a;
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      display: inline-grid;
+      place-items: center;
+      background: var(--panel-soft);
+      color: var(--text);
+      border: 1px solid var(--line);
+      flex: 0 0 auto;
+    }
+
+    .icon-btn:active,
+    .btn:active,
+    .tab:active,
+    .chip:active {
+      transform: translateY(1px);
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 0 14px 10px;
+    }
+
+    .tab {
+      min-height: 36px;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      font-weight: 750;
+      border: 1px solid transparent;
+    }
+
+    .tab.active {
+      background: var(--text);
+      color: white;
+      border-color: var(--text);
+    }
+
+    .content {
+      min-height: 0;
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding: 14px 14px calc(24px + var(--safe-bottom));
+    }
+
+    .section {
+      margin-bottom: 14px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-pad {
+      padding: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .toolbar-title {
+      min-width: 0;
+    }
+
+    .toolbar-title h2,
+    .card-title {
+      margin: 0;
+      font-size: 1.05rem;
+      line-height: 1.2;
+      font-weight: 820;
+    }
+
+    .toolbar-title p,
+    .muted {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.35;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 750;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border-radius: var(--radius);
+      border: 1px solid var(--line-strong);
+      background: white;
+      color: var(--text);
+      min-height: 42px;
+      padding: 9px 11px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 82px;
+      resize: vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, .15);
+    }
+
+    .btn {
+      min-height: 42px;
+      border-radius: var(--radius);
+      padding: 0 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: white;
+      background: var(--text);
+      font-weight: 800;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .btn.blue {
+      background: var(--blue);
+    }
+
+    .btn.green {
+      background: var(--green);
+    }
+
+    .btn.red {
+      background: var(--red);
+    }
+
+    .btn.ghost {
+      background: white;
+      color: var(--text);
+      border-color: var(--line);
+    }
+
+    .btn.soft-blue {
+      background: var(--blue-soft);
+      color: #1e4fc0;
+      border-color: #bfd2ff;
+    }
+
+    .btn.soft-red {
+      background: var(--red-soft);
+      color: var(--red);
+      border-color: #fecaca;
+    }
+
+    .btn.full {
+      width: 100%;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .voyage-card {
+      padding: 13px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: white;
+      display: grid;
+      gap: 12px;
+    }
+
+    .voyage-card.active {
+      border-color: #a9c2ff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+    }
+
+    .voyage-main {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .voyage-name {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 820;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .voyage-meta {
+      margin-top: 5px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .progress {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #edf0f4;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+      transition: width .25s ease;
+    }
+
+    .category {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      overflow: hidden;
+    }
+
+    .category-head {
+      width: 100%;
+      min-height: 54px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 11px 12px;
+      background: white;
+      color: var(--text);
+      text-align: left;
+      border-bottom: 1px solid transparent;
+    }
+
+    .category.open .category-head {
+      border-bottom-color: var(--line);
+      background: var(--panel-soft);
+    }
+
+    .category-title {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chevron {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: #eef2f7;
+      color: var(--muted);
+      font-size: .8rem;
+      flex: 0 0 auto;
+    }
+
+    .category-name {
+      font-size: .98rem;
+      font-weight: 820;
+      overflow-wrap: anywhere;
+    }
+
+    .category-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+
+    .category-body {
+      display: none;
+      padding: 10px;
+    }
+
+    .category.open .category-body {
+      display: grid;
+      gap: 8px;
+    }
+
+    .item {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      align-items: center;
+      gap: 9px;
+      min-height: 48px;
+      padding: 7px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: white;
+    }
+
+    .check {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line-strong);
+      background: white;
+      color: transparent;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .item.done .check {
+      background: var(--green);
+      border-color: var(--green);
+      color: white;
+    }
+
+    .item-label {
+      min-width: 0;
+      font-weight: 730;
+      overflow-wrap: anywhere;
+    }
+
+    .item.done .item-label {
+      color: var(--muted);
+      text-decoration: line-through;
+      text-decoration-thickness: 2px;
+    }
+
+    .qty {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-soft);
+    }
+
+    .qty button {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: white;
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: 900;
+    }
+
+    .qty input {
+      width: 42px;
+      min-height: 28px;
+      height: 28px;
+      padding: 0 4px;
+      text-align: center;
+      border: 0;
+      background: transparent;
+      font-weight: 800;
+    }
+
+    .mini-actions {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .mini {
+      min-width: 30px;
+      height: 30px;
+      padding: 0 8px;
+      border-radius: 6px;
+      display: inline-grid;
+      place-items: center;
+      background: white;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      font-weight: 850;
+    }
+
+    .mini.red {
+      background: var(--red-soft);
+      color: var(--red);
+      border-color: #fecaca;
+    }
+
+    .mini.blue {
+      background: var(--blue-soft);
+      color: #1e4fc0;
+      border-color: #bfd2ff;
+    }
+
+    .add-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .empty {
+      padding: 26px 18px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty h2 {
+      margin: 0 0 8px;
+      color: var(--text);
+      font-size: 1.15rem;
+    }
+
+    .code-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: #111827;
+      color: white;
+    }
+
+    .code {
+      font-size: clamp(1.7rem, 10vw, 2.5rem);
+      font-weight: 900;
+      letter-spacing: .08em;
+      line-height: 1;
+    }
+
+    .notice {
+      padding: 11px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--muted);
+      line-height: 1.4;
+      font-size: .92rem;
+    }
+
+    .notice.blue {
+      border-color: #bfd2ff;
+      background: var(--blue-soft);
+      color: #1e4fc0;
+    }
+
+    .notice.green {
+      border-color: #b9e9c9;
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .notice.red {
+      border-color: #fecaca;
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 14px;
+      background: rgba(15, 23, 42, .32);
+    }
+
+    .sheet-backdrop.open {
+      display: flex;
+    }
+
+    .sheet {
+      width: min(100%, 560px);
+      max-height: calc(100dvh - 36px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background: white;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: 0 30px 80px rgba(15, 23, 42, .24);
+      padding: 14px;
+    }
+
+    .sheet-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .sheet h2 {
+      margin: 0;
+      font-size: 1.12rem;
+    }
+
+    .status {
+      min-width: 34px;
+      text-align: right;
+      color: var(--muted);
+      font-size: .8rem;
+      font-weight: 750;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (min-width: 720px) {
+      .shell {
+        border-left: 1px solid var(--line);
+        border-right: 1px solid var(--line);
+      }
+
+      .content {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .topbar-inner {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
+      .tabs,
+      .content {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
+      .item {
+        grid-template-columns: 34px 1fr;
+      }
+
+      .item .mini-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+        padding-left: 43px;
+      }
+    }
+  </style>
 </head>
 <body>
-
-<div class="app">
-  <div class="paper" id="mainPaper">
-
-    <!-- HEADER -->
-    <div class="header">
-      <div class="header-decorations">✈ 🧳 🗺</div>
-      <h1>Mon <em>Carnet</em> de Voyage <span class="version-badge">v06</span></h1>
-      <div class="header-subtitle">Checklist de famille · Partagée en temps réel</div>
-    </div>
-
-    <!-- SHARE BANNER -->
-    <div class="share-banner hidden" id="shareBanner">
-      <div style="display:flex;align-items:center;gap:6px;flex:1">
-        <span class="live-dot"></span>
-        Code :
-        <span class="share-code" id="shareCodeDisplay" onclick="copyCode()" title="Cliquer pour copier"></span>
-      </div>
-      <button class="share-btn-small" onclick="showJoinModal()">👥 Inviter</button>
-    </div>
-
-    <!-- TABS -->
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab('voyages')" id="tab-voyages">✈ Mes Voyages</button>
-      <button class="tab" onclick="switchTab('checklist')" id="tab-checklist">☑ Checklist</button>
-      <button class="tab" onclick="switchTab('partage')" id="tab-partage">🔗 Partage</button>
-    </div>
-
-    <!-- CONTENT -->
-    <div class="content" id="mainContent"></div>
-
-  </div>
-</div>
-
-<!-- MODAL: Nouveau Voyage -->
-<div class="modal-overlay" id="modalVoyage">
-  <div class="modal">
-    <h2>✈ Nouveau voyage</h2>
-    <div class="field">
-      <label>Nom du voyage</label>
-      <input type="text" id="newVoyageName" placeholder="Ex: Vacances en Corse…">
-    </div>
-    <div class="field">
-      <label>Date de départ</label>
-      <input type="date" id="newVoyageDate">
-    </div>
-    <div class="field">
-      <label>Type de voyage</label>
-      <div class="cat-grid" id="typeGrid"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modalVoyage')">Annuler</button>
-      <button class="btn btn-primary" onclick="createVoyage()">Créer le voyage</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Join -->
-<div class="modal-overlay" id="modalJoin">
-  <div class="modal">
-    <h2>👥 Rejoindre un voyage</h2>
-    <p style="font-family:'Caveat',cursive;font-size:16px;color:var(--ink-faded);margin-bottom:14px">
-      Entre le code de partage de l'autre appareil pour voir et modifier la checklist en temps réel.
-    </p>
-    <div class="field">
-      <label>Code de partage</label>
-      <input type="text" id="joinCodeInput" placeholder="EX: ABCD12" maxlength="6"
-        style="text-transform:uppercase;letter-spacing:3px;font-size:20px;text-align:center">
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modalJoin')">Annuler</button>
-      <button class="btn btn-primary" onclick="joinVoyage()">Rejoindre</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Nouvelle Catégorie -->
-<div class="modal-overlay" id="modalCat">
-  <div class="modal">
-    <h2>📁 Nouvelle catégorie</h2>
-    <div class="field">
-      <label>Nom</label>
-      <input type="text" id="newCatName" placeholder="Ex: Pharmacie…">
-    </div>
-    <div class="field">
-      <label>Icône</label>
-      <div class="cat-grid" id="iconGrid"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modalCat')">Annuler</button>
-      <button class="btn btn-primary" onclick="addCategory()">Ajouter</button>
-    </div>
-  </div>
-</div>
-
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/pocketbase@0.26.2/dist/pocketbase.umd.js"></script>
-<script>
-// ===== DATA =====
-const AVAILABLE_ICONS = ['💊','🧴','👕','👙','🏖','⛷','🎒','📷','💻','🔌','📚','🎮','🧸','🍼','🥾','🧢','☂️','🎾','🏕','🎸','🔦','🪥','✏️','🗺','💳','🏥','🍫','🧃','🎁','🌂'];
-
-const PRESET_TYPES = [
-  { id: 'avion', label: 'Avion', icon: '✈️' },
-  { id: 'train', label: 'Train', icon: '🚂' },
-  { id: 'voiture', label: 'Voiture', icon: '🚗' },
-  { id: 'plage', label: 'Plage', icon: '🏖️' },
-  { id: 'montagne', label: 'Montagne', icon: '⛷️' },
-  { id: 'ville', label: 'Ville', icon: '🏙️' },
-  { id: 'camping', label: 'Camping', icon: '⛺' },
-  { id: 'croisiere', label: 'Croisière', icon: '🚢' },
-  { id: 'famille', label: 'Famille', icon: '👨‍👩‍👧' },
-  { id: 'business', label: 'Business', icon: '💼' },
-  { id: 'sport', label: 'Sport', icon: '🎾' },
-  { id: 'hiver', label: 'Hiver', icon: '❄️' },
-];
-
-const DEFAULT_CATEGORIES = {
-  avion: [
-    { id: 'cnt', name: 'Passeport / CNI', qty: '' },
-    { id: 'billet', name: 'Billet / e-ticket', qty: '' },
-    { id: 'ecouteurs', name: 'Écouteurs', qty: '' },
-    { id: 'cervical', name: 'Coussin cervical', qty: '' },
-    { id: 'charger', name: 'Chargeur portable', qty: '' },
-  ],
-  plage: [
-    { id: 'maillot', name: 'Maillot de bain', qty: '' },
-    { id: 'serviette', name: 'Serviette de plage', qty: '' },
-    { id: 'creme', name: 'Crème solaire', qty: '' },
-    { id: 'lunettes', name: 'Lunettes de soleil', qty: '' },
-    { id: 'chapeau', name: 'Chapeau / casquette', qty: '' },
-  ],
-  montagne: [
-    { id: 'veste', name: 'Veste imperméable', qty: '' },
-    { id: 'polaire', name: 'Polaire', qty: '' },
-    { id: 'baton', name: 'Bâtons de marche', qty: '' },
-    { id: 'boots', name: 'Chaussures de rando', qty: '' },
-    { id: 'gourde', name: 'Gourde', qty: '' },
-  ],
-};
-
-const COMMON_CATS = [
-  { id: 'toilette', label: 'Trousse de toilette', icon: '🧴', items: [
-    'Brosse à dent', 'Dentifrice', 'Shampoing', 'Après-shampoing', 'Déodorant',
-    'Rasoir', 'Crème hydratante', 'Coton-tiges'
-  ]},
-  { id: 'vetements', label: 'Vêtements', icon: '👕', items: [
-    'T-shirts', 'Pantalons', 'Sous-vêtements', 'Chaussettes', 'Pyjama',
-    'Pull / sweat', 'Tenue de soirée'
-  ]},
-  { id: 'documents', label: 'Documents', icon: '📄', items: [
-    'Passeport / CNI', 'Visa', 'Permis de conduire', 'Carte bancaire',
-    'Assurance voyage', 'Réservations imprimées'
-  ]},
-  { id: 'electronique', label: 'Électronique', icon: '💻', items: [
-    'Téléphone', 'Chargeur téléphone', 'Écouteurs', 'Adaptateur de prise',
-    'Appareil photo', 'Batterie externe'
-  ]},
-];
-
-// ===== STATE =====
-let state = {
-  voyages: [],
-  currentVoyageId: null,
-  tab: 'voyages',
-  shareCode: null,
-  pollingInterval: null,
-  selectedTypes: [],
-  selectedIcon: null,
-  openCats: {},
-};
-
-const STORAGE_PREFIX = 'voyage-data-';
-const POCKETBASE_URL = 'https://psyco.fly.dev';
-const POCKETBASE_COLLECTION = 'travel_checklists';
-let pbClient = null;
-let remoteRecordId = null;
-let remoteUnsubscribe = null;
-let applyingRemoteState = false;
-let pendingRemoteData = null;
-
-function escapeHTML(value) {
-  return String(value ?? '').replace(/[&<>"']/g, char => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  }[char]));
-}
-
-function applySavedState(data) {
-  state.voyages = Array.isArray(data?.voyages) ? data.voyages : [];
-  state.currentVoyageId = data?.currentVoyageId || null;
-}
-
-function buildSavedState() {
-  return {
-    voyages: state.voyages,
-    currentVoyageId: state.currentVoyageId,
-  };
-}
-
-function isCurrentState(data) {
-  try {
-    return JSON.stringify(data) === JSON.stringify(buildSavedState());
-  } catch(e) {
-    return false;
-  }
-}
-
-function isUserEditing() {
-  const el = document.activeElement;
-  if (!el) return false;
-  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
-}
-
-function applyRemoteData(data) {
-  applyingRemoteState = true;
-  applySavedState(data);
-  localStorage.setItem(STORAGE_PREFIX + state.shareCode, JSON.stringify(data));
-  applyingRemoteState = false;
-  render();
-}
-
-function queueRemoteData(data) {
-  pendingRemoteData = data;
-}
-
-function flushPendingRemoteData() {
-  if (!pendingRemoteData || isUserEditing() || isCurrentState(pendingRemoteData)) return;
-  const data = pendingRemoteData;
-  pendingRemoteData = null;
-  applyRemoteData(data);
-}
-
-function getPocketBaseClient() {
-  if (!window.PocketBase) return null;
-  if (!pbClient) {
-    pbClient = new PocketBase(POCKETBASE_URL);
-    pbClient.autoCancellation(false);
-  }
-  return pbClient;
-}
-
-function getRecordData(record) {
-  if (!record?.data) return null;
-  if (typeof record.data === 'string') {
-    try {
-      return JSON.parse(record.data);
-    } catch(e) {
-      return null;
-    }
-  }
-  return record.data;
-}
-
-function sanitizeShareCode(code) {
-  return String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
-}
-
-async function findRemoteRecord(code) {
-  const pb = getPocketBaseClient();
-  const safeCode = sanitizeShareCode(code);
-  if (!pb || !safeCode) return null;
-
-  try {
-    return await pb.collection(POCKETBASE_COLLECTION).getFirstListItem(`code = "${safeCode}"`);
-  } catch(e) {
-    return null;
-  }
-}
-
-function readLocalState(key) {
-  try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + key);
-    return raw ? JSON.parse(raw) : null;
-  } catch(e) {
-    return null;
-  }
-}
-
-async function readRemoteState(key, shared) {
-  const record = await findRemoteRecord(key);
-  if (!record) return null;
-  remoteRecordId = record.id;
-  return getRecordData(record);
-}
-
-async function readSavedState(key, shared = false) {
-  const remoteData = await readRemoteState(key, shared);
-  return remoteData || readLocalState(key);
-}
-
-// ===== STORAGE =====
-async function saveState() {
-  const key = state.shareCode || 'local';
-  const data = buildSavedState();
-  const payload = JSON.stringify(data);
-
-  try {
-    localStorage.setItem(STORAGE_PREFIX + key, payload);
-    if (!applyingRemoteState && state.shareCode) {
-      await saveRemoteState(key, data);
-    }
-  } catch(e) {}
-}
-
-async function loadState(code) {
-  const key = code || state.shareCode || 'local';
-  const data = await readSavedState(key, !!code || !!state.shareCode);
-  if (data) {
-    if (isCurrentState(data)) return false;
-    applySavedState(data);
-    return true;
-  }
-  return false;
-}
-
-async function saveRemoteState(code, data) {
-  const pb = getPocketBaseClient();
-  const safeCode = sanitizeShareCode(code);
-  if (!pb || !safeCode) return false;
-
-  try {
-    let record = null;
-    if (remoteRecordId) {
-      try {
-        record = await pb.collection(POCKETBASE_COLLECTION).getOne(remoteRecordId);
-      } catch(e) {
-        remoteRecordId = null;
-      }
-    }
-    if (!record || record.code !== safeCode) record = await findRemoteRecord(safeCode);
-
-    if (record) {
-      remoteRecordId = record.id;
-      await pb.collection(POCKETBASE_COLLECTION).update(record.id, { code: safeCode, data });
-    } else {
-      const created = await pb.collection(POCKETBASE_COLLECTION).create({ code: safeCode, data });
-      remoteRecordId = created.id;
-      await subscribeToRemoteRecord();
-    }
-    return true;
-  } catch(e) {
-    return false;
-  }
-}
-
-async function subscribeToRemoteRecord() {
-  const pb = getPocketBaseClient();
-  if (!pb || !remoteRecordId) return;
-
-  if (remoteUnsubscribe) {
-    remoteUnsubscribe();
-    remoteUnsubscribe = null;
-  }
-
-  try {
-    remoteUnsubscribe = await pb.collection(POCKETBASE_COLLECTION).subscribe(remoteRecordId, e => {
-      const data = getRecordData(e.record);
-      if (!data || isCurrentState(data)) return;
-
-      if (isUserEditing()) {
-        queueRemoteData(data);
-        return;
-      }
-      applyRemoteData(data);
-    });
-  } catch(e) {}
-}
-
-// ===== SHARE CODE =====
-function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
-}
-
-function getShareCode() {
-  if (!state.shareCode) {
-    state.shareCode = generateCode();
-    localStorage.setItem('travelShareCode', state.shareCode);
-  }
-  return state.shareCode;
-}
-
-function copyCode() {
-  navigator.clipboard.writeText(state.shareCode || '');
-  showToast('Code copié ! ' + state.shareCode);
-}
-
-// ===== POLLING =====
-function startPolling() {
-  if (state.pollingInterval) clearInterval(state.pollingInterval);
-  if (!state.shareCode) return;
-  subscribeToRemoteRecord();
-  state.pollingInterval = setInterval(async () => {
-    if (isUserEditing()) return;
-    const changed = await loadState();
-    if (changed) render();
-  }, 3000);
-}
-
-// ===== TABS =====
-function switchTab(tab) {
-  state.tab = tab;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + tab).classList.add('active');
-  render();
-}
-
-// ===== RENDER =====
-function render() {
-  const c = document.getElementById('mainContent');
-
-  // Share banner
-  const banner = document.getElementById('shareBanner');
-  if (state.shareCode) {
-    banner.classList.remove('hidden');
-    document.getElementById('shareCodeDisplay').textContent = state.shareCode;
-  } else {
-    banner.classList.add('hidden');
-  }
-
-  if (state.tab === 'voyages') renderVoyages(c);
-  else if (state.tab === 'checklist') renderChecklist(c);
-  else renderPartage(c);
-}
-
-// ===== VOYAGES TAB =====
-function renderVoyages(c) {
-  let html = '';
-  if (state.voyages.length === 0) {
-    html += `<div class="empty">
-      <div class="empty-icon">🗺</div>
-      <p>Aucun voyage planifié</p>
-      <p style="margin-top:6px;font-size:14px;color:var(--kraft-dark)">Crée ton premier voyage !</p>
-    </div>`;
-  } else {
-    html += '<div class="voyage-list">';
-    state.voyages.forEach(v => {
-      const total = v.categories.reduce((s, cat) => s + cat.items.length, 0);
-      const checked = v.categories.reduce((s, cat) => s + cat.items.filter(i => i.checked).length, 0);
-      const isActive = state.currentVoyageId === v.id;
-      html += `<div class="voyage-card ${isActive ? 'active' : ''}" onclick="selectVoyage('${v.id}')">
-        <div class="voyage-card-header">
-          <div>
-            <div class="voyage-name">${escapeHTML(v.name)}</div>
-            <div class="voyage-date">${v.date ? '📅 ' + formatDate(v.date) : ''}</div>
+  <div class="app">
+    <div class="shell">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="brand">
+            <div class="brand-mark" aria-hidden="true">✓</div>
+            <div class="brand-title">
+              <h1>Checklist voyage <span class="badge blue">v07</span></h1>
+              <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
+            </div>
           </div>
-          <div class="voyage-progress">${checked}/${total}</div>
+          <button class="icon-btn" type="button" title="Nouveau voyage" onclick="openVoyageSheet()">+</button>
         </div>
-        <div class="voyage-tags">
-          ${v.types.map(t => `<span class="tag">${t.icon} ${escapeHTML(t.label)}</span>`).join('')}
-        </div>
-        <button onclick="event.stopPropagation();deleteVoyage('${v.id}')" 
-          style="margin-top:8px;font-family:'Caveat',cursive;font-size:13px;background:none;border:none;color:var(--red-stamp);cursor:pointer;opacity:0.6">
-          🗑 Supprimer
-        </button>
-      </div>`;
-    });
-    html += '</div>';
-  }
+        <nav class="tabs" aria-label="Navigation principale">
+          <button class="tab active" id="tab-voyages" type="button" onclick="setTab('voyages')">Voyages</button>
+          <button class="tab" id="tab-liste" type="button" onclick="setTab('liste')">Liste</button>
+          <button class="tab" id="tab-partage" type="button" onclick="setTab('partage')">Partage</button>
+        </nav>
+      </header>
 
-  html += `<div style="margin-top:16px">
-    <button class="stamp-btn" onclick="openNewVoyageModal()">
-      + Planifier un nouveau voyage
-    </button>
-  </div>`;
-
-  c.innerHTML = html;
-}
-
-function selectVoyage(id) {
-  state.currentVoyageId = id;
-  saveState();
-  switchTab('checklist');
-}
-
-function deleteVoyage(id) {
-  if (!confirm('Supprimer ce voyage ?')) return;
-  state.voyages = state.voyages.filter(v => v.id !== id);
-  if (state.currentVoyageId === id) state.currentVoyageId = null;
-  saveState();
-  render();
-}
-
-function formatDate(d) {
-  if (!d) return '';
-  const [y, m, day] = d.split('-');
-  const months = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'];
-  return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
-}
-
-// ===== CHECKLIST TAB =====
-function renderChecklist(c) {
-  if (!state.currentVoyageId) {
-    c.innerHTML = `<div class="empty">
-      <div class="empty-icon">☑</div>
-      <p>Sélectionne un voyage</p>
-      <p style="margin-top:6px;font-size:14px">dans l'onglet "Mes Voyages"</p>
-    </div>`;
-    return;
-  }
-
-  const voyage = state.voyages.find(v => v.id === state.currentVoyageId);
-  if (!voyage) { state.currentVoyageId = null; render(); return; }
-
-  const total = voyage.categories.reduce((s, cat) => s + cat.items.length, 0);
-  const checked = voyage.categories.reduce((s, cat) => s + cat.items.filter(i => i.checked).length, 0);
-  const pct = total > 0 ? Math.round(checked / total * 100) : 0;
-
-  let html = `<div class="checklist-header">
-    <div>
-      <div class="checklist-title">${escapeHTML(voyage.name)}</div>
-      <div class="checklist-overall">${checked}/${total} · ${pct}%</div>
+      <main class="content" id="content"></main>
     </div>
   </div>
-  <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>`;
 
-  if (voyage.categories.length === 0) {
-    html += `<div class="empty" style="padding:20px">
-      <p>Aucune catégorie</p>
-      <p style="font-size:14px;margin-top:4px">Ajoute une catégorie ci-dessous</p>
-    </div>`;
-  }
-
-  voyage.categories.forEach((cat, ci) => {
-    const catChecked = cat.items.filter(i => i.checked).length;
-    const catTotal = cat.items.length;
-    const isOpen = state.openCats[cat.id];
-    const isComplete = catChecked === catTotal && catTotal > 0;
-
-    // Sort: unchecked first, checked last
-    const sorted = [...cat.items].sort((a, b) => {
-      if (a.checked === b.checked) return 0;
-      return a.checked ? 1 : -1;
-    });
-
-    html += `<div class="cat-block ${isOpen ? 'open' : ''}" id="cat-${cat.id}">
-      <div class="cat-header" onclick="toggleCat('${cat.id}')">
-        <span class="cat-icon">${cat.icon}</span>
-        <span class="cat-name">${escapeHTML(cat.label)}</span>
-        <span class="cat-count ${isComplete ? 'complete' : ''}">${catChecked}/${catTotal}</span>
-        <span class="cat-chevron">▼</span>
+  <div class="sheet-backdrop" id="voyageSheet" onclick="closeSheetOnBackdrop(event, 'voyageSheet')">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="voyageSheetTitle">
+      <div class="sheet-head">
+        <h2 id="voyageSheetTitle">Nouveau voyage</h2>
+        <button class="icon-btn" type="button" onclick="closeSheet('voyageSheet')" title="Fermer">×</button>
       </div>
-      <div class="cat-items">`;
+      <form class="grid" onsubmit="createVoyage(event)">
+        <div class="field">
+          <label for="voyageName">Nom du voyage</label>
+          <input id="voyageName" name="name" autocomplete="off" placeholder="Ex. Bretagne, Espagne, ski...">
+        </div>
+        <div class="field">
+          <label for="voyageDate">Date ou période</label>
+          <input id="voyageDate" name="date" autocomplete="off" placeholder="Ex. Août 2026">
+        </div>
+        <div class="button-row">
+          <button class="btn blue full" type="submit">Créer</button>
+        </div>
+      </form>
+    </section>
+  </div>
 
-    sorted.forEach(item => {
-      html += `<div class="item-row ${item.checked ? 'checked' : ''}" onclick="toggleItem('${cat.id}','${item.id}')">
-        <div class="checkbox"><span class="checkmark">✓</span></div>
-        <span class="item-name">${escapeHTML(item.name)}</span>
-        ${item.qty ? `<span class="item-qty">${escapeHTML(item.qty)}</span>` : ''}
-        <button class="item-delete" onclick="event.stopPropagation();deleteItem('${cat.id}','${item.id}')">✕</button>
-      </div>`;
-    });
+  <script>
+    const VERSION = "v07";
+    const STORAGE_KEY = "checklist-voyage-state-v2";
+    const OLD_STORAGE_KEY = "travelChecklistState";
+    const PB_URL = "https://psyco.fly.dev";
+    const PB_COLLECTION = "travel_checklists";
 
-    html += `<div class="add-item-row">
-        <input class="add-item-input" type="text" placeholder="Ajouter un item…"
-          id="addItem-${cat.id}"
-          onkeydown="if(event.key==='Enter') addItem('${cat.id}')">
-        <button class="add-item-btn" onclick="addItem('${cat.id}')">+</button>
-      </div>
-      </div>
-    </div>`;
-  });
+    let pb = null;
+    let unsubscribeCurrent = null;
+    let syncTimer = null;
+    let pendingRemoteVoyage = null;
+    let statusText = "Local";
 
-  html += `<div style="margin-top:12px">
-    <button class="stamp-btn" onclick="openAddCatModal()">+ Ajouter une catégorie</button>
-  </div>`;
+    const state = {
+      tab: "voyages",
+      voyages: [],
+      currentVoyageId: null,
+      openCats: {}
+    };
 
-  c.innerHTML = html;
-}
-
-function toggleCat(catId) {
-  state.openCats[catId] = !state.openCats[catId];
-  render();
-}
-
-function toggleItem(catId, itemId) {
-  const voyage = state.voyages.find(v => v.id === state.currentVoyageId);
-  const cat = voyage.categories.find(c => c.id === catId);
-  const item = cat.items.find(i => i.id === itemId);
-  item.checked = !item.checked;
-  saveState();
-  render();
-}
-
-function addItem(catId) {
-  const input = document.getElementById('addItem-' + catId);
-  const name = input.value.trim();
-  if (!name) return;
-  const voyage = state.voyages.find(v => v.id === state.currentVoyageId);
-  const cat = voyage.categories.find(c => c.id === catId);
-  cat.items.push({ id: 'item-' + Date.now(), name, checked: false, qty: '' });
-  saveState();
-  state.openCats[catId] = true;
-  render();
-}
-
-function deleteItem(catId, itemId) {
-  const voyage = state.voyages.find(v => v.id === state.currentVoyageId);
-  const cat = voyage.categories.find(c => c.id === catId);
-  cat.items = cat.items.filter(i => i.id !== itemId);
-  saveState();
-  render();
-}
-
-// ===== PARTAGE TAB =====
-function renderPartage(c) {
-  const code = state.shareCode || '—';
-  const safeCode = escapeHTML(code);
-  c.innerHTML = `
-    <div class="section-label">Mon code de partage</div>
-    <div style="text-align:center;padding:20px;background:var(--cream-dark);border-radius:4px;margin-bottom:16px;border:1px dashed var(--kraft)">
-      <div style="font-family:'Playfair Display',serif;font-size:42px;letter-spacing:6px;color:var(--ink);font-weight:700">${safeCode}</div>
-      <div style="font-family:'Caveat',cursive;font-size:14px;color:var(--ink-faded);margin-top:6px">Partage ce code avec ta famille</div>
-      <button class="btn btn-primary" style="margin-top:12px" onclick="copyCode()">📋 Copier le code</button>
-    </div>
-
-    <div class="section-label">Rejoindre un voyage</div>
-    <div style="background:var(--cream-dark);border:1px dashed var(--kraft);border-radius:4px;padding:14px;margin-bottom:16px">
-      <div style="font-family:'Caveat',cursive;font-size:15px;color:var(--ink-faded);margin-bottom:10px">
-        Entre le code d'un autre appareil pour partager la même liste
-      </div>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="joinInput" placeholder="CODE" maxlength="6"
-          style="flex:1;padding:10px;border:1px solid var(--kraft-light);border-radius:4px;
-            font-family:'Caveat',cursive;font-size:22px;text-transform:uppercase;
-            letter-spacing:4px;text-align:center;background:white;color:var(--ink);outline:none">
-        <button class="btn btn-primary" onclick="joinFromInput()">Rejoindre</button>
-      </div>
-    </div>
-
-    <div style="font-family:'Caveat',cursive;font-size:14px;color:var(--ink-faded);text-align:center;padding:8px">
-      <span class="live-dot"></span>
-      Synchronisation temps réel avec PocketBase
-    </div>
-  `;
-}
-
-function showJoinModal() {
-  document.getElementById('joinCodeInput').value = '';
-  openModal('modalJoin');
-}
-
-async function joinFromInput() {
-  const code = sanitizeShareCode(document.getElementById('joinInput').value);
-  if (code.length < 4) { showToast('Code trop court'); return; }
-  await doJoin(code);
-}
-
-async function joinVoyage() {
-  const code = sanitizeShareCode(document.getElementById('joinCodeInput').value);
-  if (code.length < 4) { showToast('Code trop court'); return; }
-  closeModal('modalJoin');
-  await doJoin(code);
-}
-
-async function doJoin(code) {
-  const safeCode = sanitizeShareCode(code);
-  const data = await readSavedState(safeCode, true);
-  if (data) {
-    state.shareCode = safeCode;
-    localStorage.setItem('travelShareCode', safeCode);
-    applySavedState(data);
-    await subscribeToRemoteRecord();
-    showToast('✓ Connecté ! Code : ' + safeCode);
-    startPolling();
-    render();
-  } else {
-    showToast('Code introuvable ou vide');
-  }
-}
-
-// ===== MODALS =====
-function openModal(id) {
-  document.getElementById(id).classList.add('open');
-}
-
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-
-function openNewVoyageModal() {
-  state.selectedTypes = [];
-  document.getElementById('newVoyageName').value = '';
-  document.getElementById('newVoyageDate').value = '';
-  renderTypeGrid();
-  openModal('modalVoyage');
-}
-
-function renderTypeGrid() {
-  const grid = document.getElementById('typeGrid');
-  grid.innerHTML = PRESET_TYPES.map(t => `
-    <div class="cat-option ${state.selectedTypes.includes(t.id) ? 'selected' : ''}"
-      onclick="toggleType('${t.id}')">
-      <span class="icon">${t.icon}</span>
-      ${escapeHTML(t.label)}
-    </div>
-  `).join('');
-}
-
-function toggleType(id) {
-  if (state.selectedTypes.includes(id)) {
-    state.selectedTypes = state.selectedTypes.filter(t => t !== id);
-  } else {
-    state.selectedTypes.push(id);
-  }
-  renderTypeGrid();
-}
-
-function createVoyage() {
-  const name = document.getElementById('newVoyageName').value.trim();
-  if (!name) { showToast('Donne un nom au voyage'); return; }
-
-  const types = state.selectedTypes.map(id => PRESET_TYPES.find(t => t.id === id)).filter(Boolean);
-
-  // Build default categories from selection + common
-  const cats = [];
-
-  // Common categories always present
-  COMMON_CATS.forEach(cc => {
-    cats.push({
-      id: cc.id + '-' + Date.now(),
-      label: cc.label,
-      icon: cc.icon,
-      items: cc.items.map((name, i) => ({ id: 'it-' + i + '-' + Date.now() + Math.random(), name, checked: false, qty: '' }))
-    });
-  });
-
-  // Type-specific items merged into relevant cats
-  types.forEach(t => {
-    if (DEFAULT_CATEGORIES[t.id]) {
-      // Find or create a category for transport/activity
-      let cat = cats.find(c => c.id.startsWith(t.id));
-      if (!cat) {
-        cat = { id: t.id + '-' + Date.now(), label: t.label, icon: t.icon, items: [] };
-        cats.unshift(cat);
+    const defaultCategories = [
+      {
+        name: "Documents",
+        items: [
+          { name: "Passeports / cartes d'identité", qty: 1 },
+          { name: "Billets et réservations", qty: 1 },
+          { name: "Permis / assurance", qty: 1 }
+        ]
+      },
+      {
+        name: "Vêtements",
+        items: [
+          { name: "Sous-vêtements", qty: 1 },
+          { name: "T-shirts", qty: 1 },
+          { name: "Tenue chaude", qty: 1 }
+        ]
+      },
+      {
+        name: "Toilette",
+        items: [
+          { name: "Brosse à dents", qty: 1 },
+          { name: "Dentifrice", qty: 1 },
+          { name: "Trousse de toilette", qty: 1 }
+        ]
       }
-      DEFAULT_CATEGORIES[t.id].forEach((it, i) => {
-        cat.items.push({ id: 'it-' + t.id + i + Date.now(), name: it.name, checked: false, qty: it.qty });
+    ];
+
+    function uid(prefix) {
+      return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function escapeHTML(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function generateCode() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code = "";
+      for (let i = 0; i < 6; i += 1) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return code;
+    }
+
+    function cleanCode(value) {
+      return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+    }
+
+    function normalizeQty(value) {
+      const number = Number.parseInt(value, 10);
+      if (!Number.isFinite(number) || number < 1) return 1;
+      return Math.min(number, 99);
+    }
+
+    function isUserEditing() {
+      const el = document.activeElement;
+      return el && ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
+    }
+
+    function getPB() {
+      if (pb || typeof PocketBase === "undefined") return pb;
+      pb = new PocketBase(PB_URL);
+      pb.autoCancellation(false);
+      return pb;
+    }
+
+    function currentVoyage() {
+      return state.voyages.find(voyage => voyage.id === state.currentVoyageId) || state.voyages[0] || null;
+    }
+
+    function createDefaultCategories() {
+      return defaultCategories.map(category => ({
+        id: uid("cat"),
+        name: category.name,
+        items: category.items.map(item => ({
+          id: uid("item"),
+          name: item.name,
+          qty: item.qty,
+          done: false
+        }))
+      }));
+    }
+
+    function makeVoyage(name, date) {
+      const voyage = {
+        id: uid("voyage"),
+        code: generateCode(),
+        name: name || "Nouveau voyage",
+        date: date || "",
+        shared: false,
+        remoteRecordId: "",
+        categories: createDefaultCategories(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      voyage.categories.forEach(category => {
+        state.openCats[category.id] = true;
+      });
+      return voyage;
+    }
+
+    function normalizeVoyage(raw) {
+      const voyage = raw && typeof raw === "object" ? raw : {};
+      const normalized = {
+        id: voyage.id || uid("voyage"),
+        code: cleanCode(voyage.code) || generateCode(),
+        name: voyage.name || "Voyage",
+        date: voyage.date || "",
+        shared: Boolean(voyage.shared || voyage.remoteRecordId),
+        remoteRecordId: voyage.remoteRecordId || "",
+        createdAt: voyage.createdAt || new Date().toISOString(),
+        updatedAt: voyage.updatedAt || new Date().toISOString(),
+        categories: Array.isArray(voyage.categories) ? voyage.categories.map(normalizeCategory) : []
+      };
+      return normalized;
+    }
+
+    function normalizeCategory(raw) {
+      const category = raw && typeof raw === "object" ? raw : {};
+      return {
+        id: category.id || uid("cat"),
+        name: category.name || "Catégorie",
+        items: Array.isArray(category.items) ? category.items.map(normalizeItem) : []
+      };
+    }
+
+    function normalizeItem(raw) {
+      const item = raw && typeof raw === "object" ? raw : {};
+      return {
+        id: item.id || uid("item"),
+        name: item.name || "Élément",
+        qty: normalizeQty(item.qty || 1),
+        done: Boolean(item.done)
+      };
+    }
+
+    function saveLocal() {
+      const payload = {
+        version: VERSION,
+        currentVoyageId: state.currentVoyageId,
+        voyages: state.voyages,
+        openCats: state.openCats
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function loadLocal() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          state.voyages = Array.isArray(parsed.voyages) ? parsed.voyages.map(normalizeVoyage) : [];
+          state.currentVoyageId = parsed.currentVoyageId || state.voyages[0]?.id || null;
+          state.openCats = parsed.openCats && typeof parsed.openCats === "object" ? parsed.openCats : {};
+          return;
+        } catch (error) {
+          console.warn("Impossible de charger le stockage v2", error);
+        }
+      }
+      migrateOldLocalState();
+    }
+
+    function migrateOldLocalState() {
+      const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
+      if (!oldRaw) return;
+      try {
+        const oldState = JSON.parse(oldRaw);
+        const oldVoyages = Array.isArray(oldState.voyages) ? oldState.voyages : [];
+        state.voyages = oldVoyages.map(voyage => normalizeVoyage({
+          ...voyage,
+          code: voyage.code || generateCode(),
+          shared: false,
+          remoteRecordId: ""
+        }));
+        state.currentVoyageId = state.voyages[0]?.id || null;
+        saveLocal();
+      } catch (error) {
+        console.warn("Migration ancien stockage impossible", error);
+      }
+    }
+
+    function progressForVoyage(voyage) {
+      const items = voyage.categories.flatMap(category => category.items);
+      const total = items.length;
+      const done = items.filter(item => item.done).length;
+      return {
+        total,
+        done,
+        percent: total ? Math.round((done / total) * 100) : 0
+      };
+    }
+
+    function progressForCategory(category) {
+      const total = category.items.length;
+      const done = category.items.filter(item => item.done).length;
+      return {
+        total,
+        done,
+        percent: total ? Math.round((done / total) * 100) : 0
+      };
+    }
+
+    function setStatus(text) {
+      statusText = text;
+      const status = document.getElementById("headerMeta");
+      const voyage = currentVoyage();
+      if (status) {
+        status.textContent = voyage ? `${voyage.name} · ${text}` : "Préparez vos sacs sans prise de tête";
+      }
+    }
+
+    function setTab(tab) {
+      state.tab = tab;
+      render();
+      if (tab === "liste") {
+        setTimeout(() => document.getElementById("content")?.scrollTo({ top: 0, behavior: "smooth" }), 0);
+      }
+    }
+
+    function openVoyageSheet() {
+      document.getElementById("voyageName").value = "";
+      document.getElementById("voyageDate").value = "";
+      document.getElementById("voyageSheet").classList.add("open");
+      setTimeout(() => document.getElementById("voyageName").focus(), 50);
+    }
+
+    function closeSheet(id) {
+      document.getElementById(id).classList.remove("open");
+    }
+
+    function closeSheetOnBackdrop(event, id) {
+      if (event.target.id === id) closeSheet(id);
+    }
+
+    function createVoyage(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const name = form.elements.name.value.trim();
+      const date = form.elements.date.value.trim();
+      const voyage = makeVoyage(name, date);
+      state.voyages.unshift(voyage);
+      state.currentVoyageId = voyage.id;
+      state.tab = "liste";
+      closeSheet("voyageSheet");
+      saveAndSync(voyage, { immediate: true });
+      render();
+    }
+
+    function selectVoyage(id) {
+      state.currentVoyageId = id;
+      state.tab = "liste";
+      const voyage = currentVoyage();
+      if (voyage) {
+        voyage.categories.forEach(category => {
+          if (state.openCats[category.id] === undefined) {
+            state.openCats[category.id] = category.items.some(item => !item.done);
+          }
+        });
+      }
+      saveLocal();
+      render();
+      subscribeToCurrentVoyage();
+    }
+
+    function renameVoyage(id) {
+      const voyage = state.voyages.find(item => item.id === id);
+      if (!voyage) return;
+      const value = prompt("Nouveau nom du voyage", voyage.name);
+      if (value === null) return;
+      const next = value.trim();
+      if (!next) return;
+      voyage.name = next;
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function renameCurrentVoyage() {
+      const voyage = currentVoyage();
+      if (voyage) renameVoyage(voyage.id);
+    }
+
+    function deleteVoyage(id) {
+      const voyage = state.voyages.find(item => item.id === id);
+      if (!voyage) return;
+      if (!confirm(`Supprimer le voyage "${voyage.name}" de cet appareil ?`)) return;
+      state.voyages = state.voyages.filter(item => item.id !== id);
+      if (state.currentVoyageId === id) state.currentVoyageId = state.voyages[0]?.id || null;
+      saveLocal();
+      render();
+      subscribeToCurrentVoyage();
+    }
+
+    function addCategory() {
+      const voyage = currentVoyage();
+      if (!voyage) return;
+      const value = prompt("Nom de la nouvelle catégorie", "À ajouter");
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      const category = { id: uid("cat"), name, items: [] };
+      voyage.categories.push(category);
+      state.openCats[category.id] = true;
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function renameCategory(categoryId) {
+      const voyage = currentVoyage();
+      const category = voyage?.categories.find(item => item.id === categoryId);
+      if (!category) return;
+      const value = prompt("Nouveau nom de la catégorie", category.name);
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      category.name = name;
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function deleteCategory(categoryId) {
+      const voyage = currentVoyage();
+      const category = voyage?.categories.find(item => item.id === categoryId);
+      if (!voyage || !category) return;
+      if (!confirm(`Supprimer la catégorie "${category.name}" ?`)) return;
+      voyage.categories = voyage.categories.filter(item => item.id !== categoryId);
+      delete state.openCats[categoryId];
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function toggleCategory(categoryId) {
+      state.openCats[categoryId] = !state.openCats[categoryId];
+      saveLocal();
+      render();
+    }
+
+    function addItem(event, categoryId) {
+      event.preventDefault();
+      const voyage = currentVoyage();
+      const category = voyage?.categories.find(item => item.id === categoryId);
+      if (!voyage || !category) return;
+      const input = event.currentTarget.querySelector("input");
+      const name = input.value.trim();
+      if (!name) return;
+      category.items.push({ id: uid("item"), name, qty: 1, done: false });
+      input.value = "";
+      state.openCats[categoryId] = true;
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function toggleItem(categoryId, itemId) {
+      const voyage = currentVoyage();
+      const item = voyage?.categories
+        .find(category => category.id === categoryId)?.items
+        .find(row => row.id === itemId);
+      if (!voyage || !item) return;
+      item.done = !item.done;
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function renameItem(categoryId, itemId) {
+      const voyage = currentVoyage();
+      const item = voyage?.categories
+        .find(category => category.id === categoryId)?.items
+        .find(row => row.id === itemId);
+      if (!voyage || !item) return;
+      const value = prompt("Renommer l'élément", item.name);
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      item.name = name;
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function deleteItem(categoryId, itemId) {
+      const voyage = currentVoyage();
+      const category = voyage?.categories.find(item => item.id === categoryId);
+      if (!voyage || !category) return;
+      category.items = category.items.filter(item => item.id !== itemId);
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function changeQty(categoryId, itemId, deltaOrValue) {
+      const voyage = currentVoyage();
+      const item = voyage?.categories
+        .find(category => category.id === categoryId)?.items
+        .find(row => row.id === itemId);
+      if (!voyage || !item) return;
+      if (typeof deltaOrValue === "number") {
+        item.qty = normalizeQty(item.qty + deltaOrValue);
+      } else {
+        item.qty = normalizeQty(deltaOrValue);
+      }
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function saveAndSync(voyage, options = {}) {
+      saveLocal();
+      if (syncTimer) clearTimeout(syncTimer);
+      const delay = options.immediate ? 0 : 550;
+      syncTimer = setTimeout(() => saveVoyageRemote(voyage), delay);
+    }
+
+    async function findRecordByCode(code) {
+      const client = getPB();
+      if (!client) throw new Error("PocketBase indisponible");
+      return client.collection(PB_COLLECTION).getFirstListItem(`code = "${cleanCode(code)}"`, {
+        requestKey: null
       });
     }
-  });
 
-  const voyage = {
-    id: 'v-' + Date.now(),
-    name,
-    date: document.getElementById('newVoyageDate').value,
-    types,
-    categories: cats,
-  };
+    function remotePayload(voyage) {
+      return {
+        ...voyage,
+        shared: true,
+        updatedAt: new Date().toISOString()
+      };
+    }
 
-  state.voyages.unshift(voyage);
-  state.currentVoyageId = voyage.id;
-  closeModal('modalVoyage');
-  saveState();
-  showToast('Voyage créé ! ✈');
-  switchTab('checklist');
-}
+    async function saveVoyageRemote(voyage) {
+      if (!voyage) return;
+      const client = getPB();
+      if (!client) {
+        setStatus("Local");
+        return;
+      }
+      try {
+        setStatus("Synchronisation...");
+        let record = null;
+        if (voyage.remoteRecordId) {
+          try {
+            record = await client.collection(PB_COLLECTION).getOne(voyage.remoteRecordId, { requestKey: null });
+          } catch (error) {
+            record = null;
+          }
+        }
+        if (!record) {
+          try {
+            record = await findRecordByCode(voyage.code);
+          } catch (error) {
+            record = null;
+          }
+        }
+        const data = remotePayload(voyage);
+        if (record) {
+          record = await client.collection(PB_COLLECTION).update(record.id, {
+            code: voyage.code,
+            data
+          }, { requestKey: null });
+        } else {
+          record = await client.collection(PB_COLLECTION).create({
+            code: voyage.code,
+            data
+          }, { requestKey: null });
+        }
+        voyage.shared = true;
+        voyage.remoteRecordId = record.id;
+        saveLocal();
+        setStatus("Partagé");
+        subscribeToCurrentVoyage();
+      } catch (error) {
+        console.warn("Synchronisation impossible", error);
+        setStatus("Local");
+      }
+    }
 
-// ===== ADD CATEGORY =====
-function openAddCatModal() {
-  state.selectedIcon = AVAILABLE_ICONS[0];
-  document.getElementById('newCatName').value = '';
-  renderIconGrid();
-  openModal('modalCat');
-}
+    async function subscribeToCurrentVoyage() {
+      const voyage = currentVoyage();
+      const client = getPB();
+      if (unsubscribeCurrent) {
+        try {
+          unsubscribeCurrent();
+        } catch (error) {
+          console.warn("Désabonnement impossible", error);
+        }
+        unsubscribeCurrent = null;
+      }
+      if (!client || !voyage?.code) {
+        setStatus(voyage?.shared ? "Partagé" : "Local");
+        return;
+      }
+      try {
+        let record = null;
+        if (voyage.remoteRecordId) {
+          try {
+            record = await client.collection(PB_COLLECTION).getOne(voyage.remoteRecordId, { requestKey: null });
+          } catch (error) {
+            record = null;
+          }
+        }
+        if (!record) record = await findRecordByCode(voyage.code);
+        voyage.shared = true;
+        voyage.remoteRecordId = record.id;
+        saveLocal();
+        unsubscribeCurrent = await client.collection(PB_COLLECTION).subscribe(record.id, event => {
+          if (event.action !== "update" || !event.record?.data) return;
+          receiveRemoteVoyage(event.record.data, event.record.id);
+        }, { requestKey: null });
+        setStatus("Partagé");
+      } catch (error) {
+        setStatus(voyage.shared ? "Partagé" : "Local");
+      }
+    }
 
-function renderIconGrid() {
-  const grid = document.getElementById('iconGrid');
-  grid.innerHTML = AVAILABLE_ICONS.map(ic => `
-    <div class="cat-option ${state.selectedIcon === ic ? 'selected' : ''}"
-      onclick="selectIcon('${ic}')">
-      <span class="icon">${ic}</span>
-    </div>
-  `).join('');
-}
+    function receiveRemoteVoyage(remoteData, recordId) {
+      const incoming = normalizeVoyage({
+        ...(remoteData.voyage || remoteData),
+        shared: true,
+        remoteRecordId: recordId
+      });
+      if (isUserEditing()) {
+        pendingRemoteVoyage = incoming;
+        return;
+      }
+      applyRemoteVoyage(incoming);
+    }
 
-function selectIcon(ic) {
-  state.selectedIcon = ic;
-  renderIconGrid();
-}
+    function applyRemoteVoyage(incoming) {
+      const index = state.voyages.findIndex(voyage => voyage.code === incoming.code || voyage.id === incoming.id);
+      if (index >= 0) {
+        const previousId = state.voyages[index].id;
+        state.voyages[index] = { ...incoming, id: previousId };
+        if (state.currentVoyageId === incoming.id) state.currentVoyageId = previousId;
+      } else {
+        state.voyages.unshift(incoming);
+        state.currentVoyageId = incoming.id;
+      }
+      saveLocal();
+      render();
+    }
 
-function addCategory() {
-  const name = document.getElementById('newCatName').value.trim();
-  if (!name) { showToast('Donne un nom à la catégorie'); return; }
-  const voyage = state.voyages.find(v => v.id === state.currentVoyageId);
-  const cat = {
-    id: 'cat-' + Date.now(),
-    label: name,
-    icon: state.selectedIcon || '📁',
-    items: [],
-  };
-  voyage.categories.push(cat);
-  state.openCats[cat.id] = true;
-  closeModal('modalCat');
-  saveState();
-  render();
-}
+    function flushPendingRemoteVoyage() {
+      if (!pendingRemoteVoyage || isUserEditing()) return;
+      const incoming = pendingRemoteVoyage;
+      pendingRemoteVoyage = null;
+      applyRemoteVoyage(incoming);
+    }
 
-// ===== TOAST =====
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
+    async function joinVoyage(event) {
+      event.preventDefault();
+      const input = event.currentTarget.querySelector("input");
+      const code = cleanCode(input.value);
+      if (!code) return;
+      try {
+        setStatus("Recherche...");
+        const record = await findRecordByCode(code);
+        if (!record?.data) throw new Error("Voyage introuvable");
+        const voyage = normalizeVoyage({
+          ...(record.data.voyage || record.data),
+          code,
+          shared: true,
+          remoteRecordId: record.id
+        });
+        const existingIndex = state.voyages.findIndex(item => item.code === voyage.code);
+        if (existingIndex >= 0) {
+          voyage.id = state.voyages[existingIndex].id;
+          state.voyages[existingIndex] = voyage;
+        } else {
+          state.voyages.unshift(voyage);
+        }
+        state.currentVoyageId = voyage.id;
+        state.tab = "liste";
+        saveLocal();
+        input.value = "";
+        render();
+        subscribeToCurrentVoyage();
+      } catch (error) {
+        console.warn("Import impossible", error);
+        alert("Je n'ai pas trouvé ce voyage. Vérifie le code, puis réessaie.");
+        setStatus("Local");
+      }
+    }
 
-// ===== INIT =====
-async function init() {
-  // Restore share code
-  const saved = localStorage.getItem('travelShareCode');
-  if (saved) {
-    state.shareCode = sanitizeShareCode(saved);
-    const loaded = await loadState();
-    if (!loaded) await saveState();
-    startPolling();
-  }
+    function copyCode(code) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(code).then(() => setStatus("Code copié"));
+      } else {
+        window.prompt("Code à copier", code);
+      }
+    }
 
-  // Init share code for this device
-  if (!state.shareCode) {
-    state.shareCode = generateCode();
-    localStorage.setItem('travelShareCode', state.shareCode);
-    await saveState();
-    startPolling();
-  }
+    function render() {
+      document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+      document.getElementById(`tab-${state.tab}`)?.classList.add("active");
+      const voyage = currentVoyage();
+      setStatus(voyage ? (voyage.shared ? "Partagé" : "Local") : "Local");
 
-  render();
-}
+      if (!voyage && state.tab !== "voyages") state.tab = "voyages";
 
-// Close modal on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay) overlay.classList.remove('open');
-  });
-});
+      if (state.tab === "liste") renderChecklist();
+      else if (state.tab === "partage") renderShare();
+      else renderVoyages();
+    }
 
-document.addEventListener('focusout', () => {
-  setTimeout(flushPendingRemoteData, 0);
-});
+    function renderVoyages() {
+      const content = document.getElementById("content");
+      if (!state.voyages.length) {
+        content.innerHTML = `
+          <section class="panel empty">
+            <h2>Aucun voyage pour le moment</h2>
+            <p>Créez un voyage pour obtenir son code de partage et préparer la liste à plusieurs.</p>
+            <button class="btn blue" type="button" onclick="openVoyageSheet()">Créer un voyage</button>
+          </section>
+          <section class="panel panel-pad">
+            <form class="grid" onsubmit="joinVoyage(event)">
+              <div class="field">
+                <label for="firstJoinCode">Rejoindre un voyage partagé</label>
+                <input id="firstJoinCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Code du voyage">
+              </div>
+              <button class="btn ghost full" type="submit">Ajouter ce voyage</button>
+            </form>
+          </section>
+        `;
+        return;
+      }
 
-init();
-</script>
+      const cards = state.voyages.map(voyage => {
+        const progress = progressForVoyage(voyage);
+        const isCurrent = voyage.id === state.currentVoyageId;
+        return `
+          <article class="voyage-card ${isCurrent ? "active" : ""}">
+            <div class="voyage-main">
+              <div>
+                <h2 class="voyage-name">${escapeHTML(voyage.name)}</h2>
+                <div class="voyage-meta">
+                  ${voyage.date ? `<span class="badge">${escapeHTML(voyage.date)}</span>` : ""}
+                  <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
+                  <span class="badge blue">${escapeHTML(voyage.code)}</span>
+                </div>
+              </div>
+              <div class="status">${progress.percent}%</div>
+            </div>
+            <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
+            <div class="button-row">
+              <button class="btn blue" type="button" onclick="selectVoyage('${voyage.id}')">Ouvrir</button>
+              <button class="btn ghost" type="button" onclick="renameVoyage('${voyage.id}')">Renommer</button>
+              <button class="btn soft-red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer</button>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      content.innerHTML = `
+        <section class="toolbar">
+          <div class="toolbar-title">
+            <h2>Voyages</h2>
+            <p>Chaque voyage a maintenant son propre code de partage.</p>
+          </div>
+          <button class="btn blue" type="button" onclick="openVoyageSheet()">Nouveau</button>
+        </section>
+        <section class="grid">${cards}</section>
+      `;
+    }
+
+    function renderChecklist() {
+      const voyage = currentVoyage();
+      const content = document.getElementById("content");
+      if (!voyage) {
+        renderVoyages();
+        return;
+      }
+      const progress = progressForVoyage(voyage);
+      const categories = voyage.categories.map(category => renderCategory(voyage, category)).join("");
+      content.innerHTML = `
+        <section class="section panel panel-pad">
+          <div class="toolbar">
+            <div class="toolbar-title">
+              <h2>${escapeHTML(voyage.name)}</h2>
+              <p>${progress.done}/${progress.total} éléments prêts${voyage.date ? ` · ${escapeHTML(voyage.date)}` : ""}</p>
+            </div>
+            <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
+          </div>
+          <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
+          <div class="button-row" style="margin-top:12px">
+            <button class="btn ghost" type="button" onclick="renameCurrentVoyage()">Renommer</button>
+            <button class="btn soft-blue" type="button" onclick="setTab('partage')">Code ${escapeHTML(voyage.code)}</button>
+            <button class="btn green" type="button" onclick="addCategory()">Ajouter une catégorie</button>
+          </div>
+        </section>
+        <section class="grid">
+          ${categories || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez une catégorie pour commencer.</p></div>`}
+        </section>
+      `;
+    }
+
+    function renderCategory(voyage, category) {
+      const progress = progressForCategory(category);
+      const open = state.openCats[category.id] !== false;
+      const items = category.items.map(item => `
+        <article class="item ${item.done ? "done" : ""}">
+          <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Cocher">✓</button>
+          <div class="item-label" onclick="toggleItem('${category.id}', '${item.id}')">${escapeHTML(item.name)}</div>
+          <div class="mini-actions">
+            <div class="qty" onclick="event.stopPropagation()">
+              <button type="button" onclick="changeQty('${category.id}', '${item.id}', -1)" title="Diminuer">−</button>
+              <input aria-label="Quantité" value="${escapeHTML(item.qty)}" inputmode="numeric" onchange="changeQty('${category.id}', '${item.id}', this.value)" onfocus="this.select()">
+              <button type="button" onclick="changeQty('${category.id}', '${item.id}', 1)" title="Augmenter">+</button>
+            </div>
+            <button class="mini blue" type="button" onclick="renameItem('${category.id}', '${item.id}')" title="Renommer">✎</button>
+            <button class="mini red" type="button" onclick="deleteItem('${category.id}', '${item.id}')" title="Supprimer">×</button>
+          </div>
+        </article>
+      `).join("");
+
+      return `
+        <article class="category ${open ? "open" : ""}">
+          <button class="category-head" type="button" onclick="toggleCategory('${category.id}')">
+            <div class="category-title">
+              <span class="chevron">${open ? "⌃" : "⌄"}</span>
+              <span class="category-name">${escapeHTML(category.name)}</span>
+            </div>
+            <div class="category-actions" onclick="event.stopPropagation()">
+              <span class="badge">${progress.done}/${progress.total}</span>
+              <button class="mini blue" type="button" onclick="renameCategory('${category.id}')" title="Renommer">✎</button>
+              <button class="mini red" type="button" onclick="deleteCategory('${category.id}')" title="Supprimer">×</button>
+            </div>
+          </button>
+          <div class="category-body">
+            ${items || `<div class="notice">Aucun élément dans cette catégorie.</div>`}
+            <form class="add-item" onsubmit="addItem(event, '${category.id}')">
+              <input autocomplete="off" placeholder="Ajouter un élément">
+              <button class="btn blue" type="submit">Ajouter</button>
+            </form>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderShare() {
+      const voyage = currentVoyage();
+      const content = document.getElementById("content");
+      if (!voyage) {
+        renderVoyages();
+        return;
+      }
+      content.innerHTML = `
+        <section class="panel panel-pad section">
+          <div class="toolbar">
+            <div class="toolbar-title">
+              <h2>Partager ce voyage</h2>
+              <p>Le code ci-dessous donne accès uniquement à "${escapeHTML(voyage.name)}".</p>
+            </div>
+            <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
+          </div>
+          <div class="code-box">
+            <div>
+              <div class="muted" style="color:#cbd5e1;margin:0 0 6px">Code du voyage</div>
+              <div class="code">${escapeHTML(voyage.code)}</div>
+            </div>
+            <button class="btn ghost" type="button" onclick="copyCode('${voyage.code}')">Copier</button>
+          </div>
+          <div class="button-row" style="margin-top:12px">
+            <button class="btn green" type="button" onclick="saveVoyageRemote(currentVoyage())">Synchroniser</button>
+            <button class="btn ghost" type="button" onclick="setTab('liste')">Retour liste</button>
+          </div>
+        </section>
+
+        <section class="panel panel-pad section">
+          <form class="grid" onsubmit="joinVoyage(event)">
+            <div class="field">
+              <label for="joinCode">Ajouter un autre voyage partagé</label>
+              <input id="joinCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Code du voyage">
+            </div>
+            <button class="btn blue full" type="submit">Ouvrir ce voyage</button>
+          </form>
+        </section>
+
+        <section class="notice blue">
+          Le partage se fait maintenant voyage par voyage. Votre liste locale peut contenir plusieurs voyages, mais chaque code ne synchronise qu'un seul voyage.
+        </section>
+      `;
+    }
+
+    document.addEventListener("focusout", () => {
+      setTimeout(flushPendingRemoteVoyage, 120);
+    });
+
+    window.addEventListener("online", () => {
+      const voyage = currentVoyage();
+      if (voyage) saveVoyageRemote(voyage);
+    });
+
+    loadLocal();
+    if (!state.voyages.length) {
+      const starter = makeVoyage("Premier voyage", "");
+      state.voyages.push(starter);
+      state.currentVoyageId = starter.id;
+      saveLocal();
+    }
+    render();
+    subscribeToCurrentVoyage();
+  </script>
 </body>
 </html>
