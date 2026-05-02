@@ -42,7 +42,8 @@
     }
 
     body {
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
 
     button,
@@ -196,11 +197,7 @@
     }
 
     .content {
-      min-height: 0;
       flex: 1;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
       padding: 14px 14px calc(24px + var(--safe-bottom));
     }
 
@@ -348,17 +345,77 @@
     }
 
     .voyage-card {
+      position: relative;
       padding: 13px;
       border-radius: var(--radius);
       border: 1px solid var(--line);
       background: white;
       display: grid;
       gap: 12px;
+      width: 100%;
+      color: var(--text);
+      text-align: left;
     }
 
     .voyage-card.active {
       border-color: #a9c2ff;
       box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+    }
+
+    .voyage-card.clickable {
+      cursor: pointer;
+    }
+
+    .voyage-card.clickable:hover {
+      border-color: #b7c3d6;
+    }
+
+    .voyage-menu {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .voyage-menu summary {
+      list-style: none;
+    }
+
+    .voyage-menu summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .voyage-menu-panel {
+      position: absolute;
+      right: 0;
+      top: 40px;
+      z-index: 30;
+      min-width: 210px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: 0 18px 46px rgba(15, 23, 42, .18);
+    }
+
+    .menu-item {
+      width: 100%;
+      min-height: 38px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      border-radius: 6px;
+      background: white;
+      color: var(--text);
+      font-weight: 750;
+      text-align: left;
+    }
+
+    .menu-item:hover {
+      background: var(--panel-soft);
+    }
+
+    .menu-item.red {
+      color: var(--red);
     }
 
     .add-card {
@@ -769,7 +826,7 @@
           <div class="brand">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v08</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v09</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </div>
@@ -817,7 +874,7 @@
   </div>
 
   <script>
-    const VERSION = "v08";
+    const VERSION = "v09";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1159,6 +1216,20 @@
       subscribeToCurrentVoyage();
     }
 
+    function resetVoyageLists(id) {
+      const voyage = state.voyages.find(item => item.id === id);
+      if (!voyage) return;
+      if (!confirm(`Tout décocher dans "${voyage.name}" ?`)) return;
+      voyage.categories.forEach(category => {
+        category.items.forEach(item => {
+          item.done = false;
+        });
+      });
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
     function addCategory() {
       const voyage = currentVoyage();
       if (!voyage) return;
@@ -1492,7 +1563,7 @@
         const progress = progressForVoyage(voyage);
         const isCurrent = voyage.id === state.currentVoyageId;
         return `
-          <article class="voyage-card ${isCurrent ? "active" : ""}">
+          <article class="voyage-card clickable ${isCurrent ? "active" : ""}" onclick="selectVoyage('${voyage.id}')">
             <div class="voyage-main">
               <div>
                 <h2 class="voyage-name">${escapeHTML(voyage.name)}</h2>
@@ -1502,14 +1573,19 @@
                   <span class="badge blue">${escapeHTML(voyage.code)}</span>
                 </div>
               </div>
-              <div class="status">${progress.percent}%</div>
+              <div class="category-actions">
+                <div class="status">${progress.percent}%</div>
+                <details class="voyage-menu" onclick="event.stopPropagation()">
+                  <summary class="icon-btn" title="Options du voyage">⋮</summary>
+                  <div class="voyage-menu-panel">
+                    <button class="menu-item" type="button" onclick="renameVoyage('${voyage.id}')">Renommer</button>
+                    <button class="menu-item" type="button" onclick="resetVoyageLists('${voyage.id}')">Réinitialiser les listes</button>
+                    <button class="menu-item red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer</button>
+                  </div>
+                </details>
+              </div>
             </div>
             <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
-            <div class="button-row">
-              <button class="btn blue" type="button" onclick="selectVoyage('${voyage.id}')">Ouvrir</button>
-              <button class="btn ghost" type="button" onclick="renameVoyage('${voyage.id}')">Renommer</button>
-              <button class="btn soft-red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer</button>
-            </div>
           </article>
         `;
       }).join("");
