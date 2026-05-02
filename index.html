@@ -84,6 +84,23 @@
     color: var(--kraft-dark);
   }
 
+  .version-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    padding: 2px 7px;
+    border: 1px dashed var(--kraft);
+    border-radius: 4px;
+    color: var(--blue-ink);
+    font-family: 'Caveat', cursive;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0;
+    vertical-align: middle;
+    background: rgba(255,255,255,0.45);
+  }
+
   .header-subtitle {
     font-family: 'Caveat', cursive;
     font-size: 15px;
@@ -788,7 +805,7 @@
     <!-- HEADER -->
     <div class="header">
       <div class="header-decorations">✈ 🧳 🗺</div>
-      <h1>Mon <em>Carnet</em> de Voyage</h1>
+      <h1>Mon <em>Carnet</em> de Voyage <span class="version-badge">v03</span></h1>
       <div class="header-subtitle">Checklist de famille · Partagée en temps réel</div>
     </div>
 
