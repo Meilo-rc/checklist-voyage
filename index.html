@@ -322,6 +322,103 @@
       accent-color: var(--blue);
     }
 
+    .suggestions {
+      display: none;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .suggestions.open {
+      display: grid;
+    }
+
+    .suggestion {
+      min-height: 40px;
+      padding: 8px 10px;
+      background: white;
+      color: var(--text);
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      font-weight: 750;
+    }
+
+    .suggestion:last-child {
+      border-bottom: 0;
+    }
+
+    .suggestion span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 600;
+    }
+
+    .calendar {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      overflow: hidden;
+    }
+
+    .calendar-head {
+      display: grid;
+      grid-template-columns: 36px 1fr 36px;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 6px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-soft);
+    }
+
+    .calendar-title {
+      text-align: center;
+      font-weight: 850;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 2px;
+      padding: 8px;
+    }
+
+    .calendar-weekday {
+      min-height: 24px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: .76rem;
+      font-weight: 800;
+    }
+
+    .calendar-day {
+      aspect-ratio: 1;
+      min-height: 34px;
+      border-radius: 6px;
+      background: white;
+      color: var(--text);
+      font-weight: 760;
+    }
+
+    .calendar-day.muted {
+      color: #b6bfcc;
+    }
+
+    .calendar-day.in-range {
+      background: var(--blue-soft);
+      color: #1e4fc0;
+    }
+
+    .calendar-day.selected {
+      background: var(--blue);
+      color: white;
+    }
+
     label {
       color: var(--muted);
       font-size: .82rem;
@@ -954,7 +1051,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v15</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v16</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -974,11 +1071,12 @@
       <form class="grid section" onsubmit="createVoyage(event)">
         <div class="field">
           <label for="voyageLocation">Lieu</label>
-          <input id="voyageLocation" name="location" autocomplete="off" placeholder="Ex. Bretagne, Espagne, ski...">
+          <input id="voyageLocation" name="location" autocomplete="off" placeholder="Rechercher une destination" oninput="searchDestination(this.value)" onfocus="showDestinationSuggestions()">
+          <div class="suggestions" id="destinationSuggestions"></div>
         </div>
         <div class="field">
-          <label for="voyageRangeDate">Dates du voyage</label>
-          <input id="voyageRangeDate" name="rangeDate" type="date" onchange="handleDateRangePick(this.value)">
+          <label>Dates du voyage</label>
+          <div class="calendar" id="rangeCalendar"></div>
           <div class="muted" id="voyageRangeStatus">Choisissez la date de départ, puis la date de retour.</div>
         </div>
         <div class="choice-block">
@@ -1029,7 +1127,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
   <script>
-    const VERSION = "v15";
+    const VERSION = "v16";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1041,6 +1139,9 @@
     let pendingRemoteVoyage = null;
     let statusText = "Local";
     let draftDateRange = { start: "", end: "", next: "start" };
+    let draftCalendarMonth = new Date();
+    let selectedDestination = null;
+    let destinationSearchTimer = null;
     let toastTimer = null;
 
     const state = {
@@ -1194,6 +1295,7 @@
         date: date || "",
         startDate: options.startDate || "",
         endDate: options.endDate || "",
+        destination: options.destination || null,
         enrichment: options.enrichment || null,
         shared: false,
         remoteRecordId: "",
@@ -1216,6 +1318,7 @@
         date: voyage.date || "",
         startDate: voyage.startDate || "",
         endDate: voyage.endDate || "",
+        destination: voyage.destination || null,
         enrichment: voyage.enrichment || null,
         shared: Boolean(voyage.shared || voyage.remoteRecordId),
         remoteRecordId: voyage.remoteRecordId || "",
@@ -1341,6 +1444,8 @@
 
     function openVoyageSheet() {
       document.getElementById("voyageLocation").value = "";
+      selectedDestination = null;
+      renderDestinationSuggestions([]);
       resetDraftDateRange();
       document.getElementById("sheetJoinCode").value = "";
       document.querySelectorAll("#voyageSheet input[type='checkbox']").forEach(input => {
@@ -1363,17 +1468,23 @@
       const form = event.currentTarget;
       const submit = form.querySelector("button[type='submit']");
       const name = form.elements.location.value.trim();
+      if (!name) {
+        alert("Choisis une destination pour créer le voyage.");
+        return;
+      }
       const date = formatDateRange(draftDateRange.start, draftDateRange.end);
       const options = {
         ...getVoyagePresetOptions(form),
         startDate: draftDateRange.start,
-        endDate: draftDateRange.end
+        endDate: draftDateRange.end,
+        destination: selectedDestination
       };
       if (submit) {
         submit.disabled = true;
         submit.textContent = "Création...";
       }
-      options.enrichment = await fetchTripEnrichment(name, options.startDate, options.endDate);
+      options.enrichment = await fetchTripEnrichment(name, options.startDate, options.endDate, selectedDestination);
+      options.destination = selectedDestination || options.enrichment?.location || null;
       const voyage = makeVoyage(name, date, options);
       state.voyages.unshift(voyage);
       state.currentVoyageId = voyage.id;
@@ -1395,7 +1506,71 @@
       };
     }
 
-    async function fetchTripEnrichment(place, startDate, endDate) {
+    function searchDestination(query) {
+      selectedDestination = null;
+      if (destinationSearchTimer) clearTimeout(destinationSearchTimer);
+      const cleaned = query.trim();
+      if (cleaned.length < 2) {
+        renderDestinationSuggestions([]);
+        return;
+      }
+      destinationSearchTimer = setTimeout(async () => {
+        try {
+          const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleaned)}&count=5&language=fr&format=json`;
+          const response = await fetch(url);
+          const data = await response.json();
+          renderDestinationSuggestions(data.results || []);
+        } catch (error) {
+          renderDestinationSuggestions([]);
+        }
+      }, 280);
+    }
+
+    function showDestinationSuggestions() {
+      const box = document.getElementById("destinationSuggestions");
+      if (box && box.children.length) box.classList.add("open");
+    }
+
+    function renderDestinationSuggestions(results) {
+      const box = document.getElementById("destinationSuggestions");
+      if (!box) return;
+      if (!results.length) {
+        box.classList.remove("open");
+        box.innerHTML = "";
+        return;
+      }
+      box.innerHTML = results.map((result, index) => {
+        const meta = [result.admin1, result.country].filter(Boolean).join(", ");
+        return `
+          <button class="suggestion" type="button" onclick="selectDestinationSuggestion(${index})">
+            ${escapeHTML(result.name)}
+            <span>${escapeHTML(meta)}</span>
+          </button>
+        `;
+      }).join("");
+      box._results = results;
+      box.classList.add("open");
+    }
+
+    function selectDestinationSuggestion(index) {
+      const box = document.getElementById("destinationSuggestions");
+      const result = box?._results?.[index];
+      if (!result) return;
+      selectedDestination = {
+        name: result.name,
+        admin1: result.admin1 || "",
+        country: result.country || "",
+        latitude: result.latitude,
+        longitude: result.longitude
+      };
+      const input = document.getElementById("voyageLocation");
+      if (input) {
+        input.value = [selectedDestination.name, selectedDestination.admin1, selectedDestination.country].filter(Boolean).join(", ");
+      }
+      renderDestinationSuggestions([]);
+    }
+
+    async function fetchTripEnrichment(place, startDate, endDate, destination = null) {
       if (!place) return null;
       const enrichment = {
         place,
@@ -1404,13 +1579,17 @@
         fetchedAt: new Date().toISOString()
       };
       try {
-        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=1&language=fr&format=json`;
-        const geoResponse = await fetch(geoUrl);
-        const geoData = await geoResponse.json();
-        const location = geoData.results?.[0];
+        let location = destination;
+        if (!location) {
+          const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=1&language=fr&format=json`;
+          const geoResponse = await fetch(geoUrl);
+          const geoData = await geoResponse.json();
+          location = geoData.results?.[0];
+        }
         if (location) {
           enrichment.location = {
             name: location.name,
+            admin1: location.admin1 || "",
             country: location.country,
             latitude: location.latitude,
             longitude: location.longitude
@@ -1495,14 +1674,19 @@
 
     function resetDraftDateRange() {
       draftDateRange = { start: "", end: "", next: "start" };
-      const picker = document.getElementById("voyageRangeDate");
       const status = document.getElementById("voyageRangeStatus");
-      if (picker) picker.value = "";
+      draftCalendarMonth = new Date();
+      draftCalendarMonth.setDate(1);
       if (status) status.textContent = "Choisissez la date de départ, puis la date de retour.";
+      renderRangeCalendar();
     }
 
-    function handleDateRangePick(value) {
-      if (!value) return;
+    function changeCalendarMonth(delta) {
+      draftCalendarMonth.setMonth(draftCalendarMonth.getMonth() + delta);
+      renderRangeCalendar();
+    }
+
+    function pickCalendarDate(value) {
       if (draftDateRange.next === "start" || (draftDateRange.start && draftDateRange.end)) {
         draftDateRange = { start: value, end: "", next: "end" };
       } else {
@@ -1514,14 +1698,56 @@
         }
         draftDateRange.next = "start";
       }
-
-      const picker = document.getElementById("voyageRangeDate");
       const status = document.getElementById("voyageRangeStatus");
-      if (picker) picker.value = "";
       if (status) {
         const label = formatDateRange(draftDateRange.start, draftDateRange.end);
         status.textContent = draftDateRange.end ? label : `${label} - choisissez la date de retour`;
       }
+      renderRangeCalendar();
+    }
+
+    function renderRangeCalendar() {
+      const calendar = document.getElementById("rangeCalendar");
+      if (!calendar) return;
+      const year = draftCalendarMonth.getFullYear();
+      const month = draftCalendarMonth.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const startOffset = (firstDay.getDay() + 6) % 7;
+      const gridStart = new Date(year, month, 1 - startOffset);
+      const monthLabel = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(firstDay);
+      const weekdays = ["L", "M", "M", "J", "V", "S", "D"];
+      const days = [];
+      for (let index = 0; index < 42; index += 1) {
+        const day = new Date(gridStart);
+        day.setDate(gridStart.getDate() + index);
+        const value = toDateValue(day);
+        const inMonth = day.getMonth() === month;
+        const selected = value === draftDateRange.start || value === draftDateRange.end;
+        const inRange = draftDateRange.start && draftDateRange.end && value > draftDateRange.start && value < draftDateRange.end;
+        days.push(`
+          <button class="calendar-day ${inMonth ? "" : "muted"} ${inRange ? "in-range" : ""} ${selected ? "selected" : ""}" type="button" onclick="pickCalendarDate('${value}')">
+            ${day.getDate()}
+          </button>
+        `);
+      }
+      calendar.innerHTML = `
+        <div class="calendar-head">
+          <button class="mini" type="button" onclick="changeCalendarMonth(-1)" title="Mois précédent">‹</button>
+          <div class="calendar-title">${escapeHTML(monthLabel)}</div>
+          <button class="mini" type="button" onclick="changeCalendarMonth(1)" title="Mois suivant">›</button>
+        </div>
+        <div class="calendar-grid">
+          ${weekdays.map(day => `<div class="calendar-weekday">${day}</div>`).join("")}
+          ${days.join("")}
+        </div>
+      `;
+    }
+
+    function toDateValue(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
     }
 
     function formatDateRange(start, end) {
