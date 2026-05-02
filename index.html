@@ -876,7 +876,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v11</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v12</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -921,7 +921,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
   <script>
-    const VERSION = "v11";
+    const VERSION = "v12";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1046,6 +1046,173 @@
         state.openCats[category.id] = true;
       });
       return voyage;
+    }
+
+    function makeDemoVoyage(name, date, code, categories) {
+      const voyage = {
+        id: uid("voyage"),
+        code,
+        name,
+        date,
+        shared: false,
+        remoteRecordId: "",
+        categories: categories.map(category => ({
+          id: uid("cat"),
+          name: category.name,
+          items: category.items.map(item => ({
+            id: uid("item"),
+            name: item.name,
+            qty: normalizeQty(item.qty || 1),
+            done: Boolean(item.done)
+          }))
+        })),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      voyage.categories.forEach(category => {
+        state.openCats[category.id] = category.items.some(item => !item.done);
+      });
+      return voyage;
+    }
+
+    function createDemoVoyages() {
+      return [
+        makeDemoVoyage("Bretagne en famille", "12/07/2026 - 26/07/2026", "BRET26", [
+          {
+            name: "Documents",
+            items: [
+              { name: "Cartes d'identité", qty: 4, done: true },
+              { name: "Carnet de santé des enfants", qty: 2, done: true },
+              { name: "Réservation du logement", qty: 1, done: true },
+              { name: "Assurance voiture", qty: 1, done: false },
+              { name: "Carte bancaire de secours", qty: 1, done: false },
+              { name: "Ordonnances", qty: 2, done: true }
+            ]
+          },
+          {
+            name: "Vêtements",
+            items: [
+              { name: "T-shirts", qty: 12, done: true },
+              { name: "Pulls légers", qty: 5, done: false },
+              { name: "K-ways", qty: 4, done: true },
+              { name: "Pantalons", qty: 6, done: false },
+              { name: "Maillots de bain", qty: 4, done: true },
+              { name: "Pyjamas", qty: 4, done: false },
+              { name: "Chaussures de marche", qty: 4, done: false }
+            ]
+          },
+          {
+            name: "Plage",
+            items: [
+              { name: "Serviettes de plage", qty: 4, done: true },
+              { name: "Crème solaire", qty: 2, done: true },
+              { name: "Casquettes", qty: 4, done: false },
+              { name: "Seaux et pelles", qty: 2, done: true },
+              { name: "Gourdes", qty: 4, done: false },
+              { name: "Sac étanche", qty: 1, done: false }
+            ]
+          },
+          {
+            name: "Maison",
+            items: [
+              { name: "Draps", qty: 4, done: false },
+              { name: "Torchons", qty: 3, done: true },
+              { name: "Lessive", qty: 1, done: false },
+              { name: "Sacs poubelle", qty: 1, done: true },
+              { name: "Chargeurs", qty: 5, done: false }
+            ]
+          }
+        ]),
+        makeDemoVoyage("Week-end à Rome", "18/09/2026 - 21/09/2026", "ROME26", [
+          {
+            name: "Documents",
+            items: [
+              { name: "Passeports", qty: 2, done: true },
+              { name: "Billets d'avion", qty: 2, done: true },
+              { name: "Réservation hôtel", qty: 1, done: true },
+              { name: "Carte européenne d'assurance maladie", qty: 2, done: false },
+              { name: "Permis de conduire", qty: 1, done: false }
+            ]
+          },
+          {
+            name: "Bagage cabine",
+            items: [
+              { name: "Trousse transparente liquides", qty: 1, done: true },
+              { name: "Chargeur téléphone", qty: 2, done: true },
+              { name: "Batterie externe", qty: 1, done: false },
+              { name: "Écouteurs", qty: 2, done: true },
+              { name: "Livres / magazines", qty: 2, done: false },
+              { name: "Médicaments de base", qty: 1, done: false }
+            ]
+          },
+          {
+            name: "Tenues",
+            items: [
+              { name: "Chemises / hauts", qty: 6, done: false },
+              { name: "Pantalons", qty: 3, done: false },
+              { name: "Chaussures confortables", qty: 2, done: true },
+              { name: "Veste légère", qty: 2, done: true },
+              { name: "Sous-vêtements", qty: 8, done: false },
+              { name: "Lunettes de soleil", qty: 2, done: true }
+            ]
+          },
+          {
+            name: "Visites",
+            items: [
+              { name: "Tickets Colisée", qty: 2, done: true },
+              { name: "Tickets Vatican", qty: 2, done: false },
+              { name: "Plan hors-ligne", qty: 1, done: true },
+              { name: "Liste restaurants", qty: 1, done: false },
+              { name: "Adaptateur prise", qty: 1, done: false }
+            ]
+          }
+        ]),
+        makeDemoVoyage("Ski aux Arcs", "07/02/2027 - 14/02/2027", "SKI227", [
+          {
+            name: "Équipement ski",
+            items: [
+              { name: "Vestes de ski", qty: 4, done: true },
+              { name: "Pantalons de ski", qty: 4, done: false },
+              { name: "Gants", qty: 4, done: true },
+              { name: "Bonnets", qty: 4, done: true },
+              { name: "Masques / lunettes", qty: 4, done: false },
+              { name: "Sous-couches thermiques", qty: 8, done: false },
+              { name: "Chaussettes de ski", qty: 12, done: false }
+            ]
+          },
+          {
+            name: "Location et forfaits",
+            items: [
+              { name: "Réservation matériel", qty: 1, done: true },
+              { name: "Forfaits adultes", qty: 2, done: false },
+              { name: "Forfaits enfants", qty: 2, done: false },
+              { name: "Assurance ski", qty: 1, done: false },
+              { name: "Cours ESF", qty: 2, done: true }
+            ]
+          },
+          {
+            name: "Appartement",
+            items: [
+              { name: "Draps", qty: 4, done: false },
+              { name: "Serviettes", qty: 4, done: false },
+              { name: "Raclette", qty: 1, done: true },
+              { name: "Courses premier soir", qty: 1, done: false },
+              { name: "Produits vaisselle", qty: 2, done: true },
+              { name: "Jeux de société", qty: 3, done: false }
+            ]
+          },
+          {
+            name: "Trajet",
+            items: [
+              { name: "Chaînes neige", qty: 1, done: true },
+              { name: "Plein d'essence", qty: 1, done: false },
+              { name: "Snacks voiture", qty: 1, done: true },
+              { name: "Plaids", qty: 2, done: false },
+              { name: "Playlist téléchargée", qty: 1, done: true }
+            ]
+          }
+        ])
+      ];
     }
 
     function normalizeVoyage(raw) {
@@ -1824,6 +1991,12 @@
     });
 
     loadLocal();
+    if (!state.voyages.length) {
+      state.voyages = createDemoVoyages();
+      state.currentVoyageId = state.voyages[0]?.id || null;
+      state.tab = "voyages";
+      saveLocal();
+    }
     render();
     subscribeToCurrentVoyage();
   </script>
