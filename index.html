@@ -879,6 +879,7 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/pocketbase@0.26.2/dist/pocketbase.umd.js"></script>
 <script>
 // ===== DATA =====
 const AVAILABLE_ICONS = ['💊','🧴','👕','👙','🏖','⛷','🎒','📷','💻','🔌','📚','🎮','🧸','🍼','🥾','🧢','☂️','🎾','🏕','🎸','🔦','🪥','✏️','🗺','💳','🏥','🍫','🧃','🎁','🌂'];
@@ -954,6 +955,12 @@ let state = {
 };
 
 const STORAGE_PREFIX = 'voyage-data-';
+const POCKETBASE_URL = 'https://psyco.fly.dev';
+const POCKETBASE_COLLECTION = 'travel-checklists';
+let pbClient = null;
+let remoteRecordId = null;
+let remoteUnsubscribe = null;
+let applyingRemoteState = false;
 
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -970,6 +977,58 @@ function applySavedState(data) {
   state.currentVoyageId = data?.currentVoyageId || null;
 }
 
+function buildSavedState() {
+  return {
+    voyages: state.voyages,
+    currentVoyageId: state.currentVoyageId,
+  };
+}
+
+function isCurrentState(data) {
+  try {
+    return JSON.stringify(data) === JSON.stringify(buildSavedState());
+  } catch(e) {
+    return false;
+  }
+}
+
+function getPocketBaseClient() {
+  if (!window.PocketBase) return null;
+  if (!pbClient) {
+    pbClient = new PocketBase(POCKETBASE_URL);
+    pbClient.autoCancellation(false);
+  }
+  return pbClient;
+}
+
+function getRecordData(record) {
+  if (!record?.data) return null;
+  if (typeof record.data === 'string') {
+    try {
+      return JSON.parse(record.data);
+    } catch(e) {
+      return null;
+    }
+  }
+  return record.data;
+}
+
+function sanitizeShareCode(code) {
+  return String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+}
+
+async function findRemoteRecord(code) {
+  const pb = getPocketBaseClient();
+  const safeCode = sanitizeShareCode(code);
+  if (!pb || !safeCode) return null;
+
+  try {
+    return await pb.collection(POCKETBASE_COLLECTION).getFirstListItem(`code = "${safeCode}"`);
+  } catch(e) {
+    return null;
+  }
+}
+
 function readLocalState(key) {
   try {
     const raw = localStorage.getItem(STORAGE_PREFIX + key);
@@ -980,13 +1039,10 @@ function readLocalState(key) {
 }
 
 async function readRemoteState(key, shared) {
-  if (!window.storage) return null;
-  try {
-    const result = await window.storage.get(STORAGE_PREFIX + key, shared);
-    return result?.value ? JSON.parse(result.value) : null;
-  } catch(e) {
-    return null;
-  }
+  const record = await findRemoteRecord(key);
+  if (!record) return null;
+  remoteRecordId = record.id;
+  return getRecordData(record);
 }
 
 async function readSavedState(key, shared = false) {
@@ -997,15 +1053,13 @@ async function readSavedState(key, shared = false) {
 // ===== STORAGE =====
 async function saveState() {
   const key = state.shareCode || 'local';
-  const payload = JSON.stringify({
-    voyages: state.voyages,
-    currentVoyageId: state.currentVoyageId,
-  });
+  const data = buildSavedState();
+  const payload = JSON.stringify(data);
 
   try {
     localStorage.setItem(STORAGE_PREFIX + key, payload);
-    if (window.storage) {
-      await window.storage.set(STORAGE_PREFIX + key, payload, !!state.shareCode);
+    if (!applyingRemoteState && state.shareCode) {
+      await saveRemoteState(key, data);
     }
   } catch(e) {}
 }
@@ -1014,10 +1068,64 @@ async function loadState(code) {
   const key = code || state.shareCode || 'local';
   const data = await readSavedState(key, !!code || !!state.shareCode);
   if (data) {
+    if (isCurrentState(data)) return false;
     applySavedState(data);
     return true;
   }
   return false;
+}
+
+async function saveRemoteState(code, data) {
+  const pb = getPocketBaseClient();
+  const safeCode = sanitizeShareCode(code);
+  if (!pb || !safeCode) return false;
+
+  try {
+    let record = null;
+    if (remoteRecordId) {
+      try {
+        record = await pb.collection(POCKETBASE_COLLECTION).getOne(remoteRecordId);
+      } catch(e) {
+        remoteRecordId = null;
+      }
+    }
+    if (!record || record.code !== safeCode) record = await findRemoteRecord(safeCode);
+
+    if (record) {
+      remoteRecordId = record.id;
+      await pb.collection(POCKETBASE_COLLECTION).update(record.id, { code: safeCode, data });
+    } else {
+      const created = await pb.collection(POCKETBASE_COLLECTION).create({ code: safeCode, data });
+      remoteRecordId = created.id;
+      await subscribeToRemoteRecord();
+    }
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+async function subscribeToRemoteRecord() {
+  const pb = getPocketBaseClient();
+  if (!pb || !remoteRecordId) return;
+
+  if (remoteUnsubscribe) {
+    remoteUnsubscribe();
+    remoteUnsubscribe = null;
+  }
+
+  try {
+    remoteUnsubscribe = await pb.collection(POCKETBASE_COLLECTION).subscribe(remoteRecordId, e => {
+      const data = getRecordData(e.record);
+      if (!data || isCurrentState(data)) return;
+
+      applyingRemoteState = true;
+      applySavedState(data);
+      localStorage.setItem(STORAGE_PREFIX + state.shareCode, JSON.stringify(data));
+      applyingRemoteState = false;
+      render();
+    });
+  } catch(e) {}
 }
 
 // ===== SHARE CODE =====
@@ -1045,6 +1153,7 @@ function copyCode() {
 function startPolling() {
   if (state.pollingInterval) clearInterval(state.pollingInterval);
   if (!state.shareCode) return;
+  subscribeToRemoteRecord();
   state.pollingInterval = setInterval(async () => {
     const changed = await loadState();
     if (changed) render();
@@ -1284,7 +1393,7 @@ function renderPartage(c) {
 
     <div style="font-family:'Caveat',cursive;font-size:14px;color:var(--ink-faded);text-align:center;padding:8px">
       <span class="live-dot"></span>
-      Synchronisation automatique toutes les 3 secondes
+      Synchronisation temps réel avec PocketBase
     </div>
   `;
 }
@@ -1295,25 +1404,27 @@ function showJoinModal() {
 }
 
 async function joinFromInput() {
-  const code = (document.getElementById('joinInput').value || '').trim().toUpperCase();
+  const code = sanitizeShareCode(document.getElementById('joinInput').value);
   if (code.length < 4) { showToast('Code trop court'); return; }
   await doJoin(code);
 }
 
 async function joinVoyage() {
-  const code = (document.getElementById('joinCodeInput').value || '').trim().toUpperCase();
+  const code = sanitizeShareCode(document.getElementById('joinCodeInput').value);
   if (code.length < 4) { showToast('Code trop court'); return; }
   closeModal('modalJoin');
   await doJoin(code);
 }
 
 async function doJoin(code) {
-  const data = await readSavedState(code, true);
+  const safeCode = sanitizeShareCode(code);
+  const data = await readSavedState(safeCode, true);
   if (data) {
-    state.shareCode = code;
-    localStorage.setItem('travelShareCode', code);
+    state.shareCode = safeCode;
+    localStorage.setItem('travelShareCode', safeCode);
     applySavedState(data);
-    showToast('✓ Connecté ! Code : ' + code);
+    await subscribeToRemoteRecord();
+    showToast('✓ Connecté ! Code : ' + safeCode);
     startPolling();
     render();
   } else {
@@ -1461,8 +1572,9 @@ async function init() {
   // Restore share code
   const saved = localStorage.getItem('travelShareCode');
   if (saved) {
-    state.shareCode = saved;
-    await loadState();
+    state.shareCode = sanitizeShareCode(saved);
+    const loaded = await loadState();
+    if (!loaded) await saveState();
     startPolling();
   }
 
@@ -1470,6 +1582,8 @@ async function init() {
   if (!state.shareCode) {
     state.shareCode = generateCode();
     localStorage.setItem('travelShareCode', state.shareCode);
+    await saveState();
+    startPolling();
   }
 
   render();
