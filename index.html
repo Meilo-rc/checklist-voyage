@@ -805,7 +805,7 @@
     <!-- HEADER -->
     <div class="header">
       <div class="header-decorations">✈ 🧳 🗺</div>
-      <h1>Mon <em>Carnet</em> de Voyage <span class="version-badge">v04</span></h1>
+      <h1>Mon <em>Carnet</em> de Voyage <span class="version-badge">v05</span></h1>
       <div class="header-subtitle">Checklist de famille · Partagée en temps réel</div>
     </div>
 
@@ -978,6 +978,7 @@ let pbClient = null;
 let remoteRecordId = null;
 let remoteUnsubscribe = null;
 let applyingRemoteState = false;
+let pendingRemoteData = null;
 
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -1007,6 +1008,31 @@ function isCurrentState(data) {
   } catch(e) {
     return false;
   }
+}
+
+function isUserEditing() {
+  const el = document.activeElement;
+  if (!el) return false;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+}
+
+function applyRemoteData(data) {
+  applyingRemoteState = true;
+  applySavedState(data);
+  localStorage.setItem(STORAGE_PREFIX + state.shareCode, JSON.stringify(data));
+  applyingRemoteState = false;
+  render();
+}
+
+function queueRemoteData(data) {
+  pendingRemoteData = data;
+}
+
+function flushPendingRemoteData() {
+  if (!pendingRemoteData || isUserEditing() || isCurrentState(pendingRemoteData)) return;
+  const data = pendingRemoteData;
+  pendingRemoteData = null;
+  applyRemoteData(data);
 }
 
 function getPocketBaseClient() {
@@ -1136,11 +1162,11 @@ async function subscribeToRemoteRecord() {
       const data = getRecordData(e.record);
       if (!data || isCurrentState(data)) return;
 
-      applyingRemoteState = true;
-      applySavedState(data);
-      localStorage.setItem(STORAGE_PREFIX + state.shareCode, JSON.stringify(data));
-      applyingRemoteState = false;
-      render();
+      if (isUserEditing()) {
+        queueRemoteData(data);
+        return;
+      }
+      applyRemoteData(data);
     });
   } catch(e) {}
 }
@@ -1172,6 +1198,7 @@ function startPolling() {
   if (!state.shareCode) return;
   subscribeToRemoteRecord();
   state.pollingInterval = setInterval(async () => {
+    if (isUserEditing()) return;
     const changed = await loadState();
     if (changed) render();
   }, 3000);
@@ -1611,6 +1638,10 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.classList.remove('open');
   });
+});
+
+document.addEventListener('focusout', () => {
+  setTimeout(flushPendingRemoteData, 0);
 });
 
 init();
