@@ -195,28 +195,6 @@
       transform: translateY(1px);
     }
 
-    .tabs {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      padding: 0 14px 10px;
-    }
-
-    .tab {
-      min-height: 36px;
-      border-radius: var(--radius);
-      background: transparent;
-      color: var(--muted);
-      font-weight: 750;
-      border: 1px solid transparent;
-    }
-
-    .tab.active {
-      background: var(--text);
-      color: white;
-      border-color: var(--text);
-    }
-
     .content {
       min-height: 0;
       flex: 1;
@@ -272,6 +250,10 @@
     .grid {
       display: grid;
       gap: 10px;
+    }
+
+    .date-grid {
+      grid-template-columns: 1fr 1fr;
     }
 
     .field {
@@ -377,6 +359,30 @@
     .voyage-card.active {
       border-color: #a9c2ff;
       box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+    }
+
+    .add-card {
+      min-height: 92px;
+      border: 1px dashed #a9b4c4;
+      background: #fbfcfe;
+      color: var(--text);
+      align-items: center;
+      justify-items: center;
+      text-align: center;
+    }
+
+    .add-card .plus {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--blue);
+      color: white;
+      font-size: 1.8rem;
+      line-height: 1;
+      font-weight: 700;
+      margin-bottom: 8px;
     }
 
     .voyage-main {
@@ -734,7 +740,6 @@
         padding-right: 10px;
       }
 
-      .tabs,
       .content {
         padding-left: 10px;
         padding-right: 10px;
@@ -742,6 +747,10 @@
 
       .item {
         grid-template-columns: 34px 1fr;
+      }
+
+      .date-grid {
+        grid-template-columns: 1fr;
       }
 
       .item .mini-actions {
@@ -760,17 +769,11 @@
           <div class="brand">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v07</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v08</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </div>
-          <button class="icon-btn" type="button" title="Nouveau voyage" onclick="openVoyageSheet()">+</button>
         </div>
-        <nav class="tabs" aria-label="Navigation principale">
-          <button class="tab active" id="tab-voyages" type="button" onclick="setTab('voyages')">Voyages</button>
-          <button class="tab" id="tab-liste" type="button" onclick="setTab('liste')">Liste</button>
-          <button class="tab" id="tab-partage" type="button" onclick="setTab('partage')">Partage</button>
-        </nav>
       </header>
 
       <main class="content" id="content"></main>
@@ -783,24 +786,38 @@
         <h2 id="voyageSheetTitle">Nouveau voyage</h2>
         <button class="icon-btn" type="button" onclick="closeSheet('voyageSheet')" title="Fermer">×</button>
       </div>
-      <form class="grid" onsubmit="createVoyage(event)">
+      <form class="grid section" onsubmit="createVoyage(event)">
         <div class="field">
-          <label for="voyageName">Nom du voyage</label>
-          <input id="voyageName" name="name" autocomplete="off" placeholder="Ex. Bretagne, Espagne, ski...">
+          <label for="voyageLocation">Lieu</label>
+          <input id="voyageLocation" name="location" autocomplete="off" placeholder="Ex. Bretagne, Espagne, ski...">
         </div>
-        <div class="field">
-          <label for="voyageDate">Date ou période</label>
-          <input id="voyageDate" name="date" autocomplete="off" placeholder="Ex. Août 2026">
+        <div class="grid date-grid">
+          <div class="field">
+            <label for="voyageStartDate">Départ</label>
+            <input id="voyageStartDate" name="startDate" type="date">
+          </div>
+          <div class="field">
+            <label for="voyageEndDate">Retour</label>
+            <input id="voyageEndDate" name="endDate" type="date">
+          </div>
         </div>
         <div class="button-row">
           <button class="btn blue full" type="submit">Créer</button>
         </div>
       </form>
+      <div class="notice blue section">ou</div>
+      <form class="grid" onsubmit="joinVoyage(event)">
+        <div class="field">
+          <label for="sheetJoinCode">Ajouter un voyage via un code</label>
+          <input id="sheetJoinCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Code du voyage">
+        </div>
+        <button class="btn green full" type="submit">Ajouter ce voyage</button>
+      </form>
     </section>
   </div>
 
   <script>
-    const VERSION = "v07";
+    const VERSION = "v08";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1031,7 +1048,12 @@
       const status = document.getElementById("headerMeta");
       const voyage = currentVoyage();
       if (status) {
-        status.textContent = voyage ? `${voyage.name} · ${text}` : "Préparez vos sacs sans prise de tête";
+        if (state.tab === "voyages") {
+          const count = state.voyages.length;
+          status.textContent = count ? `${count} voyage${count > 1 ? "s" : ""} enregistré${count > 1 ? "s" : ""}` : "Ajoutez votre premier voyage";
+        } else {
+          status.textContent = voyage ? `${voyage.name} · ${text}` : "Préparez vos sacs sans prise de tête";
+        }
       }
     }
 
@@ -1043,11 +1065,19 @@
       }
     }
 
+    function goHome() {
+      state.tab = "voyages";
+      saveLocal();
+      render();
+    }
+
     function openVoyageSheet() {
-      document.getElementById("voyageName").value = "";
-      document.getElementById("voyageDate").value = "";
+      document.getElementById("voyageLocation").value = "";
+      document.getElementById("voyageStartDate").value = "";
+      document.getElementById("voyageEndDate").value = "";
+      document.getElementById("sheetJoinCode").value = "";
       document.getElementById("voyageSheet").classList.add("open");
-      setTimeout(() => document.getElementById("voyageName").focus(), 50);
+      setTimeout(() => document.getElementById("voyageLocation").focus(), 50);
     }
 
     function closeSheet(id) {
@@ -1061,8 +1091,8 @@
     function createVoyage(event) {
       event.preventDefault();
       const form = event.currentTarget;
-      const name = form.elements.name.value.trim();
-      const date = form.elements.date.value.trim();
+      const name = form.elements.location.value.trim();
+      const date = formatDateRange(form.elements.startDate.value, form.elements.endDate.value);
       const voyage = makeVoyage(name, date);
       state.voyages.unshift(voyage);
       state.currentVoyageId = voyage.id;
@@ -1070,6 +1100,18 @@
       closeSheet("voyageSheet");
       saveAndSync(voyage, { immediate: true });
       render();
+    }
+
+    function formatDateRange(start, end) {
+      const format = value => {
+        if (!value) return "";
+        const [year, month, day] = value.split("-");
+        return `${day}/${month}/${year}`;
+      };
+      const startLabel = format(start);
+      const endLabel = format(end);
+      if (startLabel && endLabel) return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`;
+      return startLabel || endLabel || "";
     }
 
     function selectVoyage(id) {
@@ -1402,6 +1444,7 @@
         state.tab = "liste";
         saveLocal();
         input.value = "";
+        closeSheet("voyageSheet");
         render();
         subscribeToCurrentVoyage();
       } catch (error) {
@@ -1420,15 +1463,12 @@
     }
 
     function render() {
-      document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-      document.getElementById(`tab-${state.tab}`)?.classList.add("active");
       const voyage = currentVoyage();
       setStatus(voyage ? (voyage.shared ? "Partagé" : "Local") : "Local");
 
       if (!voyage && state.tab !== "voyages") state.tab = "voyages";
 
       if (state.tab === "liste") renderChecklist();
-      else if (state.tab === "partage") renderShare();
       else renderVoyages();
     }
 
@@ -1438,18 +1478,12 @@
         content.innerHTML = `
           <section class="panel empty">
             <h2>Aucun voyage pour le moment</h2>
-            <p>Créez un voyage pour obtenir son code de partage et préparer la liste à plusieurs.</p>
-            <button class="btn blue" type="button" onclick="openVoyageSheet()">Créer un voyage</button>
+            <p>Ajoutez un voyage en le créant ou avec un code partagé.</p>
           </section>
-          <section class="panel panel-pad">
-            <form class="grid" onsubmit="joinVoyage(event)">
-              <div class="field">
-                <label for="firstJoinCode">Rejoindre un voyage partagé</label>
-                <input id="firstJoinCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Code du voyage">
-              </div>
-              <button class="btn ghost full" type="submit">Ajouter ce voyage</button>
-            </form>
-          </section>
+          <button class="voyage-card add-card full" type="button" onclick="openVoyageSheet()">
+            <span class="plus">+</span>
+            <strong>Ajouter un voyage</strong>
+          </button>
         `;
         return;
       }
@@ -1486,9 +1520,14 @@
             <h2>Voyages</h2>
             <p>Chaque voyage a maintenant son propre code de partage.</p>
           </div>
-          <button class="btn blue" type="button" onclick="openVoyageSheet()">Nouveau</button>
         </section>
-        <section class="grid">${cards}</section>
+        <section class="grid">
+          ${cards}
+          <button class="voyage-card add-card" type="button" onclick="openVoyageSheet()">
+            <span class="plus">+</span>
+            <strong>Ajouter un voyage</strong>
+          </button>
+        </section>
       `;
     }
 
@@ -1512,13 +1551,17 @@
           </div>
           <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
           <div class="button-row" style="margin-top:12px">
+            <button class="btn ghost" type="button" onclick="goHome()">Retour</button>
             <button class="btn ghost" type="button" onclick="renameCurrentVoyage()">Renommer</button>
-            <button class="btn soft-blue" type="button" onclick="setTab('partage')">Code ${escapeHTML(voyage.code)}</button>
+            <button class="btn soft-blue" type="button" onclick="copyCode('${voyage.code}')">Code ${escapeHTML(voyage.code)}</button>
             <button class="btn green" type="button" onclick="addCategory()">Ajouter une catégorie</button>
           </div>
         </section>
         <section class="grid">
           ${categories || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez une catégorie pour commencer.</p></div>`}
+        </section>
+        <section class="notice blue section" style="margin-top:14px">
+          Code de partage de ce voyage : <strong>${escapeHTML(voyage.code)}</strong>
         </section>
       `;
     }
@@ -1621,12 +1664,6 @@
     });
 
     loadLocal();
-    if (!state.voyages.length) {
-      const starter = makeVoyage("Premier voyage", "");
-      state.voyages.push(starter);
-      state.currentVoyageId = starter.id;
-      saveLocal();
-    }
     render();
     subscribeToCurrentVoyage();
   </script>
