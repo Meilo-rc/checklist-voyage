@@ -35,6 +35,21 @@
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
 
+    body.dark {
+      --bg: #111827;
+      --panel: #1f2937;
+      --panel-soft: #273244;
+      --line: #374151;
+      --line-strong: #4b5563;
+      --text: #f8fafc;
+      --muted: #a9b4c4;
+      --blue-soft: #1e3a6f;
+      --green-soft: #16482d;
+      --red-soft: #4c1d1d;
+      --amber-soft: #44330f;
+      --shadow: 0 16px 34px rgba(0, 0, 0, .26);
+    }
+
     * {
       box-sizing: border-box;
     }
@@ -76,6 +91,10 @@
         var(--bg);
     }
 
+    body.dark .app {
+      background: var(--bg);
+    }
+
     .shell {
       width: min(100%, 760px);
       min-height: 100dvh;
@@ -92,6 +111,10 @@
       border-bottom: 1px solid var(--line);
       backdrop-filter: blur(12px);
       box-shadow: 0 1px 0 rgba(15, 23, 42, .02);
+    }
+
+    body.dark .topbar {
+      background: rgba(31, 41, 55, .96);
     }
 
     .topbar-inner {
@@ -115,6 +138,13 @@
       text-align: left;
       cursor: pointer;
       padding: 0;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
     }
 
     .brand-mark {
@@ -566,6 +596,10 @@
       box-shadow: 0 18px 46px rgba(15, 23, 42, .18);
     }
 
+    .settings-menu .voyage-menu-panel {
+      min-width: 240px;
+    }
+
     .menu-item {
       width: 100%;
       min-height: 38px;
@@ -586,6 +620,24 @@
 
     .menu-item.red {
       color: var(--red);
+    }
+
+    body.dark .voyage-menu-panel,
+    body.dark .menu-item,
+    body.dark .sheet,
+    body.dark .suggestions,
+    body.dark .suggestion,
+    body.dark input,
+    body.dark select,
+    body.dark textarea,
+    body.dark .calendar,
+    body.dark .calendar-day,
+    body.dark .choice,
+    body.dark .item,
+    body.dark .item-content,
+    body.dark .qty button {
+      background: var(--panel);
+      color: var(--text);
     }
 
     .add-card {
@@ -813,11 +865,17 @@
       color: white;
     }
 
+    .item.checked .check {
+      background: #e5e7eb;
+      border-color: #8b95a5;
+      color: #667085;
+    }
+
     .item-label {
       display: block;
       flex: 1 1 auto;
       min-width: 0;
-      font-weight: 400;
+      font-weight: 760;
       font-size: .86rem;
       white-space: nowrap;
       overflow: hidden;
@@ -828,6 +886,11 @@
       color: var(--muted);
       text-decoration: line-through;
       text-decoration-thickness: 2px;
+    }
+
+    .item.checked .item-label {
+      color: #a9b4c4;
+      text-decoration: none;
     }
 
     .qty {
@@ -893,6 +956,52 @@
       color: var(--muted);
       border: 1px solid var(--line);
       font-weight: 850;
+    }
+
+    .custom-category-card {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+
+    .custom-category-head,
+    .template-picks {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .custom-item-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .custom-item-row:last-child {
+      border-bottom: 0;
+    }
+
+    .template-picks {
+      justify-content: flex-start;
+    }
+
+    .template-chip {
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      color: var(--text);
+      font-size: .8rem;
+      font-weight: 760;
     }
 
     .mini.red {
@@ -1138,10 +1247,19 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.31</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.32</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
+          <div class="topbar-actions">
+            <details class="voyage-menu settings-menu">
+              <summary class="icon-btn" title="ParamÃ¨tres">⚙</summary>
+              <div class="voyage-menu-panel">
+                <button class="menu-item" type="button" onclick="toggleDarkMode()">Passer en mode sombre</button>
+                <button class="menu-item" type="button" onclick="openCustomCategories()">GÃ©rer les catÃ©gories personnalisÃ©es</button>
+              </div>
+            </details>
+          </div>
         </div>
       </header>
 
@@ -1217,8 +1335,25 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
+  <div class="sheet-backdrop" id="categorySheet" onclick="closeSheetOnBackdrop(event, 'categorySheet')">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="categorySheetTitle">
+      <div class="sheet-head">
+        <h2 id="categorySheetTitle">Ajouter une catÃ©gorie</h2>
+        <button class="icon-btn" type="button" onclick="closeSheet('categorySheet')" title="Fermer">Ã—</button>
+      </div>
+      <form class="grid section" onsubmit="saveCategorySheet(event)">
+        <div class="field">
+          <label for="categoryName">Nouvelle catÃ©gorie</label>
+          <input id="categoryName" autocomplete="off" placeholder="Nom de la catÃ©gorie">
+        </div>
+        <button class="btn blue full" type="submit">Ajouter</button>
+      </form>
+      <div class="grid" id="categoryTemplateChoices"></div>
+    </section>
+  </div>
+
   <script>
-    const VERSION = "1.31";
+    const VERSION = "1.32";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1244,7 +1379,9 @@
       tab: "voyages",
       voyages: [],
       currentVoyageId: null,
-      openCats: {}
+      openCats: {},
+      darkMode: false,
+      customCategories: []
     };
 
     const defaultCategories = [
@@ -1330,6 +1467,11 @@
       return Math.min(number, 99);
     }
 
+    function normalizeItemStatus(item) {
+      if (item?.status === "checked" || item?.status === "done") return item.status;
+      return item?.done ? "done" : "todo";
+    }
+
     function isUserEditing() {
       const el = document.activeElement;
       return el && ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
@@ -1354,6 +1496,7 @@
           id: uid("item"),
           name: item.name,
           qty: item.qty,
+          status: "todo",
           done: false
         }))
       }));
@@ -1387,6 +1530,7 @@
           id: uid("item"),
           name,
           qty: 1,
+          status: "todo",
           done: false
         });
       });
@@ -1451,11 +1595,24 @@
 
     function normalizeItem(raw) {
       const item = raw && typeof raw === "object" ? raw : {};
+      const status = normalizeItemStatus(item);
       return {
         id: item.id || uid("item"),
         name: item.name || "Élément",
         qty: normalizeQty(item.qty || 1),
-        done: Boolean(item.done)
+        status,
+        done: status === "done"
+      };
+    }
+
+    function normalizeCustomCategory(raw) {
+      const category = raw && typeof raw === "object" ? raw : {};
+      return {
+        id: category.id || uid("tpl"),
+        name: category.name || "CatÃ©gorie personnalisÃ©e",
+        items: Array.isArray(category.items)
+          ? category.items.map(item => typeof item === "string" ? item : item?.name).filter(Boolean)
+          : []
       };
     }
 
@@ -1464,7 +1621,9 @@
         version: VERSION,
         currentVoyageId: state.currentVoyageId,
         voyages: state.voyages,
-        openCats: state.openCats
+        openCats: state.openCats,
+        darkMode: state.darkMode,
+        customCategories: state.customCategories
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     }
@@ -1477,6 +1636,9 @@
           state.voyages = Array.isArray(parsed.voyages) ? parsed.voyages.map(normalizeVoyage) : [];
           state.currentVoyageId = parsed.currentVoyageId || state.voyages[0]?.id || null;
           state.openCats = parsed.openCats && typeof parsed.openCats === "object" ? parsed.openCats : {};
+          state.darkMode = Boolean(parsed.darkMode);
+          state.customCategories = Array.isArray(parsed.customCategories) ? parsed.customCategories.map(normalizeCustomCategory) : [];
+          applyTheme();
           return;
         } catch (error) {
           console.warn("Impossible de charger le stockage v2", error);
@@ -1498,6 +1660,7 @@
           remoteRecordId: ""
         }));
         state.currentVoyageId = state.voyages[0]?.id || null;
+        applyTheme();
         saveLocal();
       } catch (error) {
         console.warn("Migration ancien stockage impossible", error);
@@ -1537,6 +1700,17 @@
           status.textContent = voyage ? `${voyage.name} · ${text}` : "Préparez vos sacs sans prise de tête";
         }
       }
+    }
+
+    function applyTheme() {
+      document.body.classList.toggle("dark", state.darkMode);
+    }
+
+    function toggleDarkMode() {
+      state.darkMode = !state.darkMode;
+      applyTheme();
+      saveLocal();
+      showToast(state.darkMode ? "Mode sombre activÃ©" : "Mode clair activÃ©");
     }
 
     function setTab(tab) {
@@ -2044,6 +2218,7 @@
       voyage.categories.forEach(category => {
         category.items.forEach(item => {
           item.done = false;
+          item.status = "todo";
         });
       });
       voyage.updatedAt = new Date().toISOString();
@@ -2052,18 +2227,69 @@
     }
 
     function addCategory() {
+      openCategorySheet();
+    }
+
+    function createCategoryFromName(name) {
       const voyage = currentVoyage();
-      if (!voyage) return;
-      const value = prompt("Nom de la nouvelle catégorie", "À ajouter");
-      if (value === null) return;
-      const name = value.trim();
-      if (!name) return;
+      if (!voyage || !name) return;
       const category = { id: uid("cat"), name, items: [] };
       voyage.categories.push(category);
       state.openCats[category.id] = true;
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
+    }
+
+    function openCategorySheet() {
+      const input = document.getElementById("categoryName");
+      if (input) input.value = "";
+      renderCategoryTemplateChoices();
+      document.getElementById("categorySheet").classList.add("open");
+      setTimeout(() => input?.focus(), 50);
+    }
+
+    function saveCategorySheet(event) {
+      event.preventDefault();
+      const input = document.getElementById("categoryName");
+      const name = input.value.trim();
+      if (!name) return;
+      createCategoryFromName(name);
+      closeSheet("categorySheet");
+    }
+
+    function addTemplateCategoryToVoyage(templateId) {
+      const voyage = currentVoyage();
+      const template = state.customCategories.find(category => category.id === templateId);
+      if (!voyage || !template) return;
+      const category = {
+        id: uid("cat"),
+        name: template.name,
+        items: template.items.map(name => ({ id: uid("item"), name, qty: 1, status: "todo", done: false }))
+      };
+      voyage.categories.push(category);
+      state.openCats[category.id] = true;
+      voyage.updatedAt = new Date().toISOString();
+      closeSheet("categorySheet");
+      saveAndSync(voyage);
+      render();
+    }
+
+    function renderCategoryTemplateChoices() {
+      const target = document.getElementById("categoryTemplateChoices");
+      if (!target) return;
+      if (!state.customCategories.length) {
+        target.innerHTML = `<div class="notice">Aucune catÃ©gorie personnalisÃ©e pour le moment.</div>`;
+        return;
+      }
+      target.innerHTML = `
+        <div class="muted">CatÃ©gories personnalisÃ©es</div>
+        <div class="template-picks">
+          ${state.customCategories.map(category => `
+            <button class="template-chip" type="button" onclick="addTemplateCategoryToVoyage('${category.id}')">${escapeHTML(category.name)}</button>
+          `).join("")}
+        </div>
+      `;
     }
 
     function renameCategory(categoryId) {
@@ -2106,7 +2332,7 @@
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
       if (!name) return;
-      category.items.push({ id: uid("item"), name, qty: 1, done: false });
+      category.items.push({ id: uid("item"), name, qty: 1, status: "todo", done: false });
       input.value = "";
       state.openCats[categoryId] = true;
       voyage.updatedAt = new Date().toISOString();
@@ -2119,10 +2345,12 @@
       const category = voyage?.categories.find(row => row.id === categoryId);
       const item = category?.items.find(row => row.id === itemId);
       if (!voyage || !category || !item) return;
-      item.done = !item.done;
+      item.status = item.status === "todo" ? "checked" : item.status === "checked" ? "done" : "todo";
+      item.done = item.status === "done";
       category.items = [
-        ...category.items.filter(row => !row.done),
-        ...category.items.filter(row => row.done)
+        ...category.items.filter(row => normalizeItemStatus(row) === "todo"),
+        ...category.items.filter(row => normalizeItemStatus(row) === "checked"),
+        ...category.items.filter(row => normalizeItemStatus(row) === "done")
       ];
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
@@ -2396,14 +2624,116 @@
       toastTimer = setTimeout(() => toast.classList.remove("show"), 1600);
     }
 
+    function openCustomCategories() {
+      state.tab = "customCategories";
+      saveLocal();
+      render();
+    }
+
+    function addCustomCategory(event) {
+      event.preventDefault();
+      const input = event.currentTarget.querySelector("input");
+      const name = input.value.trim();
+      if (!name) return;
+      state.customCategories.push({ id: uid("tpl"), name, items: [] });
+      input.value = "";
+      saveLocal();
+      render();
+    }
+
+    function renameCustomCategory(categoryId) {
+      const category = state.customCategories.find(item => item.id === categoryId);
+      if (!category) return;
+      const value = prompt("Nouveau nom du modÃ¨le", category.name);
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      category.name = name;
+      saveLocal();
+      render();
+    }
+
+    function deleteCustomCategory(categoryId) {
+      const category = state.customCategories.find(item => item.id === categoryId);
+      if (!category) return;
+      if (!confirm(`Supprimer le modÃ¨le "${category.name}" ?`)) return;
+      state.customCategories = state.customCategories.filter(item => item.id !== categoryId);
+      saveLocal();
+      render();
+    }
+
+    function addCustomItem(event, categoryId) {
+      event.preventDefault();
+      const category = state.customCategories.find(item => item.id === categoryId);
+      const input = event.currentTarget.querySelector("input");
+      const name = input.value.trim();
+      if (!category || !name) return;
+      category.items.push(name);
+      input.value = "";
+      saveLocal();
+      render();
+    }
+
+    function deleteCustomItem(categoryId, itemIndex) {
+      const category = state.customCategories.find(item => item.id === categoryId);
+      if (!category) return;
+      category.items.splice(itemIndex, 1);
+      saveLocal();
+      render();
+    }
+
     function render() {
       const voyage = currentVoyage();
       setStatus(voyage ? (voyage.shared ? "Partagé" : "Local") : "Local");
 
-      if (!voyage && state.tab !== "voyages") state.tab = "voyages";
+      if (!voyage && state.tab !== "voyages" && state.tab !== "customCategories") state.tab = "voyages";
 
       if (state.tab === "liste") renderChecklist();
+      else if (state.tab === "customCategories") renderCustomCategories();
       else renderVoyages();
+    }
+
+    function renderCustomCategories() {
+      const content = document.getElementById("content");
+      const cards = state.customCategories.map(category => `
+        <article class="custom-category-card">
+          <div class="custom-category-head">
+            <h2 class="card-title">${escapeHTML(category.name)}</h2>
+            <div class="button-row">
+              <button class="btn ghost" type="button" onclick="renameCustomCategory('${category.id}')">Renommer</button>
+              <button class="btn soft-red" type="button" onclick="deleteCustomCategory('${category.id}')">Suppr.</button>
+            </div>
+          </div>
+          <div class="grid">
+            ${category.items.length ? category.items.map((item, index) => `
+              <div class="custom-item-row">
+                <span>${escapeHTML(item)}</span>
+                <button class="icon-btn" type="button" onclick="deleteCustomItem('${category.id}', ${index})" title="Supprimer">Ã—</button>
+              </div>
+            `).join("") : `<div class="notice">Aucun item dans ce modÃ¨le.</div>`}
+          </div>
+          <form class="add-item" onsubmit="addCustomItem(event, '${category.id}')">
+            <button class="btn blue" type="submit">+</button>
+            <input autocomplete="off" placeholder="Ajouter un item">
+          </form>
+        </article>
+      `).join("");
+
+      content.innerHTML = `
+        <section class="toolbar">
+          <div class="toolbar-title">
+            <h2>CatÃ©gories personnalisÃ©es</h2>
+            <p>Ces modÃ¨les peuvent Ãªtre ajoutÃ©s ensuite dans n'importe quel voyage.</p>
+          </div>
+        </section>
+        <form class="add-item section" onsubmit="addCustomCategory(event)">
+          <button class="btn blue" type="submit">+</button>
+          <input autocomplete="off" placeholder="Nouvelle catÃ©gorie personnalisÃ©e">
+        </form>
+        <section class="grid">
+          ${cards || `<div class="panel empty"><h2>Aucun modÃ¨le</h2><p>CrÃ©ez une catÃ©gorie personnalisÃ©e pour la retrouver lors de l'ajout dans un voyage.</p></div>`}
+        </section>
+      `;
     }
 
     function renderVoyages() {
@@ -2508,10 +2838,12 @@
     function renderCategory(voyage, category) {
       const progress = progressForCategory(category);
       const open = state.openCats[category.id] === true;
-      const items = category.items.map(item => `
-        <article class="item ${item.done ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
+      const items = category.items.map(item => {
+        const status = normalizeItemStatus(item);
+        return `
+        <article class="item ${status === "checked" ? "checked" : ""} ${status === "done" ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
           <div class="item-content">
-            <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Cocher">✓</button>
+            <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Changer l'Ã©tat">✓</button>
             <div class="item-label" onclick="closeQtyEditorFromLabel('${item.id}')">${escapeHTML(item.name)}</div>
             <div class="mini-actions" onclick="event.stopPropagation()">
               ${qtyEditorItemId === item.id ? `
@@ -2530,7 +2862,8 @@
             <button class="item-action delete" type="button" onclick="deleteItem('${category.id}', '${item.id}')"><span>🗑</span>Suppr.</button>
           </div>
         </article>
-      `).join("");
+      `;
+      }).join("");
 
       return `
         <article class="category ${open ? "open" : ""}">
@@ -2624,6 +2957,7 @@
     }
 
     loadLocal();
+    applyTheme();
     render();
     subscribeToCurrentVoyage();
   </script>
