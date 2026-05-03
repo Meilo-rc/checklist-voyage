@@ -788,8 +788,8 @@
       width: 24px;
       height: 24px;
       border-radius: var(--radius);
-      border: 0;
-      background: var(--panel-soft);
+      border: 2px solid #8b95a5;
+      background: #f8fafc;
       color: transparent;
       display: grid;
       place-items: center;
@@ -798,6 +798,7 @@
 
     .item.done .check {
       background: var(--green);
+      border-color: var(--green);
       color: white;
     }
 
@@ -1126,7 +1127,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.27</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.28</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1206,7 +1207,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
   <script>
-    const VERSION = "1.27";
+    const VERSION = "1.28";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2079,11 +2080,14 @@
 
     function toggleItem(categoryId, itemId) {
       const voyage = currentVoyage();
-      const item = voyage?.categories
-        .find(category => category.id === categoryId)?.items
-        .find(row => row.id === itemId);
-      if (!voyage || !item) return;
+      const category = voyage?.categories.find(row => row.id === categoryId);
+      const item = category?.items.find(row => row.id === itemId);
+      if (!voyage || !category || !item) return;
       item.done = !item.done;
+      category.items = [
+        ...category.items.filter(row => !row.done),
+        ...category.items.filter(row => row.done)
+      ];
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
