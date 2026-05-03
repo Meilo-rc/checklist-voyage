@@ -1127,7 +1127,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.28</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.29</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1207,7 +1207,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
   <script>
-    const VERSION = "1.28";
+    const VERSION = "1.29";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1958,6 +1958,31 @@
       return startLabel || endLabel || "";
     }
 
+    function formatTripDateLine(voyage) {
+      if (!voyage.startDate) return voyage.date || "";
+      const start = parseDateParts(voyage.startDate);
+      const end = parseDateParts(voyage.endDate || voyage.startDate);
+      if (!start || !end) return voyage.date || "";
+      if (start.raw === end.raw) return `le ${start.day}/${start.month}/${start.shortYear}`;
+      if (start.year === end.year && start.month === end.month) {
+        return `du ${start.day} au ${end.day}/${end.month}/${end.shortYear}`;
+      }
+      return `du ${start.day}/${start.month} au ${end.day}/${end.month}/${end.shortYear}`;
+    }
+
+    function parseDateParts(value) {
+      const parts = String(value || "").split("-");
+      if (parts.length !== 3) return null;
+      const [year, month, day] = parts;
+      return {
+        raw: value,
+        year,
+        month,
+        day,
+        shortYear: year.slice(-2)
+      };
+    }
+
     function selectVoyage(id) {
       state.currentVoyageId = id;
       state.tab = "liste";
@@ -2439,7 +2464,8 @@
                 ${renderDestinationLink(voyage)}
                 <button class="code-button" type="button" onclick="copyCode('${voyage.code}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
               </div>
-              <p>${progress.done}/${progress.total} éléments prêts${voyage.date ? ` · ${escapeHTML(voyage.date)}` : ""}</p>
+              ${formatTripDateLine(voyage) ? `<p>${escapeHTML(formatTripDateLine(voyage))}</p>` : ""}
+              <p>${progress.done}/${progress.total} éléments prêts</p>
             </div>
             <div class="category-actions">
               <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
