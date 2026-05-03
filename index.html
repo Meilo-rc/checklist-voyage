@@ -710,7 +710,7 @@
 
     .category-body {
       display: none;
-      padding: 10px;
+      padding: 8px;
     }
 
     .category.open .category-body {
@@ -720,19 +720,19 @@
 
     .item {
       display: grid;
-      grid-template-columns: 34px 1fr auto;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
       align-items: center;
-      gap: 9px;
-      min-height: 48px;
-      padding: 7px;
+      gap: 7px;
+      min-height: 36px;
+      padding: 5px 6px;
       border-radius: var(--radius);
       border: 1px solid var(--line);
       background: white;
     }
 
     .check {
-      width: 30px;
-      height: 30px;
+      width: 24px;
+      height: 24px;
       border-radius: var(--radius);
       border: 1px solid var(--line-strong);
       background: white;
@@ -751,6 +751,7 @@
     .item-label {
       min-width: 0;
       font-weight: 730;
+      font-size: .86rem;
       overflow-wrap: anywhere;
     }
 
@@ -764,15 +765,15 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      padding: 3px;
+      padding: 2px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: var(--panel-soft);
     }
 
     .qty button {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       border-radius: 6px;
       background: white;
       color: var(--text);
@@ -781,9 +782,9 @@
     }
 
     .qty input {
-      width: 42px;
-      min-height: 28px;
-      height: 28px;
+      width: 34px;
+      min-height: 24px;
+      height: 24px;
       padding: 0 4px;
       text-align: center;
       border: 0;
@@ -797,6 +798,17 @@
       align-items: center;
       flex-wrap: wrap;
       justify-content: flex-end;
+    }
+
+    .qty-pill {
+      min-width: 30px;
+      height: 26px;
+      padding: 0 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      color: var(--text);
+      font-weight: 900;
     }
 
     .mini {
@@ -1037,17 +1049,7 @@
       }
 
       .item {
-        grid-template-columns: 34px 1fr;
-      }
-
-      .date-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .item .mini-actions {
-        grid-column: 1 / -1;
-        justify-content: flex-start;
-        padding-left: 43px;
+        grid-template-columns: 26px minmax(0, 1fr) auto;
       }
     }
   </style>
@@ -1060,7 +1062,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v18</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v19</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1077,7 +1079,7 @@
         <h2 id="voyageSheetTitle">Nouveau voyage</h2>
         <button class="icon-btn" type="button" onclick="closeSheet('voyageSheet')" title="Fermer">×</button>
       </div>
-      <form class="grid section" onsubmit="createVoyage(event)">
+      <form class="grid section" id="voyageForm" onsubmit="saveVoyageSheet(event)">
         <div class="field">
           <label for="voyageName">Nom du voyage</label>
           <input id="voyageName" name="tripName" autocomplete="off" placeholder="Ex. Vacances été, ski février...">
@@ -1123,11 +1125,11 @@
           </div>
         </div>
         <div class="button-row">
-          <button class="btn blue full" type="submit">Créer</button>
+          <button class="btn blue full" id="voyageSubmitButton" type="submit">Créer</button>
         </div>
       </form>
-      <div class="notice blue section">ou</div>
-      <form class="grid" onsubmit="joinVoyage(event)">
+      <div class="notice blue section" id="joinDivider">ou</div>
+      <form class="grid" id="joinForm" onsubmit="joinVoyage(event)">
         <div class="field">
           <label for="sheetJoinCode">Ajouter un voyage via un code</label>
           <input id="sheetJoinCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Ex. BRET26, ROME26, SKI227">
@@ -1140,7 +1142,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
   <script>
-    const VERSION = "v18";
+    const VERSION = "v19";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1156,6 +1158,9 @@
     let selectedDestination = null;
     let destinationSearchTimer = null;
     let toastTimer = null;
+    let editingVoyageId = null;
+    let qtyEditorItemId = null;
+    let longPressTimer = null;
 
     const state = {
       tab: "voyages",
@@ -1288,15 +1293,24 @@
         });
       });
       if (!names.length) return;
-      categories.push({
-        id: uid("cat"),
-        name: categoryName,
-        items: names.map(name => ({
+      let category = categories.find(item => item.name === categoryName);
+      if (!category) {
+        category = {
+          id: uid("cat"),
+          name: categoryName,
+          items: []
+        };
+        categories.push(category);
+      }
+      const existing = new Set(category.items.map(item => item.name));
+      names.forEach(name => {
+        if (existing.has(name)) return;
+        category.items.push({
           id: uid("item"),
           name,
           qty: 1,
           done: false
-        }))
+        });
       });
     }
 
@@ -1309,6 +1323,11 @@
         startDate: options.startDate || "",
         endDate: options.endDate || "",
         destination: options.destination || null,
+        presetOptions: options.presetOptions || {
+          transport: options.transport || [],
+          lodging: options.lodging || [],
+          activity: options.activity || []
+        },
         enrichment: options.enrichment || null,
         shared: false,
         remoteRecordId: "",
@@ -1332,6 +1351,7 @@
         startDate: voyage.startDate || "",
         endDate: voyage.endDate || "",
         destination: voyage.destination || null,
+        presetOptions: voyage.presetOptions || { transport: [], lodging: [], activity: [] },
         enrichment: voyage.enrichment || null,
         shared: Boolean(voyage.shared || voyage.remoteRecordId),
         remoteRecordId: voyage.remoteRecordId || "",
@@ -1455,7 +1475,13 @@
       render();
     }
 
-    function openVoyageSheet() {
+    function openVoyageSheet(voyageId = null) {
+      editingVoyageId = voyageId;
+      const voyage = voyageId ? state.voyages.find(item => item.id === voyageId) : null;
+      document.getElementById("voyageSheetTitle").textContent = voyage ? "Modifier le voyage" : "Nouveau voyage";
+      document.getElementById("voyageSubmitButton").textContent = voyage ? "Enregistrer" : "Créer";
+      document.getElementById("joinDivider").style.display = voyage ? "none" : "";
+      document.getElementById("joinForm").style.display = voyage ? "none" : "";
       document.getElementById("voyageName").value = "";
       document.getElementById("voyageLocation").value = "";
       selectedDestination = null;
@@ -1465,22 +1491,47 @@
       document.querySelectorAll("#voyageSheet input[type='checkbox']").forEach(input => {
         input.checked = false;
       });
+      if (voyage) {
+        document.getElementById("voyageName").value = voyage.name || "";
+        selectedDestination = voyage.destination || voyage.enrichment?.location || null;
+        document.getElementById("voyageLocation").value = selectedDestination
+          ? [selectedDestination.name, selectedDestination.admin1, selectedDestination.country].filter(Boolean).join(", ")
+          : "";
+        draftDateRange = {
+          start: voyage.startDate || "",
+          end: voyage.endDate || "",
+          next: voyage.startDate && !voyage.endDate ? "end" : "start"
+        };
+        if (voyage.startDate) draftCalendarMonth = new Date(`${voyage.startDate}T00:00:00`);
+        renderRangeCalendar();
+        const status = document.getElementById("voyageRangeStatus");
+        if (status) status.textContent = voyage.date || "Choisissez la date de départ, puis la date de retour.";
+        const presets = voyage.presetOptions || {};
+        ["transport", "lodging", "activity"].forEach(group => {
+          (presets[group] || []).forEach(value => {
+            const input = document.querySelector(`#voyageSheet input[name='${group}'][value='${value}']`);
+            if (input) input.checked = true;
+          });
+        });
+      }
       document.getElementById("voyageSheet").classList.add("open");
       setTimeout(() => document.getElementById("voyageName").focus(), 50);
     }
 
     function closeSheet(id) {
       document.getElementById(id).classList.remove("open");
+      if (id === "voyageSheet") editingVoyageId = null;
     }
 
     function closeSheetOnBackdrop(event, id) {
       if (event.target.id === id) closeSheet(id);
     }
 
-    async function createVoyage(event) {
+    async function saveVoyageSheet(event) {
       event.preventDefault();
       const form = event.currentTarget;
       const submit = form.querySelector("button[type='submit']");
+      const existing = editingVoyageId ? state.voyages.find(item => item.id === editingVoyageId) : null;
       const tripName = form.elements.tripName.value.trim();
       const destinationText = form.elements.location.value.trim();
       if (!destinationText) {
@@ -1496,15 +1547,34 @@
       };
       if (submit) {
         submit.disabled = true;
-        submit.textContent = "Création...";
+        submit.textContent = existing ? "Enregistrement..." : "Création...";
       }
       options.destination = selectedDestination || await resolveDestination(destinationText);
       options.enrichment = null;
       const voyageName = tripName || options.destination?.name || destinationText || "Nouveau voyage";
-      const voyage = makeVoyage(voyageName, date, options);
-      state.voyages.unshift(voyage);
+      let voyage = existing;
+      if (voyage) {
+        voyage.name = voyageName;
+        voyage.date = date;
+        voyage.startDate = options.startDate;
+        voyage.endDate = options.endDate;
+        voyage.destination = options.destination;
+        voyage.presetOptions = {
+          transport: options.transport,
+          lodging: options.lodging,
+          activity: options.activity
+        };
+        enrichCategories(voyage.categories, "Transport", options.transport, presetItems.transport);
+        enrichCategories(voyage.categories, "Logement", options.lodging, presetItems.lodging);
+        enrichCategories(voyage.categories, "Activités", options.activity, presetItems.activity);
+        voyage.updatedAt = new Date().toISOString();
+      } else {
+        voyage = makeVoyage(voyageName, date, options);
+        state.voyages.unshift(voyage);
+      }
       state.currentVoyageId = voyage.id;
       state.tab = "liste";
+      editingVoyageId = null;
       closeSheet("voyageSheet");
       saveAndSync(voyage, { immediate: true });
       render();
@@ -1827,9 +1897,7 @@
       const voyage = currentVoyage();
       if (voyage) {
         voyage.categories.forEach(category => {
-          if (state.openCats[category.id] === undefined) {
-            state.openCats[category.id] = category.items.some(item => !item.done);
-          }
+          state.openCats[category.id] = false;
         });
       }
       saveLocal();
@@ -1981,6 +2049,11 @@
       render();
     }
 
+    function toggleQtyEditor(itemId) {
+      qtyEditorItemId = qtyEditorItemId === itemId ? null : itemId;
+      render();
+    }
+
     function changeQty(categoryId, itemId, deltaOrValue) {
       const voyage = currentVoyage();
       const item = voyage?.categories
@@ -1995,6 +2068,30 @@
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
+    }
+
+    function startItemLongPress(event, categoryId, itemId) {
+      if (event.target.closest("button") || event.target.closest("input")) return;
+      cancelItemLongPress();
+      longPressTimer = setTimeout(() => {
+        showItemActions(event, categoryId, itemId);
+      }, 560);
+    }
+
+    function cancelItemLongPress() {
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
+    function showItemActions(event, categoryId, itemId) {
+      event.preventDefault();
+      event.stopPropagation();
+      cancelItemLongPress();
+      const action = prompt("Action sur l'item : r = renommer, s = supprimer", "r");
+      if (!action) return;
+      const normalized = action.trim().toLowerCase();
+      if (normalized.startsWith("r")) renameItem(categoryId, itemId);
+      if (normalized.startsWith("s")) deleteItem(categoryId, itemId);
     }
 
     function saveAndSync(voyage, options = {}) {
@@ -2286,7 +2383,7 @@
                 <summary class="icon-btn" title="Options du voyage">⋮</summary>
                 <div class="voyage-menu-panel">
                   <button class="menu-item" type="button" onclick="addCategory()">Ajouter une catégorie</button>
-                  <button class="menu-item" type="button" onclick="renameCurrentVoyage()">Renommer le voyage</button>
+                  <button class="menu-item" type="button" onclick="openVoyageSheet('${voyage.id}')">Modifier le voyage</button>
                   <button class="menu-item" type="button" onclick="resetVoyageLists('${voyage.id}')">Réinitialiser les listes</button>
                   <button class="menu-item red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer le voyage</button>
                 </div>
@@ -2303,19 +2400,21 @@
 
     function renderCategory(voyage, category) {
       const progress = progressForCategory(category);
-      const open = state.openCats[category.id] !== false;
+      const open = state.openCats[category.id] === true;
       const items = category.items.map(item => `
-        <article class="item ${item.done ? "done" : ""}">
+        <article class="item ${item.done ? "done" : ""}" onpointerdown="startItemLongPress(event, '${category.id}', '${item.id}')" onpointerup="cancelItemLongPress()" onpointerleave="cancelItemLongPress()" oncontextmenu="showItemActions(event, '${category.id}', '${item.id}')">
           <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Cocher">✓</button>
           <div class="item-label" onclick="toggleItem('${category.id}', '${item.id}')">${escapeHTML(item.name)}</div>
-          <div class="mini-actions">
+          <div class="mini-actions" onclick="event.stopPropagation()">
+            ${qtyEditorItemId === item.id ? `
             <div class="qty" onclick="event.stopPropagation()">
               <button type="button" onclick="changeQty('${category.id}', '${item.id}', -1)" title="Diminuer">−</button>
               <input aria-label="Quantité" value="${escapeHTML(item.qty)}" inputmode="numeric" onchange="changeQty('${category.id}', '${item.id}', this.value)" onfocus="this.select()">
               <button type="button" onclick="changeQty('${category.id}', '${item.id}', 1)" title="Augmenter">+</button>
             </div>
-            <button class="mini blue" type="button" onclick="renameItem('${category.id}', '${item.id}')" title="Renommer">✎</button>
-            <button class="mini red" type="button" onclick="deleteItem('${category.id}', '${item.id}')" title="Supprimer">×</button>
+            ` : `
+            <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
+            `}
           </div>
         </article>
       `).join("");
