@@ -1138,7 +1138,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.30</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.31</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1218,7 +1218,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
   <script>
-    const VERSION = "1.30";
+    const VERSION = "1.31";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2160,6 +2160,12 @@
       render();
     }
 
+    function closeQtyEditorFromLabel(itemId) {
+      if (qtyEditorItemId !== itemId) return;
+      qtyEditorItemId = null;
+      render();
+    }
+
     function changeQty(categoryId, itemId, deltaOrValue) {
       const voyage = currentVoyage();
       const item = voyage?.categories
@@ -2506,7 +2512,7 @@
         <article class="item ${item.done ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
           <div class="item-content">
             <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Cocher">✓</button>
-            <div class="item-label">${escapeHTML(item.name)}</div>
+            <div class="item-label" onclick="closeQtyEditorFromLabel('${item.id}')">${escapeHTML(item.name)}</div>
             <div class="mini-actions" onclick="event.stopPropagation()">
               ${qtyEditorItemId === item.id ? `
               <div class="qty" onclick="event.stopPropagation()">
