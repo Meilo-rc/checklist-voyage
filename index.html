@@ -719,6 +719,7 @@
     }
 
     .item {
+      position: relative;
       display: grid;
       grid-template-columns: 26px minmax(0, 1fr) auto;
       align-items: center;
@@ -728,6 +729,51 @@
       border-radius: var(--radius);
       border: 1px solid var(--line);
       background: white;
+      overflow: hidden;
+      touch-action: pan-y;
+    }
+
+    .item-content {
+      position: relative;
+      z-index: 2;
+      display: contents;
+    }
+
+    .item.swiped .item-content {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
+      grid-column: 1 / -1;
+      gap: 7px;
+      align-items: center;
+      transform: translateX(-132px);
+      transition: transform .18s ease;
+      background: white;
+    }
+
+    .item-actions {
+      position: absolute;
+      inset: 0 0 0 auto;
+      z-index: 1;
+      display: flex;
+      align-items: stretch;
+      justify-content: flex-end;
+      width: 132px;
+    }
+
+    .item-action {
+      width: 66px;
+      border-radius: 0;
+      color: white;
+      font-size: .76rem;
+      font-weight: 850;
+    }
+
+    .item-action.edit {
+      background: var(--blue);
+    }
+
+    .item-action.delete {
+      background: var(--red);
     }
 
     .check {
@@ -838,7 +884,7 @@
 
     .add-item {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: 34px 1fr;
       gap: 8px;
       margin-top: 2px;
     }
@@ -1062,7 +1108,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v19</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v20</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1141,8 +1187,21 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
+  <div class="sheet-backdrop" id="itemActionSheet" onclick="closeSheetOnBackdrop(event, 'itemActionSheet')">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="itemActionTitle">
+      <div class="sheet-head">
+        <h2 id="itemActionTitle">Item</h2>
+        <button class="icon-btn" type="button" onclick="closeSheet('itemActionSheet')" title="Fermer">×</button>
+      </div>
+      <div class="grid">
+        <button class="btn blue full" type="button" onclick="editSelectedItem()">Modifier</button>
+        <button class="btn red full" type="button" onclick="deleteSelectedItem()">Supprimer</button>
+      </div>
+    </section>
+  </div>
+
   <script>
-    const VERSION = "v19";
+    const VERSION = "v20";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1160,7 +1219,10 @@
     let toastTimer = null;
     let editingVoyageId = null;
     let qtyEditorItemId = null;
-    let longPressTimer = null;
+    let selectedItemAction = null;
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let activeSwipeItemId = null;
 
     const state = {
       tab: "voyages",
@@ -1521,6 +1583,7 @@
     function closeSheet(id) {
       document.getElementById(id).classList.remove("open");
       if (id === "voyageSheet") editingVoyageId = null;
+      if (id === "itemActionSheet") selectedItemAction = null;
     }
 
     function closeSheetOnBackdrop(event, id) {
@@ -2070,28 +2133,51 @@
       render();
     }
 
-    function startItemLongPress(event, categoryId, itemId) {
+    function openItemActionSheet(categoryId, itemId) {
+      const voyage = currentVoyage();
+      const item = voyage?.categories
+        .find(category => category.id === categoryId)?.items
+        .find(row => row.id === itemId);
+      if (!item) return;
+      selectedItemAction = { categoryId, itemId };
+      activeSwipeItemId = null;
+      const title = document.getElementById("itemActionTitle");
+      if (title) title.textContent = item.name;
+      document.getElementById("itemActionSheet").classList.add("open");
+      render();
+    }
+
+    function editSelectedItem() {
+      if (!selectedItemAction) return;
+      const { categoryId, itemId } = selectedItemAction;
+      closeSheet("itemActionSheet");
+      renameItem(categoryId, itemId);
+    }
+
+    function deleteSelectedItem() {
+      if (!selectedItemAction) return;
+      const { categoryId, itemId } = selectedItemAction;
+      closeSheet("itemActionSheet");
+      deleteItem(categoryId, itemId);
+    }
+
+    function startItemSwipe(event, itemId) {
       if (event.target.closest("button") || event.target.closest("input")) return;
-      cancelItemLongPress();
-      longPressTimer = setTimeout(() => {
-        showItemActions(event, categoryId, itemId);
-      }, 560);
+      swipeStartX = event.clientX;
+      swipeStartY = event.clientY;
+      activeSwipeItemId = activeSwipeItemId === itemId ? null : activeSwipeItemId;
     }
 
-    function cancelItemLongPress() {
-      if (longPressTimer) clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
-
-    function showItemActions(event, categoryId, itemId) {
-      event.preventDefault();
-      event.stopPropagation();
-      cancelItemLongPress();
-      const action = prompt("Action sur l'item : r = renommer, s = supprimer", "r");
-      if (!action) return;
-      const normalized = action.trim().toLowerCase();
-      if (normalized.startsWith("r")) renameItem(categoryId, itemId);
-      if (normalized.startsWith("s")) deleteItem(categoryId, itemId);
+    function endItemSwipe(event, itemId) {
+      const deltaX = event.clientX - swipeStartX;
+      const deltaY = Math.abs(event.clientY - swipeStartY);
+      if (deltaX < -45 && deltaY < 35) {
+        activeSwipeItemId = itemId;
+        render();
+      } else if (deltaX > 35 && activeSwipeItemId === itemId) {
+        activeSwipeItemId = null;
+        render();
+      }
     }
 
     function saveAndSync(voyage, options = {}) {
@@ -2402,19 +2488,25 @@
       const progress = progressForCategory(category);
       const open = state.openCats[category.id] === true;
       const items = category.items.map(item => `
-        <article class="item ${item.done ? "done" : ""}" onpointerdown="startItemLongPress(event, '${category.id}', '${item.id}')" onpointerup="cancelItemLongPress()" onpointerleave="cancelItemLongPress()" oncontextmenu="showItemActions(event, '${category.id}', '${item.id}')">
-          <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Cocher">✓</button>
-          <div class="item-label" onclick="toggleItem('${category.id}', '${item.id}')">${escapeHTML(item.name)}</div>
-          <div class="mini-actions" onclick="event.stopPropagation()">
-            ${qtyEditorItemId === item.id ? `
-            <div class="qty" onclick="event.stopPropagation()">
-              <button type="button" onclick="changeQty('${category.id}', '${item.id}', -1)" title="Diminuer">−</button>
-              <input aria-label="Quantité" value="${escapeHTML(item.qty)}" inputmode="numeric" onchange="changeQty('${category.id}', '${item.id}', this.value)" onfocus="this.select()">
-              <button type="button" onclick="changeQty('${category.id}', '${item.id}', 1)" title="Augmenter">+</button>
+        <article class="item ${item.done ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
+          <div class="item-actions">
+            <button class="item-action edit" type="button" onclick="renameItem('${category.id}', '${item.id}')">Modifier</button>
+            <button class="item-action delete" type="button" onclick="deleteItem('${category.id}', '${item.id}')">Suppr.</button>
+          </div>
+          <div class="item-content">
+            <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Cocher">✓</button>
+            <div class="item-label" onclick="openItemActionSheet('${category.id}', '${item.id}')">${escapeHTML(item.name)}</div>
+            <div class="mini-actions" onclick="event.stopPropagation()">
+              ${qtyEditorItemId === item.id ? `
+              <div class="qty" onclick="event.stopPropagation()">
+                <button type="button" onclick="changeQty('${category.id}', '${item.id}', -1)" title="Diminuer">−</button>
+                <input aria-label="Quantité" value="${escapeHTML(item.qty)}" inputmode="numeric" onchange="changeQty('${category.id}', '${item.id}', this.value)" onfocus="this.select()">
+                <button type="button" onclick="changeQty('${category.id}', '${item.id}', 1)" title="Augmenter">+</button>
+              </div>
+              ` : `
+              <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
+              `}
             </div>
-            ` : `
-            <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
-            `}
           </div>
         </article>
       `).join("");
@@ -2428,15 +2520,20 @@
             </div>
             <div class="category-actions" onclick="event.stopPropagation()">
               <span class="badge">${progress.done}/${progress.total}</span>
-              <button class="mini blue" type="button" onclick="renameCategory('${category.id}')" title="Renommer">✎</button>
-              <button class="mini red" type="button" onclick="deleteCategory('${category.id}')" title="Supprimer">×</button>
+              <details class="voyage-menu">
+                <summary class="mini" title="Options de la catégorie">⋮</summary>
+                <div class="voyage-menu-panel">
+                  <button class="menu-item" type="button" onclick="renameCategory('${category.id}')">Modifier</button>
+                  <button class="menu-item red" type="button" onclick="deleteCategory('${category.id}')">Supprimer</button>
+                </div>
+              </details>
             </div>
           </button>
           <div class="category-body">
             ${items || `<div class="notice">Aucun élément dans cette catégorie.</div>`}
             <form class="add-item" onsubmit="addItem(event, '${category.id}')">
+              <button class="btn blue" type="submit">+</button>
               <input autocomplete="off" placeholder="Ajouter un élément">
-              <button class="btn blue" type="submit">Ajouter</button>
             </form>
           </div>
         </article>
