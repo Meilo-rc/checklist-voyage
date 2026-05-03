@@ -738,16 +738,11 @@
       touch-action: pan-y;
     }
 
-    .item.swiped {
-      grid-template-columns: minmax(0, 1fr) 132px;
-      padding-right: 0;
-    }
-
     .item-content {
       position: relative;
       z-index: 2;
       display: grid;
-      grid-template-columns: 26px minmax(0, 1fr) auto;
+      grid-template-columns: 26px minmax(0, 1fr) 34px;
       gap: 7px;
       align-items: center;
       width: 100%;
@@ -756,15 +751,23 @@
     }
 
     .item-actions {
-      display: none;
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 3;
+      display: flex;
       align-items: stretch;
       justify-content: flex-end;
       width: 132px;
-      align-self: stretch;
+      transform: translateX(132px);
+      transition: transform .18s ease;
+      pointer-events: none;
     }
 
     .item.swiped .item-actions {
-      display: flex;
+      transform: translateX(0);
+      pointer-events: auto;
     }
 
     .item-action {
@@ -853,6 +856,7 @@
       align-items: center;
       flex-wrap: wrap;
       justify-content: flex-end;
+      width: 34px;
     }
 
     .qty-pill {
@@ -1122,7 +1126,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v22</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v23</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1215,7 +1219,7 @@
   </div>
 
   <script>
-    const VERSION = "v22";
+    const VERSION = "v23";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
