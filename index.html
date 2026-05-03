@@ -1126,7 +1126,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v24</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v25</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1205,21 +1205,8 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
-  <div class="sheet-backdrop" id="itemActionSheet" onclick="closeSheetOnBackdrop(event, 'itemActionSheet')">
-    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="itemActionTitle">
-      <div class="sheet-head">
-        <h2 id="itemActionTitle">Item</h2>
-        <button class="icon-btn" type="button" onclick="closeSheet('itemActionSheet')" title="Fermer">×</button>
-      </div>
-      <div class="grid">
-        <button class="btn blue full" type="button" onclick="editSelectedItem()">Modifier</button>
-        <button class="btn red full" type="button" onclick="deleteSelectedItem()">Supprimer</button>
-      </div>
-    </section>
-  </div>
-
   <script>
-    const VERSION = "v24";
+    const VERSION = "v25";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1237,7 +1224,6 @@
     let toastTimer = null;
     let editingVoyageId = null;
     let qtyEditorItemId = null;
-    let selectedItemAction = null;
     let swipeStartX = 0;
     let swipeStartY = 0;
     let activeSwipeItemId = null;
@@ -1601,7 +1587,6 @@
     function closeSheet(id) {
       document.getElementById(id).classList.remove("open");
       if (id === "voyageSheet") editingVoyageId = null;
-      if (id === "itemActionSheet") selectedItemAction = null;
     }
 
     function closeSheetOnBackdrop(event, id) {
@@ -2151,39 +2136,10 @@
       render();
     }
 
-    function openItemActionSheet(categoryId, itemId) {
-      const voyage = currentVoyage();
-      const item = voyage?.categories
-        .find(category => category.id === categoryId)?.items
-        .find(row => row.id === itemId);
-      if (!item) return;
-      selectedItemAction = { categoryId, itemId };
-      activeSwipeItemId = null;
-      const title = document.getElementById("itemActionTitle");
-      if (title) title.textContent = item.name;
-      document.getElementById("itemActionSheet").classList.add("open");
-      render();
-    }
-
-    function editSelectedItem() {
-      if (!selectedItemAction) return;
-      const { categoryId, itemId } = selectedItemAction;
-      closeSheet("itemActionSheet");
-      renameItem(categoryId, itemId);
-    }
-
-    function deleteSelectedItem() {
-      if (!selectedItemAction) return;
-      const { categoryId, itemId } = selectedItemAction;
-      closeSheet("itemActionSheet");
-      deleteItem(categoryId, itemId);
-    }
-
     function startItemSwipe(event, itemId) {
-      if (event.target.closest("button") || event.target.closest("input")) return;
+      if (event.target.closest("input")) return;
       swipeStartX = event.clientX;
       swipeStartY = event.clientY;
-      activeSwipeItemId = activeSwipeItemId === itemId ? null : activeSwipeItemId;
     }
 
     function endItemSwipe(event, itemId) {
@@ -2509,7 +2465,7 @@
         <article class="item ${item.done ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
           <div class="item-content">
             <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Cocher">✓</button>
-            <div class="item-label" onclick="openItemActionSheet('${category.id}', '${item.id}')">${escapeHTML(item.name)}</div>
+            <div class="item-label">${escapeHTML(item.name)}</div>
             <div class="mini-actions" onclick="event.stopPropagation()">
               ${qtyEditorItemId === item.id ? `
               <div class="qty" onclick="event.stopPropagation()">
