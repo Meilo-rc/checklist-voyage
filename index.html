@@ -772,7 +772,18 @@
       border-radius: 0;
       color: white;
       font-size: .76rem;
-      font-weight: 850;
+      font-weight: 400;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 2px;
+      line-height: 1.1;
+    }
+
+    .item-action span {
+      display: block;
+      font-size: .95rem;
+      line-height: 1;
     }
 
     .item-action.edit {
@@ -806,7 +817,7 @@
       display: block;
       flex: 1 1 auto;
       min-width: 0;
-      font-weight: 730;
+      font-weight: 400;
       font-size: .86rem;
       white-space: nowrap;
       overflow: hidden;
@@ -1127,7 +1138,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.29</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.30</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1207,7 +1218,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite">Code copié</div>
 
   <script>
-    const VERSION = "1.29";
+    const VERSION = "1.30";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2509,8 +2520,8 @@
             </div>
           </div>
           <div class="item-actions">
-            <button class="item-action edit" type="button" onclick="renameItem('${category.id}', '${item.id}')">Modifier</button>
-            <button class="item-action delete" type="button" onclick="deleteItem('${category.id}', '${item.id}')">Suppr.</button>
+            <button class="item-action edit" type="button" onclick="renameItem('${category.id}', '${item.id}')"><span>✎</span>Modifier</button>
+            <button class="item-action delete" type="button" onclick="deleteItem('${category.id}', '${item.id}')"><span>🗑</span>Suppr.</button>
           </div>
         </article>
       `).join("");
@@ -2534,7 +2545,7 @@
               <details class="voyage-menu" onclick="event.stopPropagation()">
                 <summary class="mini" title="Options de la catégorie">⋮</summary>
                 <div class="voyage-menu-panel">
-                  <button class="menu-item" type="button" onclick="renameCategory('${category.id}')">Modifier la catégorie</button>
+                  <button class="menu-item" type="button" onclick="renameCategory('${category.id}')">Renommer la catégorie</button>
                   <button class="menu-item red" type="button" onclick="deleteCategory('${category.id}')">Supprimer la catégorie</button>
                 </div>
               </details>
