@@ -726,16 +726,21 @@
     .item {
       position: relative;
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       align-items: center;
       gap: 7px;
       min-height: 36px;
-      padding: 0;
+      padding: 5px 6px;
       border-radius: var(--radius);
       border: 1px solid var(--line);
       background: white;
       overflow: hidden;
       touch-action: pan-y;
+    }
+
+    .item.swiped {
+      grid-template-columns: minmax(0, 1fr) 132px;
+      padding-right: 0;
     }
 
     .item-content {
@@ -747,27 +752,19 @@
       align-items: center;
       width: 100%;
       min-height: 36px;
-      padding: 5px 6px;
       background: white;
-      transition: transform .18s ease;
-    }
-
-    .item.swiped .item-content {
-      transform: translateX(-132px);
     }
 
     .item-actions {
-      position: absolute;
-      inset: 0 0 0 auto;
-      z-index: 1;
-      display: flex;
+      display: none;
       align-items: stretch;
       justify-content: flex-end;
       width: 132px;
+      align-self: stretch;
     }
 
-    .item:not(.swiped) .item-actions {
-      pointer-events: none;
+    .item.swiped .item-actions {
+      display: flex;
     }
 
     .item-action {
@@ -808,7 +805,9 @@
       min-width: 0;
       font-weight: 730;
       font-size: .86rem;
-      overflow-wrap: anywhere;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .item.done .item-label {
@@ -894,9 +893,14 @@
 
     .add-item {
       display: grid;
-      grid-template-columns: 34px 1fr;
+      grid-template-columns: 34px minmax(0, 1fr) 34px;
       gap: 8px;
       margin-top: 2px;
+    }
+
+    .add-item .voyage-menu-panel {
+      top: auto;
+      bottom: 38px;
     }
 
     .empty {
@@ -1118,7 +1122,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">v21</span></h1>
+              <h1>Checklist voyage <span class="badge blue">v22</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1211,7 +1215,7 @@
   </div>
 
   <script>
-    const VERSION = "v21";
+    const VERSION = "v22";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2499,10 +2503,6 @@
       const open = state.openCats[category.id] === true;
       const items = category.items.map(item => `
         <article class="item ${item.done ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
-          <div class="item-actions">
-            <button class="item-action edit" type="button" onclick="renameItem('${category.id}', '${item.id}')">Modifier</button>
-            <button class="item-action delete" type="button" onclick="deleteItem('${category.id}', '${item.id}')">Suppr.</button>
-          </div>
           <div class="item-content">
             <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Cocher">✓</button>
             <div class="item-label" onclick="openItemActionSheet('${category.id}', '${item.id}')">${escapeHTML(item.name)}</div>
@@ -2518,6 +2518,10 @@
               `}
             </div>
           </div>
+          <div class="item-actions">
+            <button class="item-action edit" type="button" onclick="renameItem('${category.id}', '${item.id}')">Modifier</button>
+            <button class="item-action delete" type="button" onclick="deleteItem('${category.id}', '${item.id}')">Suppr.</button>
+          </div>
         </article>
       `).join("");
 
@@ -2530,13 +2534,6 @@
             </button>
             <div class="category-actions" onclick="event.stopPropagation()">
               <span class="badge">${progress.done}/${progress.total}</span>
-              <details class="voyage-menu">
-                <summary class="mini" title="Options de la catégorie">⋮</summary>
-                <div class="voyage-menu-panel">
-                  <button class="menu-item" type="button" onclick="renameCategory('${category.id}')">Modifier</button>
-                  <button class="menu-item red" type="button" onclick="deleteCategory('${category.id}')">Supprimer</button>
-                </div>
-              </details>
             </div>
           </div>
           <div class="category-body">
@@ -2544,6 +2541,13 @@
             <form class="add-item" onsubmit="addItem(event, '${category.id}')">
               <button class="btn blue" type="submit">+</button>
               <input autocomplete="off" placeholder="Ajouter un élément">
+              <details class="voyage-menu" onclick="event.stopPropagation()">
+                <summary class="mini" title="Options de la catégorie">⋮</summary>
+                <div class="voyage-menu-panel">
+                  <button class="menu-item" type="button" onclick="renameCategory('${category.id}')">Modifier</button>
+                  <button class="menu-item red" type="button" onclick="deleteCategory('${category.id}')">Supprimer</button>
+                </div>
+              </details>
             </form>
           </div>
         </article>
