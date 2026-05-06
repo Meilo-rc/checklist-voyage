@@ -1195,7 +1195,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.33</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.34</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1300,7 +1300,7 @@
   </div>
 
   <script>
-    const VERSION = "1.33";
+    const VERSION = "1.34";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2681,7 +2681,9 @@
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
       if (!name) return;
-      state.customCategories.push({ id: uid("tpl"), name, items: [] });
+      const category = { id: uid("tpl"), name, items: [] };
+      state.customCategories.push(category);
+      state.openCats[category.id] = true;
       input.value = "";
       saveLocal();
       saveSharedSettings();
@@ -2706,6 +2708,7 @@
       if (!category) return;
       if (!confirm(`Supprimer le modèle "${category.name}" ?`)) return;
       state.customCategories = state.customCategories.filter(item => item.id !== categoryId);
+      delete state.openCats[categoryId];
       saveLocal();
       saveSharedSettings();
       render();
@@ -2719,6 +2722,19 @@
       if (!category || !name) return;
       category.items.push(name);
       input.value = "";
+      saveLocal();
+      saveSharedSettings();
+      render();
+    }
+
+    function renameCustomItem(categoryId, itemIndex) {
+      const category = state.customCategories.find(item => item.id === categoryId);
+      if (!category) return;
+      const value = prompt("Renommer l'item", category.items[itemIndex]);
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      category.items[itemIndex] = name;
       saveLocal();
       saveSharedSettings();
       render();
@@ -2746,29 +2762,53 @@
 
     function renderCustomCategories() {
       const content = document.getElementById("content");
-      const cards = state.customCategories.map(category => `
-        <article class="custom-category-card">
-          <div class="custom-category-head">
-            <h2 class="card-title">${escapeHTML(category.name)}</h2>
-            <div class="button-row">
-              <button class="btn ghost" type="button" onclick="renameCustomCategory('${category.id}')">Renommer</button>
-              <button class="btn soft-red" type="button" onclick="deleteCustomCategory('${category.id}')">Suppr.</button>
-            </div>
-          </div>
-          <div class="grid">
-            ${category.items.length ? category.items.map((item, index) => `
-              <div class="custom-item-row">
-                <span>${escapeHTML(item)}</span>
-                <button class="icon-btn" type="button" onclick="deleteCustomItem('${category.id}', ${index})" title="Supprimer">&times;</button>
+      const cards = state.customCategories.map(category => {
+        const open = state.openCats[category.id] === true;
+        const items = category.items.map((item, index) => `
+          <article class="item template-item">
+            <div class="item-content">
+              <div class="item-label">${escapeHTML(item)}</div>
+              <div class="category-actions">
+                <details class="voyage-menu" onclick="event.stopPropagation()">
+                  <summary class="mini" title="Options de l'item">⋮</summary>
+                  <div class="voyage-menu-panel">
+                    <button class="menu-item" type="button" onclick="renameCustomItem('${category.id}', ${index})">Renommer l'item</button>
+                    <button class="menu-item red" type="button" onclick="deleteCustomItem('${category.id}', ${index})">Supprimer l'item</button>
+                  </div>
+                </details>
               </div>
-            `).join("") : `<div class="notice">Aucun item dans ce modèle.</div>`}
-          </div>
-          <form class="add-item" onsubmit="addCustomItem(event, '${category.id}')">
-            <button class="btn blue" type="submit">+</button>
-            <input autocomplete="off" placeholder="Ajouter un item">
-          </form>
-        </article>
-      `).join("");
+            </div>
+          </article>
+        `).join("");
+
+        return `
+          <article class="category ${open ? "open" : ""}">
+            <div class="category-head">
+              <button class="category-title" type="button" onclick="toggleCategory('${category.id}')">
+                <span class="chevron">${open ? "⌃" : "⌄"}</span>
+                <span class="category-name">${escapeHTML(category.name)}</span>
+              </button>
+              <div class="category-actions" onclick="event.stopPropagation()">
+                <span class="badge">${category.items.length}</span>
+              </div>
+            </div>
+            <div class="category-body">
+              ${items || `<div class="notice">Aucun item dans ce modèle.</div>`}
+              <form class="add-item" onsubmit="addCustomItem(event, '${category.id}')">
+                <button class="btn blue" type="submit">+</button>
+                <input autocomplete="off" placeholder="Ajouter un item">
+                <details class="voyage-menu" onclick="event.stopPropagation()">
+                  <summary class="mini" title="Options de la catégorie">⋮</summary>
+                  <div class="voyage-menu-panel">
+                    <button class="menu-item" type="button" onclick="renameCustomCategory('${category.id}')">Renommer la catégorie</button>
+                    <button class="menu-item red" type="button" onclick="deleteCustomCategory('${category.id}')">Supprimer la catégorie</button>
+                  </div>
+                </details>
+              </form>
+            </div>
+          </article>
+        `;
+      }).join("");
 
       content.innerHTML = `
         <section class="toolbar">
