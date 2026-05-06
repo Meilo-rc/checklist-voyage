@@ -951,19 +951,19 @@
     }
 
     .template-delete {
-      min-height: 28px;
-      padding: 0 8px;
-      border-radius: 999px;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 4px;
       background: var(--red-soft);
       color: var(--red);
       border: 1px solid #fecaca;
-      font-size: .78rem;
-      font-weight: 700;
-      white-space: nowrap;
+      font-size: 1rem;
+      font-weight: 850;
+      line-height: 1;
     }
 
     .mini {
@@ -1222,7 +1222,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.36</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.37</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1327,7 +1327,7 @@
   </div>
 
   <script>
-    const VERSION = "1.36";
+    const VERSION = "1.37";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2806,7 +2806,7 @@
             <div class="item-content">
               <div class="item-label">${escapeHTML(item)}</div>
               <div class="category-actions">
-                <button class="template-delete" type="button" onclick="deleteCustomItem('${category.id}', ${index})" title="Supprimer l'item"><span aria-hidden="true">&#128465;</span>Suppr.</button>
+                <button class="template-delete" type="button" onclick="deleteCustomItem('${category.id}', ${index})" title="Supprimer l'item" aria-label="Supprimer l'item">&times;</button>
               </div>
             </div>
           </article>
