@@ -824,11 +824,17 @@
       color: white;
     }
 
+    .item.checked .check {
+      background: #e5e7eb;
+      border-color: #8b95a5;
+      color: #667085;
+    }
+
     .item-label {
       display: block;
       flex: 1 1 auto;
       min-width: 0;
-      font-weight: 400;
+      font-weight: 760;
       font-size: .86rem;
       white-space: nowrap;
       overflow: hidden;
@@ -839,6 +845,11 @@
       color: var(--muted);
       text-decoration: line-through;
       text-decoration-thickness: 2px;
+    }
+
+    .item.checked .item-label {
+      color: #a9b4c4;
+      text-decoration: none;
     }
 
     .qty {
@@ -1211,7 +1222,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.35</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.36</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1316,7 +1327,7 @@
   </div>
 
   <script>
-    const VERSION = "1.35";
+    const VERSION = "1.36";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1430,6 +1441,11 @@
       const number = Number.parseInt(value, 10);
       if (!Number.isFinite(number) || number < 1) return 1;
       return Math.min(number, 99);
+    }
+
+    function normalizeItemStatus(item) {
+      if (item?.status === "checked" || item?.status === "done") return item.status;
+      return item?.done ? "done" : "todo";
     }
 
     function isUserEditing() {
@@ -1553,11 +1569,13 @@
 
     function normalizeItem(raw) {
       const item = raw && typeof raw === "object" ? raw : {};
+      const status = normalizeItemStatus(item);
       return {
         id: item.id || uid("item"),
         name: item.name || "Élément",
         qty: normalizeQty(item.qty || 1),
-        done: Boolean(item.done)
+        status,
+        done: status === "done"
       };
     }
 
@@ -1624,7 +1642,7 @@
     function progressForVoyage(voyage) {
       const items = voyage.categories.flatMap(category => category.items);
       const total = items.length;
-      const done = items.filter(item => item.done).length;
+      const done = items.filter(item => normalizeItemStatus(item) === "done").length;
       return {
         total,
         done,
@@ -1634,7 +1652,7 @@
 
     function progressForCategory(category) {
       const total = category.items.length;
-      const done = category.items.filter(item => item.done).length;
+      const done = category.items.filter(item => normalizeItemStatus(item) === "done").length;
       return {
         total,
         done,
@@ -2161,6 +2179,7 @@
       voyage.categories.forEach(category => {
         category.items.forEach(item => {
           item.done = false;
+          item.status = "todo";
         });
       });
       voyage.updatedAt = new Date().toISOString();
@@ -2274,7 +2293,7 @@
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
       if (!name) return;
-      category.items.push({ id: uid("item"), name, qty: 1, done: false });
+      category.items.push({ id: uid("item"), name, qty: 1, status: "todo", done: false });
       input.value = "";
       state.openCats[categoryId] = true;
       voyage.updatedAt = new Date().toISOString();
@@ -2287,10 +2306,12 @@
       const category = voyage?.categories.find(row => row.id === categoryId);
       const item = category?.items.find(row => row.id === itemId);
       if (!voyage || !category || !item) return;
-      item.done = !item.done;
+      item.status = item.status === "todo" ? "checked" : item.status === "checked" ? "done" : "todo";
+      item.done = item.status === "done";
       category.items = [
-        ...category.items.filter(row => !row.done),
-        ...category.items.filter(row => row.done)
+        ...category.items.filter(row => normalizeItemStatus(row) === "todo"),
+        ...category.items.filter(row => normalizeItemStatus(row) === "checked"),
+        ...category.items.filter(row => normalizeItemStatus(row) === "done")
       ];
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
@@ -2939,10 +2960,12 @@
     function renderCategory(voyage, category) {
       const progress = progressForCategory(category);
       const open = state.openCats[category.id] === true;
-      const items = category.items.map(item => `
-        <article class="item ${item.done ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
+      const items = category.items.map(item => {
+        const status = normalizeItemStatus(item);
+        return `
+        <article class="item ${status === "checked" ? "checked" : ""} ${status === "done" ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
           <div class="item-content">
-            <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Cocher">✓</button>
+            <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Changer l'état">✓</button>
             <div class="item-label" onclick="closeQtyEditorFromLabel('${item.id}')">${escapeHTML(item.name)}</div>
             <div class="mini-actions" onclick="event.stopPropagation()">
               ${qtyEditorItemId === item.id ? `
@@ -2961,7 +2984,8 @@
             <button class="item-action delete" type="button" onclick="deleteItem('${category.id}', '${item.id}')"><span>🗑</span>Suppr.</button>
           </div>
         </article>
-      `).join("");
+      `;
+      }).join("");
 
       return `
         <article class="category ${open ? "open" : ""}">
