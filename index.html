@@ -1222,7 +1222,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.37</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.38</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1327,7 +1327,7 @@
   </div>
 
   <script>
-    const VERSION = "1.37";
+    const VERSION = "1.38";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1340,7 +1340,7 @@
     let settingsRecordId = "";
     let syncTimer = null;
     let pendingRemoteVoyage = null;
-    let statusText = "Local";
+    let statusText = "Synchronisé";
     let draftDateRange = { start: "", end: "", next: "start" };
     let draftCalendarMonth = new Date();
     let selectedDestination = null;
@@ -1525,7 +1525,7 @@
           activity: options.activity || []
         },
         enrichment: options.enrichment || null,
-        shared: false,
+        shared: true,
         remoteRecordId: "",
         categories: createDefaultCategories(options),
         createdAt: new Date().toISOString(),
@@ -1629,7 +1629,7 @@
         state.voyages = oldVoyages.map(voyage => normalizeVoyage({
           ...voyage,
           code: voyage.code || generateCode(),
-          shared: false,
+          shared: true,
           remoteRecordId: ""
         }));
         state.currentVoyageId = state.voyages[0]?.id || null;
@@ -2525,7 +2525,7 @@
       if (!voyage) return;
       const client = getPB();
       if (!client) {
-        setStatus("Local");
+        setStatus("Hors ligne");
         return;
       }
       try {
@@ -2560,12 +2560,20 @@
         voyage.shared = true;
         voyage.remoteRecordId = record.id;
         saveLocal();
-        setStatus("Partagé");
+        setStatus("Synchronisé");
         subscribeToCurrentVoyage();
       } catch (error) {
         console.warn("Synchronisation impossible", error);
-        setStatus("Local");
+        setStatus("Hors ligne");
       }
+    }
+
+    function syncAllVoyages(options = {}) {
+      state.voyages
+        .filter(voyage => voyage?.code && voyage.code !== SETTINGS_CODE)
+        .forEach((voyage, index) => {
+          setTimeout(() => saveVoyageRemote(voyage), options.immediate ? 0 : index * 250);
+        });
     }
 
     async function subscribeToCurrentVoyage() {
@@ -2580,7 +2588,7 @@
         unsubscribeCurrent = null;
       }
       if (!client || !voyage?.code) {
-        setStatus(voyage?.shared ? "Partagé" : "Local");
+        setStatus(voyage?.shared ? "Synchronisé" : "Synchronisation...");
         return;
       }
       try {
@@ -2600,9 +2608,9 @@
           if (event.action !== "update" || !event.record?.data) return;
           receiveRemoteVoyage(event.record.data, event.record.id);
         }, { requestKey: null });
-        setStatus("Partagé");
+        setStatus("Synchronisé");
       } catch (error) {
-        setStatus(voyage.shared ? "Partagé" : "Local");
+        setStatus(voyage.shared ? "Synchronisé" : "Hors ligne");
       }
     }
 
@@ -2679,7 +2687,7 @@
       } catch (error) {
         console.warn("Import impossible", error);
         alert("Je n'ai pas trouvé ce voyage. Vérifie le code, puis réessaie.");
-        setStatus("Local");
+        setStatus("Hors ligne");
       }
     }
 
@@ -2788,7 +2796,7 @@
 
     function render() {
       const voyage = currentVoyage();
-      setStatus(voyage ? (voyage.shared ? "Partagé" : "Local") : "Local");
+      setStatus(voyage ? (voyage.shared ? "Synchronisé" : "Synchronisation...") : "Synchronisé");
 
       if (!voyage && state.tab !== "voyages" && state.tab !== "customCategories") state.tab = "voyages";
 
@@ -2887,7 +2895,6 @@
                 </div>
                 <div class="voyage-meta">
                   ${voyage.date ? `<span class="badge">${escapeHTML(voyage.date)}</span>` : ""}
-                  <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
                   <span class="badge blue">${escapeHTML(voyage.code)}</span>
                 </div>
               </div>
@@ -2937,7 +2944,6 @@
               <p>${progress.done}/${progress.total} éléments prêts</p>
             </div>
             <div class="category-actions">
-              <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
               <details class="voyage-menu">
                 <summary class="icon-btn" title="Options du voyage">⋮</summary>
                 <div class="voyage-menu-panel">
@@ -3030,7 +3036,6 @@
               <h2>Partager ce voyage</h2>
               <p>Le code ci-dessous donne accès uniquement à "${escapeHTML(voyage.name)}".</p>
             </div>
-            <span class="badge ${voyage.shared ? "green" : "amber"}">${voyage.shared ? "Partagé" : "Local"}</span>
           </div>
           <div class="code-box">
             <div>
@@ -3056,7 +3061,7 @@
         </section>
 
         <section class="notice blue">
-          Le partage se fait maintenant voyage par voyage. Votre liste locale peut contenir plusieurs voyages, mais chaque code ne synchronise qu'un seul voyage.
+          Tous les voyages sont synchronisés automatiquement avec PocketBase. Le code permet simplement de retrouver ou ajouter un voyage sur un autre appareil.
         </section>
       `;
     }
@@ -3072,8 +3077,7 @@
     });
 
     window.addEventListener("online", () => {
-      const voyage = currentVoyage();
-      if (voyage) saveVoyageRemote(voyage);
+      syncAllVoyages({ immediate: true });
     });
 
     if ("serviceWorker" in navigator) {
@@ -3087,6 +3091,7 @@
     loadLocal();
     render();
     loadSharedSettings();
+    syncAllVoyages();
     subscribeToCurrentVoyage();
   </script>
 </body>
