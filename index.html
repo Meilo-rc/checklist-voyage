@@ -224,6 +224,19 @@
       padding: 14px 14px calc(24px + var(--safe-bottom));
     }
 
+    .home-hero {
+      display: grid;
+      place-items: center;
+      margin: 2px 0 14px;
+      padding: 6px 0 0;
+    }
+
+    .home-hero img {
+      width: min(100%, 320px);
+      height: auto;
+      display: block;
+    }
+
     .section {
       margin-bottom: 14px;
     }
@@ -1222,7 +1235,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.38</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.39</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1327,7 +1340,7 @@
   </div>
 
   <script>
-    const VERSION = "1.38";
+    const VERSION = "1.39";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2870,6 +2883,9 @@
       const content = document.getElementById("content");
       if (!state.voyages.length) {
         content.innerHTML = `
+          <section class="home-hero" aria-label="Vacances en famille">
+            <img src="./vacances-famille.svg" alt="Famille en vacances">
+          </section>
           <section class="panel empty">
             <h2>Aucun voyage pour le moment</h2>
             <p>Ajoutez un voyage en le créant ou avec un code partagé.</p>
@@ -2906,10 +2922,12 @@
       }).join("");
 
       content.innerHTML = `
+        <section class="home-hero" aria-label="Vacances en famille">
+          <img src="./vacances-famille.svg" alt="Famille en vacances">
+        </section>
         <section class="toolbar">
           <div class="toolbar-title">
             <h2>Voyages</h2>
-            <p>Chaque voyage a maintenant son propre code de partage.</p>
           </div>
         </section>
         <section class="grid">

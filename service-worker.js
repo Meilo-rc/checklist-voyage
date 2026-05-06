@@ -1,11 +1,12 @@
-const CACHE_NAME = "checklist-voyage-1.38";
+const CACHE_NAME = "checklist-voyage-1.39";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.json",
   "./icon.svg",
   "./icon-192.png",
-  "./icon-512.png"
+  "./icon-512.png",
+  "./vacances-famille.svg"
 ];
 
 self.addEventListener("install", event => {
