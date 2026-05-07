@@ -789,26 +789,24 @@
 
     .icon-picker-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
       gap: 8px;
     }
 
     .icon-choice {
-      min-height: 62px;
+      min-height: 52px;
       display: grid;
       place-items: center;
-      gap: 5px;
-      padding: 8px 6px;
+      padding: 8px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: white;
       color: var(--text);
-      font-size: .72rem;
     }
 
     .icon-choice .category-icon {
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       color: #424955;
     }
 
@@ -1371,7 +1369,7 @@
               </svg>
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.51</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.52</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1487,7 +1485,7 @@
   </div>
 
   <script>
-    const VERSION = "1.51";
+    const VERSION = "1.52";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -3113,7 +3111,6 @@
       target.innerHTML = categoryIcons.map(icon => `
         <button class="icon-choice ${icon === active ? "active" : ""}" type="button" onclick="selectCategoryIcon('${icon}')">
           <span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>
-          <span>${escapeHTML(iconLabels[icon] || icon)}</span>
         </button>
       `).join("");
     }
