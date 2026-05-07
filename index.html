@@ -271,6 +271,38 @@
       box-shadow: var(--shadow);
     }
 
+    .install-steps {
+      display: grid;
+      gap: 10px;
+    }
+
+    .install-card {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .install-card h3 {
+      margin: 0;
+      font-size: .98rem;
+    }
+
+    .install-card ol {
+      margin: 0;
+      padding-left: 22px;
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.45;
+    }
+
+    .install-card li + li {
+      margin-top: 6px;
+    }
+
     .panel-pad {
       padding: 14px;
     }
@@ -1307,7 +1339,7 @@
               </svg>
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.48</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.49</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1316,6 +1348,7 @@
               <summary class="icon-btn" title="Paramètres">&#9881;</summary>
               <div class="voyage-menu-panel">
                 <button class="menu-item" type="button" onclick="openCustomCategories()">Gérer les catégories personnalisées</button>
+                <button class="menu-item" type="button" onclick="openInstallation()">Installer l'application</button>
               </div>
             </details>
           </div>
@@ -1412,7 +1445,7 @@
   </div>
 
   <script>
-    const VERSION = "1.48";
+    const VERSION = "1.49";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2819,6 +2852,12 @@
       render();
     }
 
+    function openInstallation() {
+      closeSettingsMenu();
+      state.tab = "installation";
+      render();
+    }
+
     function addCustomCategory(event) {
       event.preventDefault();
       const input = event.currentTarget.querySelector("input");
@@ -2896,11 +2935,52 @@
       const voyage = currentVoyage();
       setStatus(voyage ? (voyage.shared ? "Synchronisé" : "Synchronisation...") : "Synchronisé");
 
-      if (!voyage && state.tab !== "voyages" && state.tab !== "customCategories") state.tab = "voyages";
+      if (!voyage && state.tab !== "voyages" && state.tab !== "customCategories" && state.tab !== "installation") state.tab = "voyages";
 
       if (state.tab === "liste") renderChecklist();
       else if (state.tab === "customCategories") renderCustomCategories();
+      else if (state.tab === "installation") renderInstallation();
       else renderVoyages();
+    }
+
+    function renderInstallation() {
+      const content = document.getElementById("content");
+      content.innerHTML = `
+        <section class="toolbar">
+          <div class="toolbar-title">
+            <h2>Installer l'application</h2>
+            <p>Ouvrez le lien internet de l'application sur votre smartphone, puis suivez les étapes selon votre téléphone.</p>
+          </div>
+        </section>
+        <section class="install-steps">
+          <article class="install-card">
+            <h3>Sur iPhone avec Safari</h3>
+            <ol>
+              <li>Ouvrez le lien de l'application dans Safari.</li>
+              <li>Appuyez sur le bouton de partage en bas de l'écran.</li>
+              <li>Choisissez "Sur l'écran d'accueil".</li>
+              <li>Appuyez sur "Ajouter". L'icône apparaît alors avec vos applications.</li>
+            </ol>
+          </article>
+          <article class="install-card">
+            <h3>Sur Android avec Chrome</h3>
+            <ol>
+              <li>Ouvrez le lien de l'application dans Chrome.</li>
+              <li>Appuyez sur le menu avec les trois points en haut à droite.</li>
+              <li>Choisissez "Ajouter à l'écran d'accueil" ou "Installer l'application".</li>
+              <li>Validez. L'icône apparaît alors avec vos applications.</li>
+            </ol>
+          </article>
+          <article class="install-card">
+            <h3>Si l'option n'apparaît pas</h3>
+            <ol>
+              <li>Actualisez la page, puis réessayez depuis le navigateur du téléphone.</li>
+              <li>Sur iPhone, utilisez Safari plutôt qu'un navigateur intégré à une messagerie.</li>
+              <li>Sur Android, utilisez Chrome et vérifiez que vous êtes bien sur la page de l'application.</li>
+            </ol>
+          </article>
+        </section>
+      `;
     }
 
     function renderCustomCategories() {
