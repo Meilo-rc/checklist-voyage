@@ -1369,7 +1369,7 @@
               </svg>
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.52</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.53</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1485,7 +1485,7 @@
   </div>
 
   <script>
-    const VERSION = "1.52";
+    const VERSION = "1.53";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2995,6 +2995,12 @@
       if (menu) menu.open = false;
     }
 
+    function closeOpenMenus(except = null) {
+      document.querySelectorAll(".voyage-menu[open]").forEach(menu => {
+        if (menu !== except) menu.open = false;
+      });
+    }
+
     function openCustomCategories() {
       closeSettingsMenu();
       state.tab = "customCategories";
@@ -3459,9 +3465,12 @@
     });
 
     document.addEventListener("click", event => {
-      const menu = document.getElementById("settingsMenu");
-      if (!menu || !menu.open) return;
-      if (!menu.contains(event.target)) menu.open = false;
+      const menu = event.target.closest(".voyage-menu");
+      if (!menu) {
+        closeOpenMenus();
+        return;
+      }
+      closeOpenMenus(menu);
     });
 
     window.addEventListener("online", () => {
