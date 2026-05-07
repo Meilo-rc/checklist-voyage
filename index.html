@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Checklist voyage</title>
-  <meta name="theme-color" content="#69C3EB">
+  <meta name="theme-color" content="#2f80ed">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Checklist voyage">
@@ -88,10 +88,10 @@
       position: sticky;
       top: 0;
       z-index: 20;
-      background: rgba(255, 255, 255, .96);
-      border-bottom: 1px solid var(--line);
+      background: #2f80ed;
+      border-bottom: 1px solid rgba(23, 69, 140, .22);
       backdrop-filter: blur(12px);
-      box-shadow: 0 1px 0 rgba(15, 23, 42, .02);
+      box-shadow: 0 2px 10px rgba(47, 128, 237, .2);
     }
 
     .topbar-inner {
@@ -111,7 +111,7 @@
       width: 100%;
       border: 0;
       background: transparent;
-      color: inherit;
+      color: white;
       text-align: left;
       cursor: pointer;
       padding: 0;
@@ -130,7 +130,7 @@
       display: grid;
       place-items: center;
       border-radius: var(--radius);
-      background: var(--blue);
+      background: rgba(255, 255, 255, .14);
       color: white;
       font-weight: 800;
       flex: 0 0 auto;
@@ -138,6 +138,12 @@
 
     .brand-title {
       min-width: 0;
+    }
+
+    .brand-plane {
+      width: 24px;
+      height: 24px;
+      display: block;
     }
 
     h1 {
@@ -158,6 +164,16 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .topbar .headline-meta {
+      color: rgba(255, 255, 255, .82);
+    }
+
+    .topbar .badge.blue {
+      border-color: rgba(255, 255, 255, .32);
+      background: rgba(255, 255, 255, .16);
+      color: white;
     }
 
     .badge {
@@ -210,6 +226,12 @@
       color: var(--text);
       border: 1px solid var(--line);
       flex: 0 0 auto;
+    }
+
+    .topbar .icon-btn {
+      background: rgba(255, 255, 255, .14);
+      color: white;
+      border-color: rgba(255, 255, 255, .25);
     }
 
     .icon-btn:active,
@@ -1277,9 +1299,14 @@
       <header class="topbar">
         <div class="topbar-inner">
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
-            <div class="brand-mark" aria-hidden="true">✓</div>
+            <div class="brand-mark" aria-hidden="true">
+              <svg class="brand-plane" viewBox="0 0 64 64">
+                <path d="M8 44h48" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".75"/>
+                <path d="M13 38 51 16c3-2 7 1 5 5L38 39l-14-4-8 7-5-2 7-10-8-7 5-3 12 6 12-9" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.46</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.47</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1384,7 +1411,7 @@
   </div>
 
   <script>
-    const VERSION = "1.46";
+    const VERSION = "1.47";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
