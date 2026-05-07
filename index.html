@@ -843,18 +843,47 @@
       display: grid;
       place-items: center;
       font-weight: 900;
+      position: relative;
     }
 
     .item.done .check {
       background: var(--green);
       border-color: var(--green);
-      color: white;
+      color: transparent;
     }
 
     .item.checked .check {
       background: #e5e7eb;
       border-color: #8b95a5;
+      color: transparent;
+    }
+
+    .item.checked .check::before,
+    .item.done .check::before {
+      content: "";
+      width: 12px;
+      height: 3px;
+      border-radius: 999px;
+      background: currentColor;
+      position: absolute;
+    }
+
+    .item.checked .check::before {
       color: #667085;
+    }
+
+    .item.done .check::before,
+    .item.done .check::after {
+      color: white;
+    }
+
+    .item.done .check::after {
+      content: "";
+      width: 3px;
+      height: 12px;
+      border-radius: 999px;
+      background: currentColor;
+      position: absolute;
     }
 
     .item-label {
@@ -1249,7 +1278,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.42</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.43</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1354,7 +1383,7 @@
   </div>
 
   <script>
-    const VERSION = "1.42";
+    const VERSION = "1.43";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -3018,7 +3047,7 @@
         return `
         <article class="item ${status === "checked" ? "checked" : ""} ${status === "done" ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
           <div class="item-content">
-            <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Changer l'état">✓</button>
+            <button class="check" type="button" onclick="toggleItem('${category.id}', '${item.id}')" title="Changer l'état" aria-label="Changer l'état"></button>
             <div class="item-label" onclick="closeQtyEditorFromLabel('${item.id}')">${escapeHTML(item.name)}</div>
             <div class="mini-actions" onclick="event.stopPropagation()">
               ${qtyEditorItemId === item.id ? `
