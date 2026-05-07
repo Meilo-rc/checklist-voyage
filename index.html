@@ -1235,7 +1235,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.39</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.40</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1262,13 +1262,13 @@
       </div>
       <form class="grid section" id="voyageForm" onsubmit="saveVoyageSheet(event)">
         <div class="field">
-          <label for="voyageName">Nom du voyage</label>
-          <input id="voyageName" name="tripName" autocomplete="off" placeholder="Ex. Vacances été, ski février...">
-        </div>
-        <div class="field">
           <label for="voyageLocation">Destination</label>
           <input id="voyageLocation" name="location" autocomplete="off" placeholder="Rechercher une destination" oninput="searchDestination(this.value)" onfocus="showDestinationSuggestions()">
           <div class="suggestions" id="destinationSuggestions"></div>
+        </div>
+        <div class="field">
+          <label for="voyageName">Nom du voyage <span class="muted">(facultatif)</span></label>
+          <input id="voyageName" name="tripName" autocomplete="off" placeholder="Par défaut : la destination">
         </div>
         <div class="field">
           <label>Dates du voyage</label>
@@ -1340,7 +1340,7 @@
   </div>
 
   <script>
-    const VERSION = "1.39";
+    const VERSION = "1.40";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1741,7 +1741,7 @@
         });
       }
       document.getElementById("voyageSheet").classList.add("open");
-      setTimeout(() => document.getElementById("voyageName").focus(), 50);
+      setTimeout(() => document.getElementById("voyageLocation").focus(), 50);
     }
 
     function closeSheet(id) {
