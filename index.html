@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Checklist voyage</title>
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="#2f80ed">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Checklist voyage">
@@ -22,12 +22,12 @@
       --line-strong: #d1d5db;
       --text: #172033;
       --muted: #667085;
-      --blue: #2563eb;
-      --blue-soft: #e8f0ff;
+      --blue: #2f80ed;
+      --blue-soft: #e8f4ff;
       --green: #168a4a;
       --green-soft: #e7f7ee;
-      --red: #dc2626;
-      --red-soft: #fee2e2;
+      --red: #e94b4b;
+      --red-soft: #ffe7e5;
       --amber: #b7791f;
       --amber-soft: #fff7df;
       --shadow: 0 12px 30px rgba(15, 23, 42, .08);
@@ -1278,7 +1278,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.44</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.45</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1383,7 +1383,7 @@
   </div>
 
   <script>
-    const VERSION = "1.44";
+    const VERSION = "1.45";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2940,7 +2940,7 @@
       if (!state.voyages.length) {
         content.innerHTML = `
           <section class="home-hero" aria-label="Vacances en famille">
-            <img src="./vacances-famille.svg" alt="Famille en vacances">
+            <img src="./vacances.avif" alt="Famille en vacances">
           </section>
           <section class="panel empty">
             <h2>Aucun voyage pour le moment</h2>
@@ -2979,7 +2979,7 @@
 
       content.innerHTML = `
         <section class="home-hero" aria-label="Vacances en famille">
-          <img src="./vacances-famille.svg" alt="Famille en vacances">
+          <img src="./vacances.avif" alt="Famille en vacances">
         </section>
         <section class="toolbar">
           <div class="toolbar-title">
