@@ -1,4 +1,4 @@
-const CACHE_NAME = "checklist-voyage-1.49";
+const CACHE_NAME = "checklist-voyage-1.50";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,7 +7,44 @@ const APP_SHELL = [
   "./icon-192.png",
   "./icon-512.png",
   "./vacances-famille.svg",
-  "./vacances.avif"
+  "./vacances.avif",
+  "./category-icons/baby.svg",
+  "./category-icons/beach.svg",
+  "./category-icons/bed.svg",
+  "./category-icons/boat.svg",
+  "./category-icons/bus.svg",
+  "./category-icons/calendar.svg",
+  "./category-icons/camera.svg",
+  "./category-icons/camping.svg",
+  "./category-icons/car.svg",
+  "./category-icons/clothes.svg",
+  "./category-icons/cocktail.svg",
+  "./category-icons/document.svg",
+  "./category-icons/first-aid.svg",
+  "./category-icons/gamepad.svg",
+  "./category-icons/hiking.svg",
+  "./category-icons/hotel.svg",
+  "./category-icons/meditation.svg",
+  "./category-icons/money.svg",
+  "./category-icons/music.svg",
+  "./category-icons/passport.svg",
+  "./category-icons/pet.svg",
+  "./category-icons/plane.svg",
+  "./category-icons/plug.svg",
+  "./category-icons/restaurant.svg",
+  "./category-icons/shopping.svg",
+  "./category-icons/ski.svg",
+  "./category-icons/snow.svg",
+  "./category-icons/sport.svg",
+  "./category-icons/suitcase.svg",
+  "./category-icons/sun.svg",
+  "./category-icons/swimming.svg",
+  "./category-icons/tag.svg",
+  "./category-icons/toiletries.svg",
+  "./category-icons/tools.svg",
+  "./category-icons/train.svg",
+  "./category-icons/video.svg",
+  "./category-icons/water.svg"
 ];
 
 self.addEventListener("install", event => {

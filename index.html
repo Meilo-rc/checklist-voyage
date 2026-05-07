@@ -767,22 +767,49 @@
       padding: 0;
     }
 
-    .chevron {
-      width: 22px;
-      height: 22px;
-      border-radius: 999px;
-      display: inline-grid;
-      place-items: center;
-      background: #eef2f7;
-      color: var(--muted);
-      font-size: .8rem;
+    .category-icon {
+      width: 24px;
+      height: 24px;
       flex: 0 0 auto;
+      background: currentColor;
+      -webkit-mask: var(--icon-url) center / contain no-repeat;
+      mask: var(--icon-url) center / contain no-repeat;
     }
 
     .category-name {
       font-size: .98rem;
       font-weight: 820;
       overflow-wrap: anywhere;
+    }
+
+    .icon-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+      gap: 8px;
+    }
+
+    .icon-choice {
+      min-height: 62px;
+      display: grid;
+      place-items: center;
+      gap: 5px;
+      padding: 8px 6px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      color: var(--text);
+      font-size: .72rem;
+    }
+
+    .icon-choice .category-icon {
+      width: 26px;
+      height: 26px;
+      color: #424955;
+    }
+
+    .icon-choice.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
     }
 
     .category-actions {
@@ -1339,7 +1366,7 @@
               </svg>
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.49</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.50</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1444,8 +1471,18 @@
     </section>
   </div>
 
+  <div class="sheet-backdrop" id="iconSheet" onclick="closeSheetOnBackdrop(event, 'iconSheet')">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="iconSheetTitle">
+      <div class="sheet-head">
+        <h2 id="iconSheetTitle">Modifier l'icône</h2>
+        <button class="icon-btn" type="button" onclick="closeSheet('iconSheet')" title="Fermer">&times;</button>
+      </div>
+      <div class="icon-picker-grid" id="iconChoices"></div>
+    </section>
+  </div>
+
   <script>
-    const VERSION = "1.49";
+    const VERSION = "1.50";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1469,6 +1506,86 @@
     let swipeStartX = 0;
     let swipeStartY = 0;
     let activeSwipeItemId = null;
+    let iconEditTarget = null;
+
+    const categoryIcons = [
+      "baby", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "clothes",
+      "cocktail", "document", "first-aid", "gamepad", "hiking", "hotel", "meditation", "money",
+      "music", "passport", "pet", "plane", "plug", "restaurant", "shopping", "ski", "snow",
+      "sport", "suitcase", "sun", "swimming", "tag", "toiletries", "tools", "train", "video", "water"
+    ];
+
+    const iconLabels = {
+      baby: "Bébé",
+      beach: "Plage",
+      bed: "Lit",
+      boat: "Bateau",
+      bus: "Bus",
+      calendar: "Dates",
+      camera: "Photo",
+      camping: "Camping",
+      car: "Voiture",
+      clothes: "Vêtements",
+      cocktail: "Sorties",
+      document: "Documents",
+      "first-aid": "Santé",
+      gamepad: "Jeux",
+      hiking: "Rando",
+      hotel: "Hôtel",
+      meditation: "Bien-être",
+      money: "Budget",
+      music: "Musique",
+      passport: "Passeport",
+      pet: "Animal",
+      plane: "Avion",
+      plug: "Chargeurs",
+      restaurant: "Repas",
+      shopping: "Courses",
+      ski: "Ski",
+      snow: "Neige",
+      sport: "Sport",
+      suitcase: "Bagage",
+      sun: "Soleil",
+      swimming: "Piscine",
+      tag: "Divers",
+      toiletries: "Toilette",
+      tools: "Outils",
+      train: "Train",
+      video: "Vidéo",
+      water: "Eau"
+    };
+
+    const iconRules = [
+      ["plane", ["avion", "vol", "aéroport", "depart", "départ"]],
+      ["train", ["train", "rail"]],
+      ["car", ["voiture", "auto", "route"]],
+      ["bus", ["bus", "car scolaire"]],
+      ["boat", ["bateau", "ferry", "mer"]],
+      ["hotel", ["hotel", "hôtel"]],
+      ["camping", ["camping", "tente"]],
+      ["bed", ["logement", "location", "famille", "nuit"]],
+      ["restaurant", ["repas", "restaurant", "alimentation", "nourriture", "cuisine"]],
+      ["first-aid", ["santé", "sante", "pharmacie", "médicament", "medicament", "soin"]],
+      ["toiletries", ["toilette", "hygiène", "hygiene", "trousse"]],
+      ["clothes", ["vêtement", "vetement", "habit", "linge"]],
+      ["plug", ["chargeur", "électronique", "electronique", "câble", "cable"]],
+      ["hiking", ["randonnée", "randonnee", "marche"]],
+      ["swimming", ["piscine", "baignade", "natation"]],
+      ["beach", ["plage", "parasol"]],
+      ["ski", ["ski"]],
+      ["snow", ["neige", "hiver"]],
+      ["baby", ["bébé", "bebe", "enfant", "poussette"]],
+      ["pet", ["animal", "chien", "chat"]],
+      ["passport", ["passeport", "identité", "identite"]],
+      ["document", ["document", "papier", "réservation", "reservation"]],
+      ["camera", ["photo", "camera", "caméra"]],
+      ["money", ["argent", "budget", "monnaie"]],
+      ["shopping", ["course", "achat", "shopping"]],
+      ["gamepad", ["jeu", "jouet", "console"]],
+      ["sun", ["soleil", "été", "ete", "météo", "meteo"]],
+      ["sport", ["sport", "activité", "activite"]],
+      ["suitcase", ["bagage", "valise", "sac"]]
+    ];
 
     const state = {
       tab: "voyages",
@@ -1582,10 +1699,33 @@
       return state.voyages.find(voyage => voyage.id === state.currentVoyageId) || state.voyages[0] || null;
     }
 
+    function normalizeText(value) {
+      return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    }
+
+    function categoryIconForName(name) {
+      const normalized = normalizeText(name);
+      const match = iconRules.find(([, words]) => words.some(word => normalized.includes(normalizeText(word))));
+      return match ? match[0] : "tag";
+    }
+
+    function categoryIcon(category) {
+      return category?.icon && categoryIcons.includes(category.icon) ? category.icon : categoryIconForName(category?.name);
+    }
+
+    function renderCategoryIcon(category) {
+      const icon = categoryIcon(category);
+      return `<span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>`;
+    }
+
     function createDefaultCategories(options = {}) {
       const categories = defaultCategories.map(category => ({
         id: uid("cat"),
         name: category.name,
+        icon: categoryIconForName(category.name),
         items: category.items.map(item => ({
           id: uid("item"),
           name: item.name,
@@ -1612,6 +1752,7 @@
         category = {
           id: uid("cat"),
           name: categoryName,
+          icon: categoryIconForName(categoryName),
           items: []
         };
         categories.push(category);
@@ -1681,6 +1822,7 @@
       return {
         id: category.id || uid("cat"),
         name: category.name || "Catégorie",
+        icon: category.icon && categoryIcons.includes(category.icon) ? category.icon : categoryIconForName(category.name || "Catégorie"),
         items: Array.isArray(category.items) ? category.items.map(normalizeItem) : []
       };
     }
@@ -1702,6 +1844,7 @@
       return {
         id: category.id || uid("tpl"),
         name: category.name || "Catégorie personnalisée",
+        icon: category.icon && categoryIcons.includes(category.icon) ? category.icon : categoryIconForName(category.name || "Catégorie personnalisée"),
         items: Array.isArray(category.items)
           ? category.items.map(item => typeof item === "string" ? item : item?.name).filter(Boolean)
           : []
@@ -1852,6 +1995,7 @@
     function closeSheet(id) {
       document.getElementById(id).classList.remove("open");
       if (id === "voyageSheet") editingVoyageId = null;
+      if (id === "iconSheet") iconEditTarget = null;
     }
 
     function closeSheetOnBackdrop(event, id) {
@@ -2325,7 +2469,7 @@
     function createCategoryFromName(name) {
       const voyage = currentVoyage();
       if (!voyage || !name) return;
-      const category = { id: uid("cat"), name, items: [] };
+      const category = { id: uid("cat"), name, icon: categoryIconForName(name), items: [] };
       voyage.categories.push(category);
       state.openCats[category.id] = true;
       voyage.updatedAt = new Date().toISOString();
@@ -2357,6 +2501,7 @@
       const category = {
         id: uid("cat"),
         name: template.name,
+        icon: categoryIcon(template),
         items: template.items.map(name => ({ id: uid("item"), name, qty: 1, done: false }))
       };
       voyage.categories.push(category);
@@ -2393,6 +2538,7 @@
       const name = value.trim();
       if (!name) return;
       category.name = name;
+      if (!category.icon) category.icon = categoryIconForName(name);
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
@@ -2539,6 +2685,7 @@
       const categories = state.customCategories.map(category => ({
         id: category.id,
         name: category.name,
+        icon: categoryIcon(category),
         items: category.items.map(name => ({
           id: uid("item"),
           name,
@@ -2863,7 +3010,7 @@
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
       if (!name) return;
-      const category = { id: uid("tpl"), name, items: [] };
+      const category = { id: uid("tpl"), name, icon: categoryIconForName(name), items: [] };
       state.customCategories.push(category);
       state.openCats[category.id] = true;
       input.value = "";
@@ -2880,6 +3027,7 @@
       const name = value.trim();
       if (!name) return;
       category.name = name;
+      if (!category.icon) category.icon = categoryIconForName(name);
       saveLocal();
       saveSharedSettings();
       render();
@@ -2928,6 +3076,57 @@
       category.items.splice(itemIndex, 1);
       saveLocal();
       saveSharedSettings();
+      render();
+    }
+
+    function openIconSheet(type, categoryId) {
+      iconEditTarget = { type, categoryId };
+      renderIconChoices();
+      document.getElementById("iconSheet").classList.add("open");
+    }
+
+    function findIconTarget() {
+      if (!iconEditTarget) return null;
+      if (iconEditTarget.type === "custom") {
+        return {
+          category: state.customCategories.find(item => item.id === iconEditTarget.categoryId),
+          voyage: null
+        };
+      }
+      const voyage = currentVoyage();
+      return {
+        category: voyage?.categories.find(item => item.id === iconEditTarget.categoryId),
+        voyage
+      };
+    }
+
+    function renderIconChoices() {
+      const target = document.getElementById("iconChoices");
+      if (!target) return;
+      const { category } = findIconTarget() || {};
+      const active = categoryIcon(category);
+      target.innerHTML = categoryIcons.map(icon => `
+        <button class="icon-choice ${icon === active ? "active" : ""}" type="button" onclick="selectCategoryIcon('${icon}')">
+          <span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>
+          <span>${escapeHTML(iconLabels[icon] || icon)}</span>
+        </button>
+      `).join("");
+    }
+
+    function selectCategoryIcon(icon) {
+      if (!categoryIcons.includes(icon)) return;
+      const target = findIconTarget();
+      if (!target?.category) return;
+      target.category.icon = icon;
+      if (iconEditTarget.type === "custom") {
+        saveLocal();
+        saveSharedSettings();
+      } else if (target.voyage) {
+        target.voyage.updatedAt = new Date().toISOString();
+        saveAndSync(target.voyage);
+      }
+      closeSheet("iconSheet");
+      iconEditTarget = null;
       render();
     }
 
@@ -3002,7 +3201,7 @@
           <article class="category ${open ? "open" : ""}">
             <div class="category-head">
               <button class="category-title" type="button" onclick="toggleCategory('${category.id}')">
-                <span class="chevron">${open ? "⌃" : "⌄"}</span>
+                ${renderCategoryIcon(category)}
                 <span class="category-name">${escapeHTML(category.name)}</span>
               </button>
               <div class="category-actions" onclick="event.stopPropagation()">
@@ -3010,6 +3209,7 @@
                 <details class="voyage-menu" onclick="event.stopPropagation()">
                   <summary class="mini" title="Options de la catégorie">⋮</summary>
                   <div class="voyage-menu-panel">
+                    <button class="menu-item" type="button" onclick="openIconSheet('custom', '${category.id}')">Modifier l'icône</button>
                     <button class="menu-item" type="button" onclick="renameCustomCategory('${category.id}')">Renommer la catégorie</button>
                     <button class="menu-item red" type="button" onclick="deleteCustomCategory('${category.id}')">Supprimer la catégorie</button>
                   </div>
@@ -3182,7 +3382,7 @@
         <article class="category ${open ? "open" : ""}">
           <div class="category-head">
             <button class="category-title" type="button" onclick="toggleCategory('${category.id}')">
-              <span class="chevron">${open ? "⌃" : "⌄"}</span>
+              ${renderCategoryIcon(category)}
               <span class="category-name">${escapeHTML(category.name)}</span>
             </button>
             <div class="category-actions" onclick="event.stopPropagation()">
@@ -3190,6 +3390,7 @@
               <details class="voyage-menu" onclick="event.stopPropagation()">
                 <summary class="mini" title="Options de la catégorie">⋮</summary>
                 <div class="voyage-menu-panel">
+                  <button class="menu-item" type="button" onclick="openIconSheet('voyage', '${category.id}')">Modifier l'icône</button>
                   <button class="menu-item" type="button" onclick="renameCategory('${category.id}')">Renommer la catégorie</button>
                   <button class="menu-item red" type="button" onclick="deleteCategory('${category.id}')">Supprimer la catégorie</button>
                 </div>
