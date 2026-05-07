@@ -262,6 +262,7 @@
 
     .toolbar-title {
       min-width: 0;
+      flex: 1 1 auto;
     }
 
     .title-row {
@@ -270,6 +271,39 @@
       gap: 8px;
       min-width: 0;
       flex-wrap: wrap;
+    }
+
+    .trip-title-row {
+      width: 100%;
+    }
+
+    .trip-title-row h2 {
+      min-width: 0;
+    }
+
+    .trip-menu-inline {
+      margin-left: auto;
+    }
+
+    .trip-date-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .trip-date-row p {
+      margin: 0;
+      min-width: 0;
+    }
+
+    .days-left {
+      flex: 0 0 auto;
+      color: var(--blue);
+      font-size: .8rem;
+      font-weight: 800;
+      white-space: nowrap;
     }
 
     .toolbar-title h2,
@@ -1235,7 +1269,7 @@
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">✓</div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.40</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.41</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1340,7 +1374,7 @@
   </div>
 
   <script>
-    const VERSION = "1.40";
+    const VERSION = "1.41";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2127,6 +2161,19 @@
         return `du ${start.day} au ${end.day}/${end.month}/${end.shortYear}`;
       }
       return `du ${start.day}/${start.month} au ${end.day}/${end.month}/${end.shortYear}`;
+    }
+
+    function daysUntilTrip(voyage) {
+      if (!voyage.startDate) return "";
+      const start = new Date(`${voyage.startDate}T00:00:00`);
+      if (Number.isNaN(start.getTime())) return "";
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diff = Math.ceil((start - today) / 86400000);
+      if (diff > 1) return `J-${diff}`;
+      if (diff === 1) return "Demain";
+      if (diff === 0) return "Aujourd'hui";
+      return "";
     }
 
     function parseDateParts(value) {
@@ -2949,28 +2996,28 @@
       }
       const progress = progressForVoyage(voyage);
       const categories = voyage.categories.map(category => renderCategory(voyage, category)).join("");
+      const dateLine = formatTripDateLine(voyage);
+      const daysLeft = daysUntilTrip(voyage);
       content.innerHTML = `
         <section class="section panel panel-pad">
           <div class="toolbar">
             <div class="toolbar-title">
-              <div class="title-row">
+              <div class="title-row trip-title-row">
                 <h2>${escapeHTML(voyage.name)}</h2>
                 ${renderDestinationLink(voyage)}
                 <button class="code-button" type="button" onclick="copyCode('${voyage.code}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
+                <details class="voyage-menu trip-menu-inline">
+                  <summary class="icon-btn" title="Options du voyage">⋮</summary>
+                  <div class="voyage-menu-panel">
+                    <button class="menu-item" type="button" onclick="addCategory()">Ajouter une catégorie</button>
+                    <button class="menu-item" type="button" onclick="openVoyageSheet('${voyage.id}')">Modifier le voyage</button>
+                    <button class="menu-item" type="button" onclick="resetVoyageLists('${voyage.id}')">Réinitialiser les listes</button>
+                    <button class="menu-item red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer le voyage</button>
+                  </div>
+                </details>
               </div>
-              ${formatTripDateLine(voyage) ? `<p>${escapeHTML(formatTripDateLine(voyage))}</p>` : ""}
+              ${(dateLine || daysLeft) ? `<div class="trip-date-row">${dateLine ? `<p>${escapeHTML(dateLine)}</p>` : "<p></p>"}${daysLeft ? `<span class="days-left">${escapeHTML(daysLeft)}</span>` : ""}</div>` : ""}
               <p>${progress.done}/${progress.total} éléments prêts</p>
-            </div>
-            <div class="category-actions">
-              <details class="voyage-menu">
-                <summary class="icon-btn" title="Options du voyage">⋮</summary>
-                <div class="voyage-menu-panel">
-                  <button class="menu-item" type="button" onclick="addCategory()">Ajouter une catégorie</button>
-                  <button class="menu-item" type="button" onclick="openVoyageSheet('${voyage.id}')">Modifier le voyage</button>
-                  <button class="menu-item" type="button" onclick="resetVoyageLists('${voyage.id}')">Réinitialiser les listes</button>
-                  <button class="menu-item red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer le voyage</button>
-                </div>
-              </details>
             </div>
           </div>
           <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
