@@ -127,13 +127,10 @@
     .brand-mark {
       width: 34px;
       height: 34px;
-      display: grid;
-      place-items: center;
+      display: block;
       border-radius: var(--radius);
-      background: rgba(255, 255, 255, .14);
-      color: white;
-      font-weight: 800;
       flex: 0 0 auto;
+      overflow: hidden;
     }
 
     .brand-title {
@@ -141,8 +138,8 @@
     }
 
     .brand-icon {
-      width: 24px;
-      height: 24px;
+      width: 100%;
+      height: 100%;
       display: block;
     }
 
@@ -1362,14 +1359,10 @@
         <div class="topbar-inner">
           <button class="brand" type="button" onclick="goHome()" title="Retour à l'accueil">
             <div class="brand-mark" aria-hidden="true">
-              <svg class="brand-icon" viewBox="0 0 64 64">
-                <path d="M21 23v-5c0-3 2-5 5-5h12c3 0 5 2 5 5v5" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-                <rect x="14" y="23" width="36" height="28" rx="5" fill="none" stroke="currentColor" stroke-width="4"/>
-                <path d="M32 32v10M27 37h10" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-              </svg>
+              <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.53</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.54</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1485,7 +1478,7 @@
   </div>
 
   <script>
-    const VERSION = "1.53";
+    const VERSION = "1.54";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
