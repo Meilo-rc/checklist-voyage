@@ -780,8 +780,12 @@
 
     .category-name {
       font-size: .98rem;
-      font-weight: 820;
+      font-weight: 400;
       overflow-wrap: anywhere;
+    }
+
+    .member-name {
+      font-weight: 820;
     }
 
     .icon-picker-grid {
@@ -850,7 +854,6 @@
       padding: 3px 0;
       border-radius: 0;
       border: 0;
-      border-bottom: 1px solid var(--line);
       background: white;
       overflow: hidden;
       touch-action: pan-y;
@@ -972,7 +975,7 @@
       display: block;
       flex: 1 1 auto;
       min-width: 0;
-      font-weight: 760;
+      font-weight: 400;
       font-size: .86rem;
       white-space: nowrap;
       overflow: hidden;
@@ -1362,7 +1365,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.56</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.57</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1478,7 +1481,7 @@
   </div>
 
   <script>
-    const VERSION = "1.56";
+    const VERSION = "1.57";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -3504,7 +3507,7 @@
             <div class="category-head">
               <button class="category-title" type="button" onclick="toggleMember('${groupId}')">
                 <span class="category-icon" style="--icon-url: url('./category-icons/suitcase.svg')" aria-hidden="true"></span>
-                <span class="category-name">${escapeHTML(groupName)}</span>
+                <span class="category-name member-name">${escapeHTML(groupName)}</span>
               </button>
               <div class="category-actions" onclick="event.stopPropagation()">
                 <span class="badge">${categories.length}</span>
@@ -3528,10 +3531,9 @@
       content.innerHTML = `
         <section class="toolbar">
           <div class="toolbar-title">
-            <h2>CP</h2>
+            <h2>Catégories personnalisées</h2>
             <p>Ces modèles sont partagés via PocketBase et proposés ensuite dans chaque voyage.</p>
           </div>
-          <button class="btn ghost" type="button" onclick="buildIdealCustomCategories()">Liste idéale</button>
         </section>
         <form class="add-item section" onsubmit="addCustomCategory(event)">
           <button class="btn blue" type="submit">+</button>
@@ -3658,7 +3660,7 @@
           <div class="category-head">
             <button class="category-title" type="button" onclick="toggleMember('${member.id}')">
               <span class="category-icon" style="--icon-url: url('./category-icons/suitcase.svg')" aria-hidden="true"></span>
-              <span class="category-name">${escapeHTML(member.name)}</span>
+              <span class="category-name member-name">${escapeHTML(member.name)}</span>
             </button>
             <div class="category-actions" onclick="event.stopPropagation()">
               <span class="badge">${progress.done}/${progress.total}</span>
