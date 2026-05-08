@@ -839,19 +839,19 @@
 
     .category-body {
       display: none;
-      padding: 8px;
+      padding: 5px 8px;
     }
 
     .category.open .category-body {
       display: grid;
-      gap: 8px;
+      gap: 3px;
     }
 
     .item {
       position: relative;
       display: block;
-      min-height: 36px;
-      padding: 3px 0;
+      min-height: 30px;
+      padding: 0;
       border-radius: 0;
       border: 0;
       background: white;
@@ -863,10 +863,10 @@
       position: relative;
       z-index: 2;
       display: flex;
-      gap: 7px;
+      gap: 6px;
       align-items: center;
       width: 100%;
-      min-height: 36px;
+      min-height: 30px;
       background: white;
     }
 
@@ -1365,7 +1365,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.58</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.59</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1481,7 +1481,7 @@
   </div>
 
   <script>
-    const VERSION = "1.58";
+    const VERSION = "1.59";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
