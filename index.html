@@ -1253,6 +1253,15 @@
       line-height: 1.25;
     }
 
+    .weather-card {
+      border-color: #cfe8f6;
+      background: linear-gradient(180deg, #f7fcff, #fff);
+    }
+
+    .weather-card .muted {
+      margin-top: 4px;
+    }
+
     .info-grid {
       display: grid;
       gap: 8px;
@@ -1437,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.65</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.66</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1554,7 +1563,7 @@
   </div>
 
   <script>
-    const VERSION = "1.65";
+    const VERSION = "1.66";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1580,6 +1589,7 @@
     let swipeStartY = 0;
     let activeSwipeItemId = null;
     let iconEditTarget = null;
+    const weatherFetchIds = new Set();
 
     const categoryIcons = [
       "baby", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "clothes",
@@ -2346,6 +2356,7 @@
       closeSheet("voyageSheet");
       saveAndSync(voyage, { immediate: true });
       render();
+      refreshTripWeather(voyage.id);
       if (submit) {
         submit.disabled = false;
         submit.textContent = "Créer";
@@ -2445,11 +2456,10 @@
     }
 
     async function fetchTripEnrichment(place, startDate, endDate, destination = null) {
-      if (!place) return null;
+      if (!place && !destination) return null;
       const enrichment = {
         place,
         weather: null,
-        tourism: null,
         fetchedAt: new Date().toISOString()
       };
       try {
@@ -2473,23 +2483,24 @@
       } catch (error) {
         enrichment.weather = { summary: "Météo indisponible pour le moment." };
       }
-      try {
-        enrichment.tourism = await fetchTourismSummary(place);
-      } catch (error) {
-        enrichment.tourism = { title: place, summary: "Infos touristiques indisponibles pour le moment." };
-      }
       return enrichment;
     }
 
     async function fetchWeatherSummary(latitude, longitude, startDate, endDate) {
       if (!startDate) return { summary: "Ajoutez des dates pour obtenir une prévision météo." };
       const safeEndDate = endDate || startDate;
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${startDate}&end_date=${safeEndDate}`;
+      const forecast = await fetchForecastWeather(latitude, longitude, startDate, safeEndDate);
+      if (forecast) return forecast;
+      return fetchClimateWeather(latitude, longitude, startDate, safeEndDate);
+    }
+
+    async function fetchForecastWeather(latitude, longitude, startDate, endDate) {
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${startDate}&end_date=${endDate}`;
       const response = await fetch(weatherUrl);
-      if (!response.ok) return { summary: "Prévisions météo pas encore disponibles pour ces dates." };
+      if (!response.ok) return null;
       const data = await response.json();
       const days = data.daily?.time || [];
-      if (!days.length) return { summary: "Prévisions météo pas encore disponibles pour ces dates." };
+      if (!days.length) return null;
       const mins = data.daily.temperature_2m_min || [];
       const maxs = data.daily.temperature_2m_max || [];
       const rain = data.daily.precipitation_probability_max || [];
@@ -2499,8 +2510,40 @@
       const maxRain = Math.max(...rain.filter(value => Number.isFinite(value)));
       const weatherLabel = weatherCodeLabel(mostFrequent(codes));
       return {
+        type: "forecast",
+        label: "Prévision météo",
         summary: `${weatherLabel}. Températures prévues autour de ${avgMin}°C à ${avgMax}°C. Risque de pluie max : ${Number.isFinite(maxRain) ? `${maxRain}%` : "n.c."}.`,
-        days: days.length
+        days: days.length,
+        avgMin,
+        avgMax,
+        rain: Number.isFinite(maxRain) ? maxRain : null
+      };
+    }
+
+    async function fetchClimateWeather(latitude, longitude, startDate, endDate) {
+      const climateUrl = `https://climate-api.open-meteo.com/v1/climate?latitude=${latitude}&longitude=${longitude}&start_date=${startDate}&end_date=${endDate}&models=EC_Earth3P_HR&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,cloud_cover_mean,wind_speed_10m_mean&timezone=auto`;
+      const response = await fetch(climateUrl);
+      if (!response.ok) return { type: "climate", label: "Moyennes climatiques", summary: "Moyennes climatiques indisponibles pour ces dates." };
+      const data = await response.json();
+      const days = data.daily?.time || [];
+      if (!days.length) return { type: "climate", label: "Moyennes climatiques", summary: "Moyennes climatiques indisponibles pour ces dates." };
+      const min = Math.round(average(data.daily.temperature_2m_min || []));
+      const max = Math.round(average(data.daily.temperature_2m_max || []));
+      const mean = Math.round(average(data.daily.temperature_2m_mean || []));
+      const rain = sum(data.daily.precipitation_sum || []);
+      const clouds = Math.round(average(data.daily.cloud_cover_mean || []));
+      const wind = Math.round(average(data.daily.wind_speed_10m_mean || []));
+      return {
+        type: "climate",
+        label: "Moyennes climatiques",
+        summary: `Climat attendu autour de ${min}°C à ${max}°C, moyenne ${mean}°C. Cumul de pluie moyen : ${rain.toFixed(1)} mm sur la période. Nuages ${clouds}% et vent ${wind} km/h en moyenne.`,
+        days: days.length,
+        avgMin: min,
+        avgMax: max,
+        avgMean: mean,
+        rain: Number(rain.toFixed(1)),
+        clouds,
+        wind
       };
     }
 
@@ -2522,6 +2565,10 @@
       const clean = values.filter(value => Number.isFinite(value));
       if (!clean.length) return 0;
       return clean.reduce((sum, value) => sum + value, 0) / clean.length;
+    }
+
+    function sum(values) {
+      return values.filter(value => Number.isFinite(value)).reduce((total, value) => total + value, 0);
     }
 
     function mostFrequent(values) {
@@ -2566,7 +2613,73 @@
     function renderDestinationLink(voyage) {
       const country = destinationCountry(voyage);
       if (!country) return "";
-      return `<a class="badge blue" href="${weatherUrl(voyage)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Voir la météo">${escapeHTML(country)}</a>`;
+      return `<button class="badge blue" type="button" onclick="event.stopPropagation(); refreshTripWeather('${voyage.id}', true)" title="Actualiser la météo">${escapeHTML(country)}</button>`;
+    }
+
+    function weatherCacheKey(voyage) {
+      const destination = voyage.destination || voyage.enrichment?.location || {};
+      return [destination.latitude, destination.longitude, voyage.startDate || "", voyage.endDate || ""].join("|");
+    }
+
+    function needsWeatherRefresh(voyage) {
+      if (!voyage?.destination?.latitude || !voyage?.destination?.longitude || !voyage.startDate) return false;
+      return voyage.enrichment?.weatherKey !== weatherCacheKey(voyage);
+    }
+
+    function ensureTripWeather(voyage) {
+      if (!needsWeatherRefresh(voyage) || weatherFetchIds.has(voyage.id)) return;
+      refreshTripWeather(voyage.id);
+    }
+
+    async function refreshTripWeather(voyageId, notify = false) {
+      const voyage = state.voyages.find(item => item.id === voyageId);
+      if (!voyage || weatherFetchIds.has(voyage.id)) return;
+      const destination = voyage.destination || voyage.enrichment?.location || null;
+      if (!destination?.latitude || !destination?.longitude || !voyage.startDate) {
+        if (notify) showToast("Destination ou dates manquantes");
+        return;
+      }
+      weatherFetchIds.add(voyage.id);
+      try {
+        const place = destinationSearchLabel(voyage);
+        const enrichment = await fetchTripEnrichment(place, voyage.startDate, voyage.endDate, destination);
+        voyage.enrichment = {
+          ...(voyage.enrichment || {}),
+          ...(enrichment || {}),
+          weatherKey: weatherCacheKey(voyage)
+        };
+        voyage.updatedAt = new Date().toISOString();
+        saveAndSync(voyage);
+        if (notify) showToast("Météo actualisée");
+        render();
+      } catch (error) {
+        console.warn("Météo Open-Meteo indisponible", error);
+        if (notify) showToast("Météo indisponible");
+      } finally {
+        weatherFetchIds.delete(voyage.id);
+      }
+    }
+
+    function renderWeatherPanel(voyage) {
+      const destination = voyage.destination || voyage.enrichment?.location || null;
+      if (!destination?.latitude || !destination?.longitude) return "";
+      if (!voyage.startDate) return "";
+      const weather = voyage.enrichment?.weather;
+      if (!weather) {
+        return `
+          <section class="info-card weather-card section">
+            <h3>Météo</h3>
+            <p>Chargement des données Open-Meteo...</p>
+          </section>
+        `;
+      }
+      return `
+        <section class="info-card weather-card section">
+          <h3>${escapeHTML(weather.label || "Météo")}</h3>
+          <p>${escapeHTML(weather.summary || "Météo indisponible pour le moment.")}</p>
+          <p class="muted">${weather.type === "climate" ? "Estimation climatique Open-Meteo, utile quand les prévisions ne couvrent pas encore les dates du voyage." : "Prévision Open-Meteo pour les dates du voyage."}</p>
+        </section>
+      `;
     }
 
     function resetDraftDateRange() {
@@ -4176,6 +4289,8 @@
       const general = renderGeneralSection(voyage);
       const members = voyageMembers(voyage).map(member => renderMember(voyage, member)).join("");
       const daysLeft = daysUntilTrip(voyage);
+      const weatherPanel = renderWeatherPanel(voyage);
+      ensureTripWeather(voyage);
       content.innerHTML = `
         <section class="section panel panel-pad">
           <div class="toolbar">
@@ -4203,6 +4318,7 @@
           </div>
           <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
         </section>
+        ${weatherPanel}
         <section class="grid">
           ${general}
           ${members || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez un membre pour commencer.</p></div>`}
