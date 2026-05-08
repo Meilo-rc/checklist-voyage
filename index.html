@@ -1437,7 +1437,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.63</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.64</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1554,7 +1554,7 @@
   </div>
 
   <script>
-    const VERSION = "1.63";
+    const VERSION = "1.64";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1796,6 +1796,20 @@
 
     function currentQuickList() {
       return state.quickLists.find(list => list.id === state.currentQuickListId) || state.quickLists[0] || null;
+    }
+
+    function closeVoyageCategoryPanels(voyage) {
+      if (!voyage) return;
+      state.openMembers.general = false;
+      (voyage.categories || []).forEach(category => {
+        state.openCats[category.id] = false;
+      });
+      voyageMembers(voyage).forEach(member => {
+        state.openMembers[member.id] = false;
+        (member.categories || []).forEach(category => {
+          state.openCats[category.id] = false;
+        });
+      });
     }
 
     function normalizeText(value) {
@@ -2687,14 +2701,7 @@
       state.currentVoyageId = id;
       state.tab = "liste";
       const voyage = currentVoyage();
-      if (voyage) {
-        voyageMembers(voyage).forEach(member => {
-          state.openMembers[member.id] = false;
-          member.categories.forEach(category => {
-            state.openCats[category.id] = false;
-          });
-        });
-      }
+      closeVoyageCategoryPanels(voyage);
       saveLocal();
       render();
       subscribeToCurrentVoyage();
@@ -2808,7 +2815,7 @@
       }
       member.categories.push(category);
       state.openMembers[member.id] = true;
-      state.openCats[category.id] = true;
+      state.openCats[category.id] = false;
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
@@ -2825,7 +2832,7 @@
       voyage.categories = Array.isArray(voyage.categories) ? voyage.categories : [];
       voyage.categories.push(category);
       state.openMembers.general = true;
-      state.openCats[category.id] = true;
+      state.openCats[category.id] = false;
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
@@ -3863,7 +3870,7 @@
       const active = state.tab === "customCategories" ? "customCategories" : state.tab === "quickLists" || state.tab === "quickListDetail" ? "quickLists" : "voyages";
       nav.innerHTML = `
         <button class="${active === "voyages" ? "active" : ""}" type="button" onclick="goHome()"><span>⌂</span>Accueil</button>
-        <button class="${active === "customCategories" ? "active" : ""}" type="button" onclick="openCustomCategories()"><span>☰</span>CP</button>
+        <button class="${active === "customCategories" ? "active" : ""}" type="button" onclick="openCustomCategories()"><span>☰</span>Gérer</button>
         <button class="${active === "quickLists" ? "active" : ""}" type="button" onclick="openQuickLists()"><span>✓</span>Liste rapide</button>
       `;
     }
