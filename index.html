@@ -240,7 +240,7 @@
 
     .content {
       flex: 1;
-      padding: 14px 14px calc(24px + var(--safe-bottom));
+      padding: 14px 14px calc(92px + var(--safe-bottom));
     }
 
     .home-hero {
@@ -994,6 +994,40 @@
       text-decoration: none;
     }
 
+    .quick-item.done .item-label {
+      color: var(--muted);
+      text-decoration: line-through;
+      text-decoration-thickness: 2px;
+    }
+
+    .quick-item.done .check {
+      background: #374151;
+      border-color: #374151;
+    }
+
+    .quick-item.done .check::before,
+    .quick-item.done .check::after {
+      color: white;
+    }
+
+    .quick-item.done .check::before {
+      content: "";
+      width: 12px;
+      height: 3px;
+      border-radius: 999px;
+      background: currentColor;
+      position: absolute;
+    }
+
+    .quick-item.done .check::after {
+      content: "";
+      width: 3px;
+      height: 12px;
+      border-radius: 999px;
+      background: currentColor;
+      position: absolute;
+    }
+
     .qty {
       display: flex;
       align-items: center;
@@ -1315,6 +1349,43 @@
       font-weight: 750;
     }
 
+    .bottom-nav {
+      position: sticky;
+      bottom: 0;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 8px 10px calc(8px + var(--safe-bottom));
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, .94);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 -8px 24px rgba(15, 23, 42, .08);
+    }
+
+    .bottom-nav button {
+      min-width: 0;
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      min-height: 48px;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      font-size: .72rem;
+      font-weight: 750;
+    }
+
+    .bottom-nav button span {
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+
+    .bottom-nav button.active {
+      background: var(--blue-soft);
+      color: #1e4fc0;
+    }
+
     .sr-only {
       position: absolute;
       width: 1px;
@@ -1366,7 +1437,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.62</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.63</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1383,6 +1454,7 @@
       </header>
 
       <main class="content" id="content"></main>
+      <nav class="bottom-nav" aria-label="Navigation principale" id="bottomNav"></nav>
     </div>
   </div>
 
@@ -1482,7 +1554,7 @@
   </div>
 
   <script>
-    const VERSION = "1.62";
+    const VERSION = "1.63";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1492,6 +1564,7 @@
     let pb = null;
     let unsubscribeCurrent = null;
     let unsubscribeSettings = null;
+    let unsubscribeQuickList = null;
     let settingsRecordId = "";
     let syncTimer = null;
     let pendingRemoteVoyage = null;
@@ -1590,7 +1663,9 @@
     const state = {
       tab: "voyages",
       voyages: [],
+      quickLists: [],
       currentVoyageId: null,
+      currentQuickListId: null,
       openMembers: {},
       openCats: {},
       customCategories: [],
@@ -1717,6 +1792,10 @@
 
     function currentVoyage() {
       return state.voyages.find(voyage => voyage.id === state.currentVoyageId) || state.voyages[0] || null;
+    }
+
+    function currentQuickList() {
+      return state.quickLists.find(list => list.id === state.currentQuickListId) || state.quickLists[0] || null;
     }
 
     function normalizeText(value) {
@@ -1976,6 +2055,30 @@
       };
     }
 
+    function normalizeQuickItem(raw) {
+      const item = raw && typeof raw === "object" ? raw : { name: raw };
+      return {
+        id: item.id || uid("quick-item"),
+        name: item.name || "",
+        done: item.done === true
+      };
+    }
+
+    function normalizeQuickList(raw) {
+      const list = raw && typeof raw === "object" ? raw : {};
+      return {
+        id: list.id || uid("quick"),
+        code: cleanCode(list.code) || generateCode(),
+        name: list.name || "Liste rapide",
+        type: "quickList",
+        items: Array.isArray(list.items) ? list.items.map(normalizeQuickItem).filter(item => item.name) : [],
+        shared: list.shared === true,
+        remoteRecordId: list.remoteRecordId || "",
+        createdAt: list.createdAt || new Date().toISOString(),
+        updatedAt: list.updatedAt || new Date().toISOString()
+      };
+    }
+
     function normalizeItem(raw) {
       const item = raw && typeof raw === "object" ? raw : {};
       const status = normalizeItemStatus(item);
@@ -2005,7 +2108,9 @@
       const payload = {
         version: VERSION,
         currentVoyageId: state.currentVoyageId,
+        currentQuickListId: state.currentQuickListId,
         voyages: state.voyages,
+        quickLists: state.quickLists,
         openMembers: state.openMembers,
         openCats: state.openCats,
         customCategories: state.customCategories,
@@ -2022,7 +2127,9 @@
         try {
           const parsed = JSON.parse(raw);
           state.voyages = Array.isArray(parsed.voyages) ? parsed.voyages.map(normalizeVoyage) : [];
+          state.quickLists = Array.isArray(parsed.quickLists) ? parsed.quickLists.map(normalizeQuickList) : [];
           state.currentVoyageId = parsed.currentVoyageId || state.voyages[0]?.id || null;
+          state.currentQuickListId = parsed.currentQuickListId || state.quickLists[0]?.id || null;
           state.openMembers = parsed.openMembers && typeof parsed.openMembers === "object" ? parsed.openMembers : {};
           state.openCats = parsed.openCats && typeof parsed.openCats === "object" ? parsed.openCats : {};
           state.customCategories = Array.isArray(parsed.customCategories) ? parsed.customCategories.map(normalizeCustomCategory) : [];
@@ -2104,6 +2211,7 @@
 
     function setTab(tab) {
       state.tab = tab;
+      saveLocal();
       render();
       if (tab === "liste") {
         setTimeout(() => document.getElementById("content")?.scrollTo({ top: 0, behavior: "smooth" }), 0);
@@ -2706,6 +2814,23 @@
       render();
     }
 
+    function addCategoryToGeneral() {
+      const voyage = currentVoyage();
+      if (!voyage) return;
+      const value = prompt("Nom de la catégorie");
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      const category = { id: uid("cat"), name, icon: categoryIconForName(name), items: [] };
+      voyage.categories = Array.isArray(voyage.categories) ? voyage.categories : [];
+      voyage.categories.push(category);
+      state.openMembers.general = true;
+      state.openCats[category.id] = true;
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
     function openMemberSheet() {
       const input = document.getElementById("categoryName");
       if (input) input.value = "";
@@ -3106,6 +3231,225 @@
         });
     }
 
+    function quickListPayload(list) {
+      return {
+        ...list,
+        type: "quickList",
+        shared: true,
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    async function saveQuickListRemote(list) {
+      if (!list) return;
+      const client = getPB();
+      if (!client) {
+        setStatus("Hors ligne");
+        return;
+      }
+      try {
+        setStatus("Synchronisation...");
+        let record = null;
+        if (list.remoteRecordId) {
+          try {
+            record = await client.collection(PB_COLLECTION).getOne(list.remoteRecordId, { requestKey: null });
+          } catch (error) {
+            record = null;
+          }
+        }
+        if (!record) {
+          try {
+            record = await findRecordByCode(list.code);
+          } catch (error) {
+            record = null;
+          }
+        }
+        const data = quickListPayload(list);
+        if (record) {
+          record = await client.collection(PB_COLLECTION).update(record.id, { code: list.code, data }, { requestKey: null });
+        } else {
+          record = await client.collection(PB_COLLECTION).create({ code: list.code, data }, { requestKey: null });
+        }
+        list.shared = true;
+        list.remoteRecordId = record.id;
+        saveLocal();
+        setStatus("Synchronisé");
+        subscribeToCurrentQuickList();
+      } catch (error) {
+        console.warn("Synchronisation liste rapide impossible", error);
+        setStatus("Hors ligne");
+      }
+    }
+
+    function saveQuickListAndSync(list, options = {}) {
+      saveLocal();
+      const delay = options.immediate ? 0 : 550;
+      setTimeout(() => saveQuickListRemote(list), delay);
+    }
+
+    function syncAllQuickLists(options = {}) {
+      state.quickLists
+        .filter(list => list?.code)
+        .forEach((list, index) => {
+          setTimeout(() => saveQuickListRemote(list), options.immediate ? 0 : index * 250);
+        });
+    }
+
+    async function subscribeToCurrentQuickList() {
+      const list = currentQuickList();
+      const client = getPB();
+      if (unsubscribeQuickList) {
+        try {
+          unsubscribeQuickList();
+        } catch (error) {
+          console.warn("Désabonnement liste rapide impossible", error);
+        }
+        unsubscribeQuickList = null;
+      }
+      if (!client || !list?.code || state.tab !== "quickListDetail") return;
+      try {
+        let record = null;
+        if (list.remoteRecordId) {
+          try {
+            record = await client.collection(PB_COLLECTION).getOne(list.remoteRecordId, { requestKey: null });
+          } catch (error) {
+            record = null;
+          }
+        }
+        if (!record) record = await findRecordByCode(list.code);
+        list.shared = true;
+        list.remoteRecordId = record.id;
+        saveLocal();
+        unsubscribeQuickList = await client.collection(PB_COLLECTION).subscribe(record.id, event => {
+          if (event.action !== "update" || !event.record?.data) return;
+          const incoming = normalizeQuickList({
+            ...(event.record.data.quickList || event.record.data),
+            shared: true,
+            remoteRecordId: event.record.id
+          });
+          const index = state.quickLists.findIndex(item => item.code === incoming.code || item.id === incoming.id);
+          if (index >= 0) state.quickLists[index] = { ...incoming, id: state.quickLists[index].id };
+          saveLocal();
+          if (!isUserEditing()) render();
+        }, { requestKey: null });
+      } catch (error) {
+        setStatus(list.shared ? "Synchronisé" : "Hors ligne");
+      }
+    }
+
+    function createQuickList() {
+      const value = prompt("Nom de la liste rapide", "Sac de piscine");
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      const list = normalizeQuickList({ name, items: [] });
+      state.quickLists.unshift(list);
+      state.currentQuickListId = list.id;
+      state.tab = "quickListDetail";
+      saveLocal();
+      render();
+      saveQuickListRemote(list);
+    }
+
+    async function joinQuickList(event) {
+      event.preventDefault();
+      const input = event.currentTarget.querySelector("input");
+      const code = cleanCode(input.value);
+      if (!code) return;
+      try {
+        setStatus("Recherche...");
+        const record = await findRecordByCode(code);
+        const data = record?.data?.quickList || record?.data;
+        if (!data || data.type !== "quickList") throw new Error("Liste rapide introuvable");
+        const list = normalizeQuickList({ ...data, code, shared: true, remoteRecordId: record.id });
+        const existingIndex = state.quickLists.findIndex(item => item.code === list.code);
+        if (existingIndex >= 0) {
+          list.id = state.quickLists[existingIndex].id;
+          state.quickLists[existingIndex] = list;
+        } else {
+          state.quickLists.unshift(list);
+        }
+        state.currentQuickListId = list.id;
+        state.tab = "quickListDetail";
+        input.value = "";
+        saveLocal();
+        render();
+        subscribeToCurrentQuickList();
+      } catch (error) {
+        console.warn("Import liste rapide impossible", error);
+        alert("Je n'ai pas trouvé cette liste rapide. Vérifie le code, puis réessaie.");
+        setStatus("Hors ligne");
+      }
+    }
+
+    function selectQuickList(id) {
+      state.currentQuickListId = id;
+      state.tab = "quickListDetail";
+      saveLocal();
+      render();
+      subscribeToCurrentQuickList();
+    }
+
+    function addQuickItem(event) {
+      event.preventDefault();
+      const list = currentQuickList();
+      const input = event.currentTarget.querySelector("input");
+      const name = input.value.trim();
+      if (!list || !name) return;
+      list.items.push({ id: uid("quick-item"), name, done: false });
+      input.value = "";
+      list.updatedAt = new Date().toISOString();
+      saveQuickListAndSync(list);
+      render();
+    }
+
+    function toggleQuickItem(itemId) {
+      const list = currentQuickList();
+      const item = list?.items.find(row => row.id === itemId);
+      if (!list || !item) return;
+      item.done = !item.done;
+      list.items = [
+        ...list.items.filter(row => !row.done),
+        ...list.items.filter(row => row.done)
+      ];
+      list.updatedAt = new Date().toISOString();
+      saveQuickListAndSync(list);
+      render();
+    }
+
+    function deleteQuickItem(itemId) {
+      const list = currentQuickList();
+      if (!list) return;
+      list.items = list.items.filter(item => item.id !== itemId);
+      list.updatedAt = new Date().toISOString();
+      saveQuickListAndSync(list);
+      render();
+    }
+
+    async function deleteQuickList(id) {
+      const list = state.quickLists.find(item => item.id === id);
+      if (!list) return;
+      if (!confirm(`Supprimer la liste rapide "${list.name}" ?`)) return;
+      try {
+        const client = getPB();
+        if (client && list.code) {
+          let recordId = list.remoteRecordId;
+          if (!recordId) {
+            const record = await findRecordByCode(list.code);
+            recordId = record?.id;
+          }
+          if (recordId) await client.collection(PB_COLLECTION).delete(recordId, { requestKey: null });
+        }
+      } catch (error) {
+        console.warn("Suppression liste rapide distante impossible", error);
+      }
+      state.quickLists = state.quickLists.filter(item => item.id !== id);
+      state.currentQuickListId = state.quickLists[0]?.id || null;
+      state.tab = "quickLists";
+      saveLocal();
+      render();
+    }
+
     async function subscribeToCurrentVoyage() {
       const voyage = currentVoyage();
       const client = getPB();
@@ -3255,6 +3599,13 @@
       state.tab = "customCategories";
       saveLocal();
       render();
+    }
+
+    function openQuickLists() {
+      state.tab = "quickLists";
+      saveLocal();
+      render();
+      subscribeToCurrentQuickList();
     }
 
     function openInstallation() {
@@ -3495,12 +3846,26 @@
       const voyage = currentVoyage();
       setStatus(voyage ? (voyage.shared ? "Synchronisé" : "Synchronisation...") : "Synchronisé");
 
-      if (!voyage && state.tab !== "voyages" && state.tab !== "customCategories" && state.tab !== "installation") state.tab = "voyages";
+      if (!voyage && state.tab === "liste") state.tab = "voyages";
 
       if (state.tab === "liste") renderChecklist();
       else if (state.tab === "customCategories") renderCustomCategories();
       else if (state.tab === "installation") renderInstallation();
+      else if (state.tab === "quickLists") renderQuickLists();
+      else if (state.tab === "quickListDetail") renderQuickListDetail();
       else renderVoyages();
+      renderBottomNav();
+    }
+
+    function renderBottomNav() {
+      const nav = document.getElementById("bottomNav");
+      if (!nav) return;
+      const active = state.tab === "customCategories" ? "customCategories" : state.tab === "quickLists" || state.tab === "quickListDetail" ? "quickLists" : "voyages";
+      nav.innerHTML = `
+        <button class="${active === "voyages" ? "active" : ""}" type="button" onclick="goHome()"><span>⌂</span>Accueil</button>
+        <button class="${active === "customCategories" ? "active" : ""}" type="button" onclick="openCustomCategories()"><span>☰</span>CP</button>
+        <button class="${active === "quickLists" ? "active" : ""}" type="button" onclick="openQuickLists()"><span>✓</span>Liste rapide</button>
+      `;
     }
 
     function renderInstallation() {
@@ -3635,6 +4000,103 @@
       `;
     }
 
+    function renderQuickLists() {
+      const content = document.getElementById("content");
+      const cards = state.quickLists.map(list => {
+        const done = list.items.filter(item => item.done).length;
+        const total = list.items.length;
+        const percent = total ? Math.round((done / total) * 100) : 0;
+        return `
+          <article class="voyage-card clickable ${list.id === state.currentQuickListId ? "active" : ""}" onclick="selectQuickList('${list.id}')">
+            <div class="voyage-main">
+              <div>
+                <h2 class="voyage-name">${escapeHTML(list.name)}</h2>
+                <div class="voyage-meta">
+                  <span class="badge">${done}/${total} prêts</span>
+                  <span class="badge blue">${escapeHTML(list.code)}</span>
+                </div>
+              </div>
+              <div class="status">${percent}%</div>
+            </div>
+            <div class="progress" aria-hidden="true"><span style="width:${percent}%"></span></div>
+          </article>
+        `;
+      }).join("");
+
+      content.innerHTML = `
+        <section class="toolbar">
+          <div class="toolbar-title">
+            <h2>Listes rapides</h2>
+            <p>Pour les sacs et petites préparations du quotidien.</p>
+          </div>
+        </section>
+        <section class="grid section">
+          ${cards || `<div class="panel empty"><h2>Aucune liste rapide</h2><p>Créez une liste pour un sac de piscine, de foot ou de crèche.</p></div>`}
+          <button class="voyage-card add-card" type="button" onclick="createQuickList()">
+            <span class="plus">+</span>
+            <strong>Ajouter une liste rapide</strong>
+          </button>
+        </section>
+        <form class="add-item section" onsubmit="joinQuickList(event)">
+          <button class="btn green" type="submit">+</button>
+          <input autocomplete="off" inputmode="text" maxlength="8" placeholder="Ajouter via un code">
+        </form>
+      `;
+    }
+
+    function renderQuickListDetail() {
+      const list = currentQuickList();
+      const content = document.getElementById("content");
+      if (!list) {
+        renderQuickLists();
+        return;
+      }
+      const done = list.items.filter(item => item.done).length;
+      const total = list.items.length;
+      const percent = total ? Math.round((done / total) * 100) : 0;
+      const items = list.items.map(item => `
+        <article class="item quick-item ${item.done ? "done" : ""}">
+          <div class="item-content">
+            <button class="check" type="button" onclick="toggleQuickItem('${item.id}')" title="Valider" aria-label="Valider"></button>
+            <div class="item-label">${escapeHTML(item.name)}</div>
+            <button class="template-delete" type="button" onclick="deleteQuickItem('${item.id}')" title="Supprimer l'item" aria-label="Supprimer l'item">&times;</button>
+          </div>
+        </article>
+      `).join("");
+
+      content.innerHTML = `
+        <section class="section panel panel-pad">
+          <div class="toolbar">
+            <div class="toolbar-title">
+              <div class="title-row">
+                <h2>${escapeHTML(list.name)}</h2>
+                <button class="code-button" type="button" onclick="copyCode('${list.code}')" title="Copier le code">${escapeHTML(list.code)}</button>
+              </div>
+              <p>${done}/${total} éléments prêts</p>
+            </div>
+            <div class="category-actions trip-actions">
+              <details class="voyage-menu">
+                <summary class="icon-btn" title="Options de la liste rapide">⋮</summary>
+                <div class="voyage-menu-panel">
+                  <button class="menu-item red" type="button" onclick="deleteQuickList('${list.id}')">Supprimer la liste</button>
+                </div>
+              </details>
+            </div>
+          </div>
+          <div class="progress" aria-hidden="true"><span style="width:${percent}%"></span></div>
+        </section>
+        <section class="panel panel-pad section">
+          <div class="grid">
+            ${items || `<div class="notice">Aucun item dans cette liste rapide.</div>`}
+          </div>
+          <form class="add-item" onsubmit="addQuickItem(event)">
+            <button class="btn blue" type="submit">+</button>
+            <input autocomplete="off" placeholder="Ajouter un item">
+          </form>
+        </section>
+      `;
+    }
+
     function renderVoyages() {
       const content = document.getElementById("content");
       if (!state.voyages.length) {
@@ -3743,7 +4205,6 @@
 
     function renderGeneralSection(voyage) {
       const categories = voyage.categories || [];
-      if (!categories.length) return "";
       const progress = progressForMember({ categories });
       const open = state.openMembers.general === true;
       return `
@@ -3755,10 +4216,16 @@
             </button>
             <div class="category-actions" onclick="event.stopPropagation()">
               <span class="badge">${progress.done}/${progress.total}</span>
+              <details class="voyage-menu" onclick="event.stopPropagation()">
+                <summary class="mini" title="Options de Général">⋮</summary>
+                <div class="voyage-menu-panel">
+                  <button class="menu-item" type="button" onclick="addCategoryToGeneral()">Ajouter une catégorie</button>
+                </div>
+              </details>
             </div>
           </div>
           <div class="category-body">
-            ${categories.map(category => renderCategory(voyage, category)).join("")}
+            ${categories.map(category => renderCategory(voyage, category)).join("") || `<div class="notice">Aucune catégorie générale.</div>`}
           </div>
         </article>
       `;
@@ -3913,6 +4380,7 @@
 
     window.addEventListener("online", () => {
       syncAllVoyages({ immediate: true });
+      syncAllQuickLists({ immediate: true });
     });
 
     if ("serviceWorker" in navigator) {
@@ -3927,6 +4395,7 @@
     render();
     loadSharedSettings();
     syncAllVoyages();
+    syncAllQuickLists();
     subscribeToCurrentVoyage();
   </script>
 </body>
