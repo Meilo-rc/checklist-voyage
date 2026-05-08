@@ -1362,7 +1362,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.54</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.55</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1453,13 +1453,13 @@
   <div class="sheet-backdrop" id="categorySheet" onclick="closeSheetOnBackdrop(event, 'categorySheet')">
     <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="categorySheetTitle">
       <div class="sheet-head">
-        <h2 id="categorySheetTitle">Ajouter une catégorie</h2>
+        <h2 id="categorySheetTitle">Ajouter un membre</h2>
         <button class="icon-btn" type="button" onclick="closeSheet('categorySheet')" title="Fermer">&times;</button>
       </div>
-      <form class="grid section" onsubmit="saveCategorySheet(event)">
+      <form class="grid section" onsubmit="saveMemberSheet(event)">
         <div class="field">
-          <label for="categoryName">Nouvelle catégorie</label>
-          <input id="categoryName" autocomplete="off" placeholder="Nom de la catégorie">
+          <label for="categoryName">Nom du membre</label>
+          <input id="categoryName" autocomplete="off" placeholder="Ex. Papa, Maman, Zoé">
         </div>
         <button class="btn blue full" type="submit">Ajouter</button>
       </form>
@@ -1478,7 +1478,7 @@
   </div>
 
   <script>
-    const VERSION = "1.54";
+    const VERSION = "1.55";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1587,9 +1587,12 @@
       tab: "voyages",
       voyages: [],
       currentVoyageId: null,
+      openMembers: {},
       openCats: {},
       customCategories: []
     };
+
+    const defaultMemberNames = ["Papa", "Maman", "Enfant 1", "Bébé"];
 
     const defaultCategories = [
       {
@@ -1717,6 +1720,56 @@
       return `<span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>`;
     }
 
+    function normalizeMemberName(value) {
+      const name = String(value || "").trim();
+      return name || "Autres";
+    }
+
+    function defaultMemberForCategory(category) {
+      return normalizeMemberName(category?.member || category?.memberName || "");
+    }
+
+    function createMember(name, categories = []) {
+      return {
+        id: uid("member"),
+        name: normalizeMemberName(name),
+        categories
+      };
+    }
+
+    function createDefaultMembers(options = {}) {
+      return defaultMemberNames.map(name => createMember(name, createDefaultCategories(options)));
+    }
+
+    function normalizeMember(raw) {
+      const member = raw && typeof raw === "object" ? raw : {};
+      return {
+        id: member.id || uid("member"),
+        name: normalizeMemberName(member.name || "Membre"),
+        categories: Array.isArray(member.categories) ? member.categories.map(normalizeCategory) : []
+      };
+    }
+
+    function voyageMembers(voyage) {
+      if (Array.isArray(voyage?.members) && voyage.members.length) return voyage.members;
+      return [];
+    }
+
+    function allVoyageCategories(voyage) {
+      const members = voyageMembers(voyage);
+      if (members.length) return members.flatMap(member => member.categories || []);
+      return Array.isArray(voyage?.categories) ? voyage.categories : [];
+    }
+
+    function findCategoryInVoyage(voyage, categoryId) {
+      for (const member of voyageMembers(voyage)) {
+        const category = member.categories?.find(item => item.id === categoryId);
+        if (category) return { member, category };
+      }
+      const category = voyage?.categories?.find(item => item.id === categoryId);
+      return category ? { member: null, category } : { member: null, category: null };
+    }
+
     function createDefaultCategories(options = {}) {
       const categories = defaultCategories.map(category => ({
         id: uid("cat"),
@@ -1782,18 +1835,26 @@
         enrichment: options.enrichment || null,
         shared: true,
         remoteRecordId: "",
-        categories: createDefaultCategories(options),
+        members: createDefaultMembers(options),
+        categories: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      voyage.categories.forEach(category => {
-        state.openCats[category.id] = true;
+      voyage.members.forEach(member => {
+        state.openMembers[member.id] = false;
+        member.categories.forEach(category => {
+          state.openCats[category.id] = false;
+        });
       });
       return voyage;
     }
 
     function normalizeVoyage(raw) {
       const voyage = raw && typeof raw === "object" ? raw : {};
+      const legacyCategories = Array.isArray(voyage.categories) ? voyage.categories.map(normalizeCategory) : [];
+      const members = Array.isArray(voyage.members) && voyage.members.length
+        ? voyage.members.map(normalizeMember)
+        : defaultMemberNames.map((name, index) => createMember(name, index === 0 ? legacyCategories : []));
       const normalized = {
         id: voyage.id || uid("voyage"),
         code: cleanCode(voyage.code) || generateCode(),
@@ -1808,7 +1869,8 @@
         remoteRecordId: voyage.remoteRecordId || "",
         createdAt: voyage.createdAt || new Date().toISOString(),
         updatedAt: voyage.updatedAt || new Date().toISOString(),
-        categories: Array.isArray(voyage.categories) ? voyage.categories.map(normalizeCategory) : []
+        members,
+        categories: []
       };
       return normalized;
     }
@@ -1841,6 +1903,7 @@
         id: category.id || uid("tpl"),
         name: category.name || "Catégorie personnalisée",
         icon: category.icon && categoryIcons.includes(category.icon) ? category.icon : categoryIconForName(category.name || "Catégorie personnalisée"),
+        member: defaultMemberForCategory(category),
         items: Array.isArray(category.items)
           ? category.items.map(item => typeof item === "string" ? item : item?.name).filter(Boolean)
           : []
@@ -1852,6 +1915,7 @@
         version: VERSION,
         currentVoyageId: state.currentVoyageId,
         voyages: state.voyages,
+        openMembers: state.openMembers,
         openCats: state.openCats,
         customCategories: state.customCategories,
         settingsRecordId
@@ -1866,6 +1930,7 @@
           const parsed = JSON.parse(raw);
           state.voyages = Array.isArray(parsed.voyages) ? parsed.voyages.map(normalizeVoyage) : [];
           state.currentVoyageId = parsed.currentVoyageId || state.voyages[0]?.id || null;
+          state.openMembers = parsed.openMembers && typeof parsed.openMembers === "object" ? parsed.openMembers : {};
           state.openCats = parsed.openCats && typeof parsed.openCats === "object" ? parsed.openCats : {};
           state.customCategories = Array.isArray(parsed.customCategories) ? parsed.customCategories.map(normalizeCustomCategory) : [];
           settingsRecordId = parsed.settingsRecordId || "";
@@ -1897,7 +1962,7 @@
     }
 
     function progressForVoyage(voyage) {
-      const items = voyage.categories.flatMap(category => category.items);
+      const items = allVoyageCategories(voyage).flatMap(category => category.items);
       const total = items.length;
       const done = items.filter(item => normalizeItemStatus(item) === "done").length;
       return {
@@ -1910,6 +1975,17 @@
     function progressForCategory(category) {
       const total = category.items.length;
       const done = category.items.filter(item => normalizeItemStatus(item) === "done").length;
+      return {
+        total,
+        done,
+        percent: total ? Math.round((done / total) * 100) : 0
+      };
+    }
+
+    function progressForMember(member) {
+      const items = (member.categories || []).flatMap(category => category.items || []);
+      const total = items.length;
+      const done = items.filter(item => normalizeItemStatus(item) === "done").length;
       return {
         total,
         done,
@@ -2035,9 +2111,11 @@
           lodging: options.lodging,
           activity: options.activity
         };
-        enrichCategories(voyage.categories, "Transport", options.transport, presetItems.transport);
-        enrichCategories(voyage.categories, "Logement", options.lodging, presetItems.lodging);
-        enrichCategories(voyage.categories, "Activités", options.activity, presetItems.activity);
+        voyageMembers(voyage).forEach(member => {
+          enrichCategories(member.categories, "Transport", options.transport, presetItems.transport);
+          enrichCategories(member.categories, "Logement", options.lodging, presetItems.lodging);
+          enrichCategories(member.categories, "Activités", options.activity, presetItems.activity);
+        });
         voyage.updatedAt = new Date().toISOString();
       } else {
         voyage = makeVoyage(voyageName, date, options);
@@ -2405,8 +2483,11 @@
       state.tab = "liste";
       const voyage = currentVoyage();
       if (voyage) {
-        voyage.categories.forEach(category => {
-          state.openCats[category.id] = false;
+        voyageMembers(voyage).forEach(member => {
+          state.openMembers[member.id] = false;
+          member.categories.forEach(category => {
+            state.openCats[category.id] = false;
+          });
         });
       }
       saveLocal();
@@ -2447,7 +2528,7 @@
       const voyage = state.voyages.find(item => item.id === id);
       if (!voyage) return;
       if (!confirm(`Tout décocher dans "${voyage.name}" ?`)) return;
-      voyage.categories.forEach(category => {
+      allVoyageCategories(voyage).forEach(category => {
         category.items.forEach(item => {
           item.done = false;
           item.status = "todo";
@@ -2458,22 +2539,34 @@
       render();
     }
 
-    function addCategory() {
-      openCategorySheet();
+    function addMember() {
+      openMemberSheet();
     }
 
-    function createCategoryFromName(name) {
+    function createMemberFromName(name, selectedTemplates = []) {
       const voyage = currentVoyage();
       if (!voyage || !name) return;
-      const category = { id: uid("cat"), name, icon: categoryIconForName(name), items: [] };
-      voyage.categories.push(category);
-      state.openCats[category.id] = true;
+      const categories = selectedTemplates
+        .map(templateId => state.customCategories.find(category => category.id === templateId))
+        .filter(Boolean)
+        .map(template => ({
+          id: uid("cat"),
+          name: template.name,
+          icon: categoryIcon(template),
+          items: template.items.map(itemName => ({ id: uid("item"), name: itemName, qty: 1, status: "todo", done: false }))
+        }));
+      const member = createMember(name, categories);
+      voyage.members.push(member);
+      state.openMembers[member.id] = false;
+      categories.forEach(category => {
+        state.openCats[category.id] = false;
+      });
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
     }
 
-    function openCategorySheet() {
+    function openMemberSheet() {
       const input = document.getElementById("categoryName");
       if (input) input.value = "";
       renderCategoryTemplateChoices();
@@ -2481,31 +2574,15 @@
       setTimeout(() => input?.focus(), 50);
     }
 
-    function saveCategorySheet(event) {
+    function saveMemberSheet(event) {
       event.preventDefault();
       const input = document.getElementById("categoryName");
       const name = input.value.trim();
       if (!name) return;
-      createCategoryFromName(name);
+      const selectedTemplates = [...event.currentTarget.parentElement.querySelectorAll("input[name='memberTemplate']:checked")]
+        .map(item => item.value);
+      createMemberFromName(name, selectedTemplates);
       closeSheet("categorySheet");
-    }
-
-    function addTemplateCategoryToVoyage(templateId) {
-      const voyage = currentVoyage();
-      const template = state.customCategories.find(category => category.id === templateId);
-      if (!voyage || !template) return;
-      const category = {
-        id: uid("cat"),
-        name: template.name,
-        icon: categoryIcon(template),
-        items: template.items.map(name => ({ id: uid("item"), name, qty: 1, done: false }))
-      };
-      voyage.categories.push(category);
-      state.openCats[category.id] = true;
-      voyage.updatedAt = new Date().toISOString();
-      closeSheet("categorySheet");
-      saveAndSync(voyage);
-      render();
     }
 
     function renderCategoryTemplateChoices() {
@@ -2519,7 +2596,7 @@
         <div class="muted">Catégories personnalisées</div>
         <div class="template-picks">
           ${state.customCategories.map(category => `
-            <button class="template-chip" type="button" onclick="addTemplateCategoryToVoyage('${category.id}')">${escapeHTML(category.name)}</button>
+            <label class="template-chip"><input type="checkbox" name="memberTemplate" value="${category.id}"> ${escapeHTML(category.name)}</label>
           `).join("")}
         </div>
       `;
@@ -2527,7 +2604,7 @@
 
     function renameCategory(categoryId) {
       const voyage = currentVoyage();
-      const category = voyage?.categories.find(item => item.id === categoryId);
+      const { category } = findCategoryInVoyage(voyage, categoryId);
       if (!category) return;
       const value = prompt("Nouveau nom de la catégorie", category.name);
       if (value === null) return;
@@ -2542,11 +2619,45 @@
 
     function deleteCategory(categoryId) {
       const voyage = currentVoyage();
-      const category = voyage?.categories.find(item => item.id === categoryId);
+      const { member, category } = findCategoryInVoyage(voyage, categoryId);
       if (!voyage || !category) return;
       if (!confirm(`Supprimer la catégorie "${category.name}" ?`)) return;
-      voyage.categories = voyage.categories.filter(item => item.id !== categoryId);
+      if (member) member.categories = member.categories.filter(item => item.id !== categoryId);
+      else voyage.categories = voyage.categories.filter(item => item.id !== categoryId);
       delete state.openCats[categoryId];
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function toggleMember(memberId) {
+      state.openMembers[memberId] = !state.openMembers[memberId];
+      saveLocal();
+      render();
+    }
+
+    function renameMember(memberId) {
+      const voyage = currentVoyage();
+      const member = voyageMembers(voyage).find(item => item.id === memberId);
+      if (!voyage || !member) return;
+      const value = prompt("Nouveau nom du membre", member.name);
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      member.name = name;
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
+    function deleteMember(memberId) {
+      const voyage = currentVoyage();
+      const member = voyageMembers(voyage).find(item => item.id === memberId);
+      if (!voyage || !member) return;
+      if (!confirm(`Supprimer le membre "${member.name}" ?`)) return;
+      voyage.members = voyageMembers(voyage).filter(item => item.id !== memberId);
+      delete state.openMembers[memberId];
+      member.categories.forEach(category => delete state.openCats[category.id]);
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
@@ -2561,7 +2672,7 @@
     function addItem(event, categoryId) {
       event.preventDefault();
       const voyage = currentVoyage();
-      const category = voyage?.categories.find(item => item.id === categoryId);
+      const { category } = findCategoryInVoyage(voyage, categoryId);
       if (!voyage || !category) return;
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
@@ -2576,7 +2687,7 @@
 
     function toggleItem(categoryId, itemId) {
       const voyage = currentVoyage();
-      const category = voyage?.categories.find(row => row.id === categoryId);
+      const { category } = findCategoryInVoyage(voyage, categoryId);
       const item = category?.items.find(row => row.id === itemId);
       if (!voyage || !category || !item) return;
       item.status = item.status === "todo" ? "checked" : item.status === "checked" ? "done" : "todo";
@@ -2593,8 +2704,8 @@
 
     function renameItem(categoryId, itemId) {
       const voyage = currentVoyage();
-      const item = voyage?.categories
-        .find(category => category.id === categoryId)?.items
+      const { category } = findCategoryInVoyage(voyage, categoryId);
+      const item = category?.items
         .find(row => row.id === itemId);
       if (!voyage || !item) return;
       const value = prompt("Renommer l'élément", item.name);
@@ -2609,7 +2720,7 @@
 
     function deleteItem(categoryId, itemId) {
       const voyage = currentVoyage();
-      const category = voyage?.categories.find(item => item.id === categoryId);
+      const { category } = findCategoryInVoyage(voyage, categoryId);
       if (!voyage || !category) return;
       category.items = category.items.filter(item => item.id !== itemId);
       voyage.updatedAt = new Date().toISOString();
@@ -2630,8 +2741,8 @@
 
     function changeQty(categoryId, itemId, deltaOrValue) {
       const voyage = currentVoyage();
-      const item = voyage?.categories
-        .find(category => category.id === categoryId)?.items
+      const { category } = findCategoryInVoyage(voyage, categoryId);
+      const item = category?.items
         .find(row => row.id === itemId);
       if (!voyage || !item) return;
       if (typeof deltaOrValue === "number") {
@@ -2682,6 +2793,7 @@
         id: category.id,
         name: category.name,
         icon: categoryIcon(category),
+        member: defaultMemberForCategory(category),
         items: category.items.map(name => ({
           id: uid("item"),
           name,
@@ -3010,9 +3122,10 @@
     function addCustomCategory(event) {
       event.preventDefault();
       const input = event.currentTarget.querySelector("input");
+      const select = event.currentTarget.querySelector("select");
       const name = input.value.trim();
       if (!name) return;
-      const category = { id: uid("tpl"), name, icon: categoryIconForName(name), items: [] };
+      const category = { id: uid("tpl"), name, icon: categoryIconForName(name), member: normalizeMemberName(select?.value), items: [] };
       state.customCategories.push(category);
       state.openCats[category.id] = true;
       input.value = "";
@@ -3096,8 +3209,9 @@
         };
       }
       const voyage = currentVoyage();
+      const { category } = findCategoryInVoyage(voyage, iconEditTarget.categoryId);
       return {
-        category: voyage?.categories.find(item => item.id === iconEditTarget.categoryId),
+        category,
         voyage
       };
     }
@@ -3185,7 +3299,7 @@
 
     function renderCustomCategories() {
       const content = document.getElementById("content");
-      const cards = state.customCategories.map(category => {
+      const renderCustomCategoryCard = category => {
         const open = state.openCats[category.id] === true;
         const items = category.items.map((item, index) => `
           <article class="item template-item">
@@ -3226,6 +3340,36 @@
             </div>
           </article>
         `;
+      };
+
+      const groupNames = [
+        ...defaultMemberNames,
+        "Autres",
+        ...state.customCategories
+          .map(defaultMemberForCategory)
+          .filter(name => !defaultMemberNames.includes(name) && name !== "Autres")
+      ];
+      const uniqueGroups = [...new Set(groupNames)];
+      const groups = uniqueGroups.map(groupName => {
+        const groupId = `custom-${groupName}`;
+        const open = state.openMembers[groupId] === true;
+        const categories = state.customCategories.filter(category => defaultMemberForCategory(category) === groupName);
+        return `
+          <article class="category ${open ? "open" : ""}">
+            <div class="category-head">
+              <button class="category-title" type="button" onclick="toggleMember('${groupId}')">
+                <span class="category-icon" style="--icon-url: url('./category-icons/suitcase.svg')" aria-hidden="true"></span>
+                <span class="category-name">${escapeHTML(groupName)}</span>
+              </button>
+              <div class="category-actions" onclick="event.stopPropagation()">
+                <span class="badge">${categories.length}</span>
+              </div>
+            </div>
+            <div class="category-body">
+              ${categories.map(renderCustomCategoryCard).join("") || `<div class="notice">Aucune catégorie dans ce groupe.</div>`}
+            </div>
+          </article>
+        `;
       }).join("");
 
       content.innerHTML = `
@@ -3238,9 +3382,13 @@
         <form class="add-item section" onsubmit="addCustomCategory(event)">
           <button class="btn blue" type="submit">+</button>
           <input autocomplete="off" placeholder="Nouvelle catégorie personnalisée">
+          <select aria-label="Affecter à un membre">
+            ${defaultMemberNames.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join("")}
+            <option value="Autres">Autres</option>
+          </select>
         </form>
         <section class="grid">
-          ${cards || `<div class="panel empty"><h2>Aucun modèle</h2><p>Créez une catégorie personnalisée pour la retrouver lors de l'ajout dans un voyage.</p></div>`}
+          ${groups || `<div class="panel empty"><h2>Aucun modèle</h2><p>Créez une catégorie personnalisée pour la retrouver lors de l'ajout dans un voyage.</p></div>`}
         </section>
       `;
     }
@@ -3314,7 +3462,7 @@
         return;
       }
       const progress = progressForVoyage(voyage);
-      const categories = voyage.categories.map(category => renderCategory(voyage, category)).join("");
+      const members = voyageMembers(voyage).map(member => renderMember(voyage, member)).join("");
       const daysLeft = daysUntilTrip(voyage);
       content.innerHTML = `
         <section class="section panel panel-pad">
@@ -3332,7 +3480,7 @@
               <details class="voyage-menu">
                 <summary class="icon-btn" title="Options du voyage">⋮</summary>
                 <div class="voyage-menu-panel">
-                  <button class="menu-item" type="button" onclick="addCategory()">Ajouter une catégorie</button>
+                  <button class="menu-item" type="button" onclick="addMember()">Ajouter un membre</button>
                   <button class="menu-item" type="button" onclick="openVoyageSheet('${voyage.id}')">Modifier le voyage</button>
                   <button class="menu-item" type="button" onclick="resetVoyageLists('${voyage.id}')">Réinitialiser les listes</button>
                   <button class="menu-item red" type="button" onclick="deleteVoyage('${voyage.id}')">Supprimer le voyage</button>
@@ -3344,8 +3492,37 @@
           <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
         </section>
         <section class="grid">
-          ${categories || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez une catégorie pour commencer.</p></div>`}
+          ${members || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez un membre pour commencer.</p></div>`}
         </section>
+      `;
+    }
+
+    function renderMember(voyage, member) {
+      const progress = progressForMember(member);
+      const open = state.openMembers[member.id] === true;
+      const categories = (member.categories || []).map(category => renderCategory(voyage, category)).join("");
+      return `
+        <article class="category ${open ? "open" : ""}">
+          <div class="category-head">
+            <button class="category-title" type="button" onclick="toggleMember('${member.id}')">
+              <span class="category-icon" style="--icon-url: url('./category-icons/suitcase.svg')" aria-hidden="true"></span>
+              <span class="category-name">${escapeHTML(member.name)}</span>
+            </button>
+            <div class="category-actions" onclick="event.stopPropagation()">
+              <span class="badge">${progress.done}/${progress.total}</span>
+              <details class="voyage-menu" onclick="event.stopPropagation()">
+                <summary class="mini" title="Options du membre">⋮</summary>
+                <div class="voyage-menu-panel">
+                  <button class="menu-item" type="button" onclick="renameMember('${member.id}')">Renommer le membre</button>
+                  <button class="menu-item red" type="button" onclick="deleteMember('${member.id}')">Supprimer le membre</button>
+                </div>
+              </details>
+            </div>
+          </div>
+          <div class="category-body">
+            ${categories || `<div class="notice">Aucune catégorie pour ce membre.</div>`}
+          </div>
+        </article>
       `;
     }
 
