@@ -1362,7 +1362,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.55</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.56</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1478,7 +1478,7 @@
   </div>
 
   <script>
-    const VERSION = "1.55";
+    const VERSION = "1.56";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1589,10 +1589,27 @@
       currentVoyageId: null,
       openMembers: {},
       openCats: {},
-      customCategories: []
+      customCategories: [],
+      customCategoryMembers: []
     };
 
     const defaultMemberNames = ["Papa", "Maman", "Enfant 1", "Bébé"];
+    const defaultCustomGroupNames = ["Général", ...defaultMemberNames];
+
+    const idealCustomCategories = [
+      { member: "Papa", name: "Photo", icon: "camera", items: ["Appareil photo", "Objectifs", "Cartes mémoire", "Batteries chargées", "Chargeur appareil photo", "Trépied compact", "Sangle / dragonne", "Chiffon microfibre"] },
+      { member: "Papa", name: "Électronique", icon: "plug", items: ["Chargeurs téléphones", "Batterie externe", "Câbles USB-C / Lightning", "Adaptateur secteur", "Multiprise compacte", "Écouteurs", "Téléchargements hors ligne"] },
+      { member: "Papa", name: "Documents", icon: "document", items: ["Passeports / cartes d'identité", "Permis de conduire", "Billets et réservations", "Assurance voyage", "Moyens de paiement", "Copies numériques des documents"] },
+      { member: "Maman", name: "Trousse de toilette", icon: "toiletries", items: ["Brosse à dents", "Dentifrice", "Shampoing / gel douche", "Déodorant", "Crème hydratante", "Brosse / élastiques", "Protections périodiques", "Trousse maquillage"] },
+      { member: "Maman", name: "Santé famille", icon: "first-aid", items: ["Doliprane adultes", "Doliprane enfants", "Thermomètre", "Pansements", "Désinfectant", "Sérum physiologique", "Ordonnances", "Crème solaire famille"] },
+      { member: "Maman", name: "Organisation", icon: "calendar", items: ["Planning du séjour", "Contacts utiles", "Liste courses arrivée", "Sacs linge sale", "Sacs réutilisables", "Petite lessive", "Lingettes multi-usage"] },
+      { member: "Enfant 1", name: "Vêtements 4 ans", icon: "clothes", items: ["Culottes / slips", "Chaussettes", "T-shirts", "Pulls", "Pantalons / shorts", "Pyjamas", "Veste", "Chaussures adaptées"] },
+      { member: "Enfant 1", name: "Jeux 4 ans", icon: "gamepad", items: ["Doudou", "Livres", "Petites voitures / figurines", "Coloriage", "Crayons", "Jeu de voyage", "Gourde", "Casquette"] },
+      { member: "Enfant 1", name: "Sorties enfant", icon: "beach", items: ["Lunettes de soleil", "Crème solaire enfant", "Maillot de bain", "Brassards si besoin", "Sac goûter", "Change complet", "K-way"] },
+      { member: "Bébé", name: "Change bébé 6 mois", icon: "baby", items: ["Couches", "Lingettes", "Liniment", "Matelas à langer nomade", "Sacs couches", "Bodies", "Pyjamas", "Bavoirs"] },
+      { member: "Bébé", name: "Repas bébé", icon: "restaurant", items: ["Biberons", "Lait infantile", "Petits pots", "Cuillères bébé", "Bavoirs repas", "Gourde / eau", "Boîte doseuse", "Goupillon"] },
+      { member: "Bébé", name: "Sommeil bébé", icon: "bed", items: ["Gigoteuse", "Doudou", "Tétines", "Babyphone", "Drap housse lit bébé", "Veilleuse", "Couverture légère", "Poussette / porte-bébé"] }
+    ];
 
     const defaultCategories = [
       {
@@ -1722,7 +1739,8 @@
 
     function normalizeMemberName(value) {
       const name = String(value || "").trim();
-      return name || "Autres";
+      if (!name || normalizeText(name) === "autres") return "Général";
+      return name;
     }
 
     function defaultMemberForCategory(category) {
@@ -1738,7 +1756,20 @@
     }
 
     function createDefaultMembers(options = {}) {
-      return defaultMemberNames.map(name => createMember(name, createDefaultCategories(options)));
+      return defaultMemberNames.map(name => createMember(name, createDefaultCategories({
+        ...options,
+        transport: [],
+        lodging: []
+      })));
+    }
+
+    function createGeneralCategories(options = {}) {
+      const categories = [];
+      enrichCategories(categories, "Général", [...(options.transport || []), ...(options.lodging || [])], {
+        ...presetItems.transport,
+        ...presetItems.lodging
+      });
+      return categories;
     }
 
     function normalizeMember(raw) {
@@ -1757,7 +1788,10 @@
 
     function allVoyageCategories(voyage) {
       const members = voyageMembers(voyage);
-      if (members.length) return members.flatMap(member => member.categories || []);
+      if (members.length) return [
+        ...(Array.isArray(voyage?.categories) ? voyage.categories : []),
+        ...members.flatMap(member => member.categories || [])
+      ];
       return Array.isArray(voyage?.categories) ? voyage.categories : [];
     }
 
@@ -1836,7 +1870,7 @@
         shared: true,
         remoteRecordId: "",
         members: createDefaultMembers(options),
-        categories: [],
+        categories: createGeneralCategories(options),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1845,6 +1879,9 @@
         member.categories.forEach(category => {
           state.openCats[category.id] = false;
         });
+      });
+      voyage.categories.forEach(category => {
+        state.openCats[category.id] = false;
       });
       return voyage;
     }
@@ -1870,7 +1907,9 @@
         createdAt: voyage.createdAt || new Date().toISOString(),
         updatedAt: voyage.updatedAt || new Date().toISOString(),
         members,
-        categories: []
+        categories: Array.isArray(voyage.categories) && (Array.isArray(voyage.members) && voyage.members.length)
+          ? voyage.categories.map(normalizeCategory)
+          : []
       };
       return normalized;
     }
@@ -1918,6 +1957,7 @@
         openMembers: state.openMembers,
         openCats: state.openCats,
         customCategories: state.customCategories,
+        customCategoryMembers: state.customCategoryMembers,
         settingsRecordId
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -1933,6 +1973,7 @@
           state.openMembers = parsed.openMembers && typeof parsed.openMembers === "object" ? parsed.openMembers : {};
           state.openCats = parsed.openCats && typeof parsed.openCats === "object" ? parsed.openCats : {};
           state.customCategories = Array.isArray(parsed.customCategories) ? parsed.customCategories.map(normalizeCustomCategory) : [];
+          state.customCategoryMembers = Array.isArray(parsed.customCategoryMembers) ? parsed.customCategoryMembers.map(normalizeMemberName) : [];
           settingsRecordId = parsed.settingsRecordId || "";
           return;
         } catch (error) {
@@ -2111,9 +2152,11 @@
           lodging: options.lodging,
           activity: options.activity
         };
+        enrichCategories(voyage.categories, "Général", [...options.transport, ...options.lodging], {
+          ...presetItems.transport,
+          ...presetItems.lodging
+        });
         voyageMembers(voyage).forEach(member => {
-          enrichCategories(member.categories, "Transport", options.transport, presetItems.transport);
-          enrichCategories(member.categories, "Logement", options.lodging, presetItems.lodging);
           enrichCategories(member.categories, "Activités", options.activity, presetItems.activity);
         });
         voyage.updatedAt = new Date().toISOString();
@@ -2566,6 +2609,34 @@
       render();
     }
 
+    function addCategoryToMember(memberId, templateId = "") {
+      const voyage = currentVoyage();
+      const member = voyageMembers(voyage).find(item => item.id === memberId);
+      if (!voyage || !member) return;
+      let category = null;
+      const template = templateId ? state.customCategories.find(item => item.id === templateId) : null;
+      if (template) {
+        category = {
+          id: uid("cat"),
+          name: template.name,
+          icon: categoryIcon(template),
+          items: template.items.map(itemName => ({ id: uid("item"), name: itemName, qty: 1, status: "todo", done: false }))
+        };
+      } else {
+        const value = prompt("Nom de la catégorie");
+        if (value === null) return;
+        const name = value.trim();
+        if (!name) return;
+        category = { id: uid("cat"), name, icon: categoryIconForName(name), items: [] };
+      }
+      member.categories.push(category);
+      state.openMembers[member.id] = true;
+      state.openCats[category.id] = true;
+      voyage.updatedAt = new Date().toISOString();
+      saveAndSync(voyage);
+      render();
+    }
+
     function openMemberSheet() {
       const input = document.getElementById("categoryName");
       if (input) input.value = "";
@@ -2804,6 +2875,7 @@
       return {
         type: "settings",
         customCategories: state.customCategories,
+        customCategoryMembers: state.customCategoryMembers,
         voyage: {
           id: "settings-voyage",
           code: SETTINGS_CODE,
@@ -2818,6 +2890,7 @@
     function applySettingsData(data) {
       const source = data?.customCategories || data?.voyage?.categories || [];
       state.customCategories = Array.isArray(source) ? source.map(normalizeCustomCategory) : [];
+      state.customCategoryMembers = Array.isArray(data?.customCategoryMembers) ? data.customCategoryMembers.map(normalizeMemberName) : state.customCategoryMembers;
       saveLocal();
       if (state.tab === "customCategories") render();
       renderCategoryTemplateChoices();
@@ -3122,13 +3195,93 @@
     function addCustomCategory(event) {
       event.preventDefault();
       const input = event.currentTarget.querySelector("input");
-      const select = event.currentTarget.querySelector("select");
       const name = input.value.trim();
       if (!name) return;
-      const category = { id: uid("tpl"), name, icon: categoryIconForName(name), member: normalizeMemberName(select?.value), items: [] };
+      addCustomMember(name);
+      input.value = "";
+      render();
+    }
+
+    function customMemberNames() {
+      return [
+        ...defaultCustomGroupNames,
+        ...state.customCategoryMembers,
+        ...state.customCategories.map(defaultMemberForCategory)
+      ].map(normalizeMemberName).filter((name, index, list) => list.indexOf(name) === index);
+    }
+
+    function buildIdealCustomCategories() {
+      state.customCategoryMembers = [];
+      state.customCategories = idealCustomCategories.map(template => ({
+        id: uid("tpl"),
+        name: template.name,
+        icon: template.icon,
+        member: template.member,
+        items: [...template.items]
+      }));
+      defaultMemberNames.forEach(name => {
+        state.openMembers[`custom-${name}`] = false;
+      });
+      state.openMembers["custom-Général"] = false;
+      saveLocal();
+      saveSharedSettings();
+      render();
+    }
+
+    function addCustomMember(name) {
+      const memberName = normalizeMemberName(name);
+      if (!state.customCategoryMembers.includes(memberName) && !defaultCustomGroupNames.includes(memberName)) {
+        state.customCategoryMembers.push(memberName);
+      }
+      state.openMembers[`custom-${memberName}`] = true;
+      saveLocal();
+      saveSharedSettings();
+    }
+
+    function renameCustomMember(memberName) {
+      const current = normalizeMemberName(memberName);
+      const value = prompt("Nouveau nom du membre", current);
+      if (value === null) return;
+      const next = normalizeMemberName(value);
+      if (!next || next === current) return;
+      state.customCategories.forEach(category => {
+        if (defaultMemberForCategory(category) === current) category.member = next;
+      });
+      state.customCategoryMembers = state.customCategoryMembers
+        .map(name => normalizeMemberName(name) === current ? next : name)
+        .filter((name, index, list) => list.indexOf(name) === index && !defaultCustomGroupNames.includes(name));
+      state.openMembers[`custom-${next}`] = state.openMembers[`custom-${current}`] ?? true;
+      delete state.openMembers[`custom-${current}`];
+      saveLocal();
+      saveSharedSettings();
+      render();
+    }
+
+    function deleteCustomMember(memberName) {
+      const current = normalizeMemberName(memberName);
+      const categories = state.customCategories.filter(category => defaultMemberForCategory(category) === current);
+      const message = categories.length
+        ? `Supprimer "${current}" et ses ${categories.length} catégorie(s) personnalisée(s) ?`
+        : `Supprimer "${current}" ?`;
+      if (!confirm(message)) return;
+      state.customCategories = state.customCategories.filter(category => defaultMemberForCategory(category) !== current);
+      state.customCategoryMembers = state.customCategoryMembers.filter(name => normalizeMemberName(name) !== current);
+      delete state.openMembers[`custom-${current}`];
+      saveLocal();
+      saveSharedSettings();
+      render();
+    }
+
+    function addCustomCategoryToMember(memberName) {
+      const current = normalizeMemberName(memberName);
+      const value = prompt("Nom de la catégorie personnalisée");
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      const category = { id: uid("tpl"), name, icon: categoryIconForName(name), member: current, items: [] };
       state.customCategories.push(category);
       state.openCats[category.id] = true;
-      input.value = "";
+      state.openMembers[`custom-${current}`] = true;
       saveLocal();
       saveSharedSettings();
       render();
@@ -3342,15 +3495,7 @@
         `;
       };
 
-      const groupNames = [
-        ...defaultMemberNames,
-        "Autres",
-        ...state.customCategories
-          .map(defaultMemberForCategory)
-          .filter(name => !defaultMemberNames.includes(name) && name !== "Autres")
-      ];
-      const uniqueGroups = [...new Set(groupNames)];
-      const groups = uniqueGroups.map(groupName => {
+      const groups = customMemberNames().map(groupName => {
         const groupId = `custom-${groupName}`;
         const open = state.openMembers[groupId] === true;
         const categories = state.customCategories.filter(category => defaultMemberForCategory(category) === groupName);
@@ -3363,6 +3508,14 @@
               </button>
               <div class="category-actions" onclick="event.stopPropagation()">
                 <span class="badge">${categories.length}</span>
+                <details class="voyage-menu" onclick="event.stopPropagation()">
+                  <summary class="mini" title="Options du membre">⋮</summary>
+                  <div class="voyage-menu-panel">
+                    <button class="menu-item" type="button" onclick="renameCustomMember('${escapeHTML(groupName)}')">Modifier le nom</button>
+                    <button class="menu-item" type="button" onclick="addCustomCategoryToMember('${escapeHTML(groupName)}')">Ajouter une catégorie personnalisée</button>
+                    <button class="menu-item red" type="button" onclick="deleteCustomMember('${escapeHTML(groupName)}')">Supprimer le membre</button>
+                  </div>
+                </details>
               </div>
             </div>
             <div class="category-body">
@@ -3375,17 +3528,14 @@
       content.innerHTML = `
         <section class="toolbar">
           <div class="toolbar-title">
-            <h2>Catégories personnalisées</h2>
+            <h2>CP</h2>
             <p>Ces modèles sont partagés via PocketBase et proposés ensuite dans chaque voyage.</p>
           </div>
+          <button class="btn ghost" type="button" onclick="buildIdealCustomCategories()">Liste idéale</button>
         </section>
         <form class="add-item section" onsubmit="addCustomCategory(event)">
           <button class="btn blue" type="submit">+</button>
-          <input autocomplete="off" placeholder="Nouvelle catégorie personnalisée">
-          <select aria-label="Affecter à un membre">
-            ${defaultMemberNames.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`).join("")}
-            <option value="Autres">Autres</option>
-          </select>
+          <input autocomplete="off" placeholder="Ajouter un membre">
         </form>
         <section class="grid">
           ${groups || `<div class="panel empty"><h2>Aucun modèle</h2><p>Créez une catégorie personnalisée pour la retrouver lors de l'ajout dans un voyage.</p></div>`}
@@ -3462,6 +3612,7 @@
         return;
       }
       const progress = progressForVoyage(voyage);
+      const generalCategories = (voyage.categories || []).map(category => renderCategory(voyage, category)).join("");
       const members = voyageMembers(voyage).map(member => renderMember(voyage, member)).join("");
       const daysLeft = daysUntilTrip(voyage);
       content.innerHTML = `
@@ -3492,6 +3643,7 @@
           <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
         </section>
         <section class="grid">
+          ${generalCategories}
           ${members || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez un membre pour commencer.</p></div>`}
         </section>
       `;
@@ -3513,6 +3665,7 @@
               <details class="voyage-menu" onclick="event.stopPropagation()">
                 <summary class="mini" title="Options du membre">⋮</summary>
                 <div class="voyage-menu-panel">
+                  <button class="menu-item" type="button" onclick="addCategoryToMember('${member.id}')">Ajouter une catégorie</button>
                   <button class="menu-item" type="button" onclick="renameMember('${member.id}')">Renommer le membre</button>
                   <button class="menu-item red" type="button" onclick="deleteMember('${member.id}')">Supprimer le membre</button>
                 </div>
