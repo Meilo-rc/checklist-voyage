@@ -1365,7 +1365,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.57</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.58</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1481,7 +1481,7 @@
   </div>
 
   <script>
-    const VERSION = "1.57";
+    const VERSION = "1.58";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1593,7 +1593,8 @@
       openMembers: {},
       openCats: {},
       customCategories: [],
-      customCategoryMembers: []
+      customCategoryMembers: [],
+      customMemberAliases: {}
     };
 
     const defaultMemberNames = ["Papa", "Maman", "Enfant 1", "Bébé"];
@@ -1961,6 +1962,7 @@
         openCats: state.openCats,
         customCategories: state.customCategories,
         customCategoryMembers: state.customCategoryMembers,
+        customMemberAliases: state.customMemberAliases,
         settingsRecordId
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -1977,6 +1979,7 @@
           state.openCats = parsed.openCats && typeof parsed.openCats === "object" ? parsed.openCats : {};
           state.customCategories = Array.isArray(parsed.customCategories) ? parsed.customCategories.map(normalizeCustomCategory) : [];
           state.customCategoryMembers = Array.isArray(parsed.customCategoryMembers) ? parsed.customCategoryMembers.map(normalizeMemberName) : [];
+          state.customMemberAliases = parsed.customMemberAliases && typeof parsed.customMemberAliases === "object" ? parsed.customMemberAliases : {};
           settingsRecordId = parsed.settingsRecordId || "";
           return;
         } catch (error) {
@@ -2879,6 +2882,7 @@
         type: "settings",
         customCategories: state.customCategories,
         customCategoryMembers: state.customCategoryMembers,
+        customMemberAliases: state.customMemberAliases,
         voyage: {
           id: "settings-voyage",
           code: SETTINGS_CODE,
@@ -2894,6 +2898,7 @@
       const source = data?.customCategories || data?.voyage?.categories || [];
       state.customCategories = Array.isArray(source) ? source.map(normalizeCustomCategory) : [];
       state.customCategoryMembers = Array.isArray(data?.customCategoryMembers) ? data.customCategoryMembers.map(normalizeMemberName) : state.customCategoryMembers;
+      state.customMemberAliases = data?.customMemberAliases && typeof data.customMemberAliases === "object" ? data.customMemberAliases : state.customMemberAliases;
       saveLocal();
       if (state.tab === "customCategories") render();
       renderCategoryTemplateChoices();
@@ -3206,11 +3211,15 @@
     }
 
     function customMemberNames() {
+      const aliasedDefaults = defaultCustomGroupNames.map(name => normalizeMemberName(state.customMemberAliases[name] || name));
       return [
-        ...defaultCustomGroupNames,
+        ...aliasedDefaults,
         ...state.customCategoryMembers,
         ...state.customCategories.map(defaultMemberForCategory)
-      ].map(normalizeMemberName).filter((name, index, list) => list.indexOf(name) === index);
+      ]
+        .map(normalizeMemberName)
+        .filter(name => !defaultCustomGroupNames.includes(name) || aliasedDefaults.includes(name))
+        .filter((name, index, list) => list.indexOf(name) === index);
     }
 
     function buildIdealCustomCategories() {
@@ -3247,12 +3256,27 @@
       if (value === null) return;
       const next = normalizeMemberName(value);
       if (!next || next === current) return;
+      const aliasEntry = Object.entries(state.customMemberAliases).find(([, alias]) => normalizeMemberName(alias) === current);
+      const defaultSource = aliasEntry?.[0] || (defaultCustomGroupNames.includes(current) ? current : "");
       state.customCategories.forEach(category => {
         if (defaultMemberForCategory(category) === current) category.member = next;
       });
+      if (defaultSource) {
+        state.customMemberAliases[defaultSource] = next;
+        state.customCategoryMembers = state.customCategoryMembers.filter(name => normalizeMemberName(name) !== next);
+      } else {
+        let replaced = false;
+        state.customCategoryMembers = state.customCategoryMembers.map(name => {
+          if (normalizeMemberName(name) !== current) return name;
+          replaced = true;
+          return next;
+        });
+        if (!replaced) state.customCategoryMembers.push(next);
+      }
+      const aliasedDefaults = defaultCustomGroupNames.map(name => normalizeMemberName(state.customMemberAliases[name] || name));
       state.customCategoryMembers = state.customCategoryMembers
-        .map(name => normalizeMemberName(name) === current ? next : name)
-        .filter((name, index, list) => list.indexOf(name) === index && !defaultCustomGroupNames.includes(name));
+        .map(normalizeMemberName)
+        .filter((name, index, list) => list.indexOf(name) === index && !aliasedDefaults.includes(name) && !defaultCustomGroupNames.includes(name));
       state.openMembers[`custom-${next}`] = state.openMembers[`custom-${current}`] ?? true;
       delete state.openMembers[`custom-${current}`];
       saveLocal();
@@ -3269,6 +3293,9 @@
       if (!confirm(message)) return;
       state.customCategories = state.customCategories.filter(category => defaultMemberForCategory(category) !== current);
       state.customCategoryMembers = state.customCategoryMembers.filter(name => normalizeMemberName(name) !== current);
+      Object.entries(state.customMemberAliases).forEach(([source, alias]) => {
+        if (normalizeMemberName(alias) === current) delete state.customMemberAliases[source];
+      });
       delete state.openMembers[`custom-${current}`];
       saveLocal();
       saveSharedSettings();
