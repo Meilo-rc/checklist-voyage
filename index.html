@@ -1366,7 +1366,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.61</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.62</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1482,7 +1482,7 @@
   </div>
 
   <script>
-    const VERSION = "1.61";
+    const VERSION = "1.62";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1598,33 +1598,32 @@
       customMemberAliases: {}
     };
 
-    const defaultMemberNames = ["Papa", "Maman", "Enfant 1", "Bébé"];
+    const legacyMemberNameMap = {
+      papa: "Richard",
+      maman: "Jenna",
+      "enfant 1": "Milo",
+      bebe: "Malone",
+      bébé: "Malone"
+    };
+
+    const defaultMemberNames = ["Richard", "Jenna", "Milo", "Malone"];
     const defaultCustomGroupNames = ["Général", ...defaultMemberNames];
 
     const idealCustomCategories = [
-      { member: "Papa", name: "Photo", icon: "camera", items: ["Appareil photo", "Objectifs", "Cartes mémoire", "Batteries chargées", "Chargeur appareil photo", "Trépied compact", "Sangle / dragonne", "Chiffon microfibre"] },
-      { member: "Papa", name: "Électronique", icon: "plug", items: ["Chargeurs téléphones", "Batterie externe", "Câbles USB-C / Lightning", "Adaptateur secteur", "Multiprise compacte", "Écouteurs", "Téléchargements hors ligne"] },
-      { member: "Papa", name: "Documents", icon: "document", items: ["Passeports / cartes d'identité", "Permis de conduire", "Billets et réservations", "Assurance voyage", "Moyens de paiement", "Copies numériques des documents"] },
-      { member: "Maman", name: "Trousse de toilette", icon: "toiletries", items: ["Brosse à dents", "Dentifrice", "Shampoing / gel douche", "Déodorant", "Crème hydratante", "Brosse / élastiques", "Protections périodiques", "Trousse maquillage"] },
-      { member: "Maman", name: "Santé famille", icon: "first-aid", items: ["Doliprane adultes", "Doliprane enfants", "Thermomètre", "Pansements", "Désinfectant", "Sérum physiologique", "Ordonnances", "Crème solaire famille"] },
-      { member: "Maman", name: "Organisation", icon: "calendar", items: ["Planning du séjour", "Contacts utiles", "Liste courses arrivée", "Sacs linge sale", "Sacs réutilisables", "Petite lessive", "Lingettes multi-usage"] },
-      { member: "Enfant 1", name: "Vêtements 4 ans", icon: "clothes", items: ["Culottes / slips", "Chaussettes", "T-shirts", "Pulls", "Pantalons / shorts", "Pyjamas", "Veste", "Chaussures adaptées"] },
-      { member: "Enfant 1", name: "Jeux 4 ans", icon: "gamepad", items: ["Doudou", "Livres", "Petites voitures / figurines", "Coloriage", "Crayons", "Jeu de voyage", "Gourde", "Casquette"] },
-      { member: "Enfant 1", name: "Sorties enfant", icon: "beach", items: ["Lunettes de soleil", "Crème solaire enfant", "Maillot de bain", "Brassards si besoin", "Sac goûter", "Change complet", "K-way"] },
-      { member: "Bébé", name: "Change bébé 6 mois", icon: "baby", items: ["Couches", "Lingettes", "Liniment", "Matelas à langer nomade", "Sacs couches", "Bodies", "Pyjamas", "Bavoirs"] },
-      { member: "Bébé", name: "Repas bébé", icon: "restaurant", items: ["Biberons", "Lait infantile", "Petits pots", "Cuillères bébé", "Bavoirs repas", "Gourde / eau", "Boîte doseuse", "Goupillon"] },
-      { member: "Bébé", name: "Sommeil bébé", icon: "bed", items: ["Gigoteuse", "Doudou", "Tétines", "Babyphone", "Drap housse lit bébé", "Veilleuse", "Couverture légère", "Poussette / porte-bébé"] }
+      { member: "Richard", name: "Photo", icon: "camera", items: ["Appareil photo", "Objectifs", "Cartes mémoire", "Batteries chargées", "Chargeur appareil photo", "Trépied compact", "Sangle / dragonne", "Chiffon microfibre"] },
+      { member: "Richard", name: "Électronique", icon: "plug", items: ["Chargeurs téléphones", "Batterie externe", "Câbles USB-C / Lightning", "Adaptateur secteur", "Multiprise compacte", "Écouteurs", "Téléchargements hors ligne"] },
+      { member: "Jenna", name: "Trousse de toilette", icon: "toiletries", items: ["Brosse à dents", "Dentifrice", "Shampoing / gel douche", "Déodorant", "Crème hydratante", "Brosse / élastiques", "Protections périodiques", "Trousse maquillage"] },
+      { member: "Jenna", name: "Santé famille", icon: "first-aid", items: ["Doliprane adultes", "Doliprane enfants", "Thermomètre", "Pansements", "Désinfectant", "Sérum physiologique", "Ordonnances", "Crème solaire famille"] },
+      { member: "Jenna", name: "Organisation", icon: "calendar", items: ["Planning du séjour", "Contacts utiles", "Liste courses arrivée", "Sacs linge sale", "Sacs réutilisables", "Petite lessive", "Lingettes multi-usage"] },
+      { member: "Milo", name: "Vêtements 4 ans", icon: "clothes", items: ["Culottes / slips", "Chaussettes", "T-shirts", "Pulls", "Pantalons / shorts", "Pyjamas", "Veste", "Chaussures adaptées"] },
+      { member: "Milo", name: "Jeux 4 ans", icon: "gamepad", items: ["Doudou", "Livres", "Petites voitures / figurines", "Coloriage", "Crayons", "Jeu de voyage", "Gourde", "Casquette"] },
+      { member: "Milo", name: "Sorties enfant", icon: "beach", items: ["Lunettes de soleil", "Crème solaire enfant", "Maillot de bain", "Brassards si besoin", "Sac goûter", "Change complet", "K-way"] },
+      { member: "Malone", name: "Change bébé 6 mois", icon: "baby", items: ["Couches", "Lingettes", "Liniment", "Matelas à langer nomade", "Sacs couches", "Bodies", "Pyjamas", "Bavoirs"] },
+      { member: "Malone", name: "Repas bébé", icon: "restaurant", items: ["Biberons", "Lait infantile", "Petits pots", "Cuillères bébé", "Bavoirs repas", "Gourde / eau", "Boîte doseuse", "Goupillon"] },
+      { member: "Malone", name: "Sommeil bébé", icon: "bed", items: ["Gigoteuse", "Doudou", "Tétines", "Babyphone", "Drap housse lit bébé", "Veilleuse", "Couverture légère", "Poussette / porte-bébé"] }
     ];
 
     const defaultCategories = [
-      {
-        name: "Documents",
-        items: [
-          { name: "Passeports / cartes d'identité", qty: 1 },
-          { name: "Billets et réservations", qty: 1 },
-          { name: "Permis / assurance", qty: 1 }
-        ]
-      },
       {
         name: "Vêtements",
         items: [
@@ -1745,6 +1744,8 @@
     function normalizeMemberName(value) {
       const name = String(value || "").trim();
       if (!name || normalizeText(name) === "autres") return "Général";
+      const mapped = legacyMemberNameMap[normalizeText(name)];
+      if (mapped) return mapped;
       return name;
     }
 
@@ -1769,11 +1770,19 @@
     }
 
     function createGeneralCategories(options = {}) {
-      const categories = [];
-      enrichCategories(categories, "Général", [...(options.transport || []), ...(options.lodging || [])], {
-        ...presetItems.transport,
-        ...presetItems.lodging
-      });
+      const categories = [{
+        id: uid("cat"),
+        name: "Documents",
+        icon: "document",
+        items: [
+          { id: uid("item"), name: "Passeports / cartes d'identité", qty: 1, status: "todo", done: false },
+          { id: uid("item"), name: "Billets et réservations", qty: 1, status: "todo", done: false },
+          { id: uid("item"), name: "Permis / assurance", qty: 1, status: "todo", done: false },
+          { id: uid("item"), name: "Moyens de paiement", qty: 1, status: "todo", done: false }
+        ]
+      }];
+      enrichCategories(categories, "Transport", options.transport || [], presetItems.transport);
+      enrichCategories(categories, "Logement", options.lodging || [], presetItems.lodging);
       return categories;
     }
 
@@ -1807,6 +1816,40 @@
       }
       const category = voyage?.categories?.find(item => item.id === categoryId);
       return category ? { member: null, category } : { member: null, category: null };
+    }
+
+    function mergeCategoryItems(target, source) {
+      const existing = new Set((target.items || []).map(item => normalizeText(item.name)));
+      (source.items || []).forEach(item => {
+        if (existing.has(normalizeText(item.name))) return;
+        target.items.push(normalizeItem(item));
+        existing.add(normalizeText(item.name));
+      });
+    }
+
+    function moveMemberDocumentsToGeneral(categories, members) {
+      let documents = categories.find(category => normalizeText(category.name) === "documents");
+      members.forEach(member => {
+        const remaining = [];
+        (member.categories || []).forEach(category => {
+          if (normalizeText(category.name) !== "documents") {
+            remaining.push(category);
+            return;
+          }
+          if (!documents) {
+            documents = {
+              id: uid("cat"),
+              name: "Documents",
+              icon: "document",
+              items: []
+            };
+            categories.unshift(documents);
+          }
+          mergeCategoryItems(documents, category);
+        });
+        member.categories = remaining;
+      });
+      return categories;
     }
 
     function createDefaultCategories(options = {}) {
@@ -1897,6 +1940,12 @@
       const members = Array.isArray(voyage.members) && voyage.members.length
         ? voyage.members.map(normalizeMember)
         : defaultMemberNames.map((name, index) => createMember(name, index === 0 ? legacyCategories : []));
+      const generalCategories = moveMemberDocumentsToGeneral(
+        Array.isArray(voyage.categories) && (Array.isArray(voyage.members) && voyage.members.length)
+          ? voyage.categories.map(normalizeCategory)
+          : [],
+        members
+      );
       const normalized = {
         id: voyage.id || uid("voyage"),
         code: cleanCode(voyage.code) || generateCode(),
@@ -1912,9 +1961,7 @@
         createdAt: voyage.createdAt || new Date().toISOString(),
         updatedAt: voyage.updatedAt || new Date().toISOString(),
         members,
-        categories: Array.isArray(voyage.categories) && (Array.isArray(voyage.members) && voyage.members.length)
-          ? voyage.categories.map(normalizeCategory)
-          : []
+        categories: generalCategories
       };
       return normalized;
     }
@@ -2563,10 +2610,25 @@
       if (voyage) renameVoyage(voyage.id);
     }
 
-    function deleteVoyage(id) {
+    async function deleteVoyage(id) {
       const voyage = state.voyages.find(item => item.id === id);
       if (!voyage) return;
-      if (!confirm(`Supprimer le voyage "${voyage.name}" de cet appareil ?`)) return;
+      if (!confirm(`Supprimer le voyage "${voyage.name}" de l'application et de la base de données ?`)) return;
+      try {
+        const client = getPB();
+        if (client && voyage.code) {
+          let recordId = voyage.remoteRecordId;
+          if (!recordId) {
+            const record = await findRecordByCode(voyage.code);
+            recordId = record?.id;
+          }
+          if (recordId) await client.collection(PB_COLLECTION).delete(recordId, { requestKey: null });
+        }
+      } catch (error) {
+        console.warn("Suppression distante impossible", error);
+        alert("Impossible de supprimer ce voyage dans la base de données pour le moment. Réessaie quand la connexion est disponible.");
+        return;
+      }
       state.voyages = state.voyages.filter(item => item.id !== id);
       if (state.currentVoyageId === id) state.currentVoyageId = state.voyages[0]?.id || null;
       saveLocal();
@@ -3642,7 +3704,7 @@
         return;
       }
       const progress = progressForVoyage(voyage);
-      const generalCategories = (voyage.categories || []).map(category => renderCategory(voyage, category)).join("");
+      const general = renderGeneralSection(voyage);
       const members = voyageMembers(voyage).map(member => renderMember(voyage, member)).join("");
       const daysLeft = daysUntilTrip(voyage);
       content.innerHTML = `
@@ -3673,9 +3735,32 @@
           <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
         </section>
         <section class="grid">
-          ${generalCategories}
+          ${general}
           ${members || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez un membre pour commencer.</p></div>`}
         </section>
+      `;
+    }
+
+    function renderGeneralSection(voyage) {
+      const categories = voyage.categories || [];
+      if (!categories.length) return "";
+      const progress = progressForMember({ categories });
+      const open = state.openMembers.general === true;
+      return `
+        <article class="category ${open ? "open" : ""}">
+          <div class="category-head">
+            <button class="category-title" type="button" onclick="toggleMember('general')">
+              <span class="category-icon" style="--icon-url: url('./category-icons/document.svg')" aria-hidden="true"></span>
+              <span class="category-name member-name">Général</span>
+            </button>
+            <div class="category-actions" onclick="event.stopPropagation()">
+              <span class="badge">${progress.done}/${progress.total}</span>
+            </div>
+          </div>
+          <div class="category-body">
+            ${categories.map(category => renderCategory(voyage, category)).join("")}
+          </div>
+        </article>
       `;
     }
 
