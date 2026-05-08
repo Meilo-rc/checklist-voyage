@@ -1,4 +1,4 @@
-const CACHE_NAME = "checklist-voyage-1.60";
+const CACHE_NAME = "checklist-voyage-1.61";
 const APP_SHELL = [
   "./",
   "./index.html",
