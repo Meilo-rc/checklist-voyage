@@ -752,7 +752,7 @@
       border-bottom: 1px solid transparent;
     }
 
-    .category.open .category-head {
+    .category.open > .category-head {
       border-bottom-color: var(--line);
       background: var(--panel-soft);
     }
@@ -842,7 +842,7 @@
       padding: 5px 8px;
     }
 
-    .category.open .category-body {
+    .category.open > .category-body {
       display: grid;
       gap: 3px;
     }
@@ -1437,7 +1437,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.64</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.65</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1554,7 +1554,7 @@
   </div>
 
   <script>
-    const VERSION = "1.64";
+    const VERSION = "1.65";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
