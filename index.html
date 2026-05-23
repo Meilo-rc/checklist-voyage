@@ -1446,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.66</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.67</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1563,7 +1563,7 @@
   </div>
 
   <script>
-    const VERSION = "1.66";
+    const VERSION = "1.67";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -3062,7 +3062,10 @@
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
       if (!name) return;
-      category.items.push({ id: uid("item"), name, qty: 1, status: "todo", done: false });
+      const item = { id: uid("item"), name, qty: 1, status: "todo", done: false };
+      const firstCheckedIndex = category.items.findIndex(row => normalizeItemStatus(row) !== "todo");
+      if (firstCheckedIndex >= 0) category.items.splice(firstCheckedIndex, 0, item);
+      else category.items.push(item);
       input.value = "";
       state.openCats[categoryId] = true;
       voyage.updatedAt = new Date().toISOString();
@@ -3516,10 +3519,25 @@
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
       if (!list || !name) return;
-      list.items.push({ id: uid("quick-item"), name, done: false });
+      const item = { id: uid("quick-item"), name, done: false };
+      const firstDoneIndex = list.items.findIndex(row => row.done);
+      if (firstDoneIndex >= 0) list.items.splice(firstDoneIndex, 0, item);
+      else list.items.push(item);
       input.value = "";
       list.updatedAt = new Date().toISOString();
       saveQuickListAndSync(list);
+      render();
+    }
+
+    function resetQuickList(id) {
+      const list = state.quickLists.find(item => item.id === id);
+      if (!list) return;
+      if (!confirm(`Tout décocher dans "${list.name}" ?`)) return;
+      list.items.forEach(item => {
+        item.done = false;
+      });
+      list.updatedAt = new Date().toISOString();
+      saveQuickListAndSync(list, { immediate: true });
       render();
     }
 
@@ -4198,6 +4216,7 @@
               <details class="voyage-menu">
                 <summary class="icon-btn" title="Options de la liste rapide">⋮</summary>
                 <div class="voyage-menu-panel">
+                  <button class="menu-item" type="button" onclick="resetQuickList('${list.id}')">Tout décocher</button>
                   <button class="menu-item red" type="button" onclick="deleteQuickList('${list.id}')">Supprimer la liste</button>
                 </div>
               </details>
