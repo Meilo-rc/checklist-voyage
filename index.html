@@ -1446,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.67</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.68</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1546,9 +1546,13 @@
           <label for="categoryName">Nom du membre</label>
           <input id="categoryName" autocomplete="off" placeholder="Ex. Papa, Maman, Zoé">
         </div>
+        <div class="field">
+          <label for="memberTemplateGroup">Catégories personnalisées</label>
+          <select id="memberTemplateGroup" onchange="selectMemberTemplateGroup(this.value)"></select>
+        </div>
+        <div class="grid" id="categoryTemplateChoices"></div>
         <button class="btn blue full" type="submit">Ajouter</button>
       </form>
-      <div class="grid" id="categoryTemplateChoices"></div>
     </section>
   </div>
 
@@ -1563,7 +1567,7 @@
   </div>
 
   <script>
-    const VERSION = "1.67";
+    const VERSION = "1.68";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2954,7 +2958,7 @@
     function openMemberSheet() {
       const input = document.getElementById("categoryName");
       if (input) input.value = "";
-      renderCategoryTemplateChoices();
+      renderMemberTemplateGroups();
       document.getElementById("categorySheet").classList.add("open");
       setTimeout(() => input?.focus(), 50);
     }
@@ -2964,23 +2968,57 @@
       const input = document.getElementById("categoryName");
       const name = input.value.trim();
       if (!name) return;
-      const selectedTemplates = [...event.currentTarget.parentElement.querySelectorAll("input[name='memberTemplate']:checked")]
+      const selectedTemplates = [...event.currentTarget.querySelectorAll("input[name='memberTemplate']:checked")]
         .map(item => item.value);
       createMemberFromName(name, selectedTemplates);
       closeSheet("categorySheet");
     }
 
-    function renderCategoryTemplateChoices() {
+    function templateMemberNames() {
+      return customMemberNames()
+        .filter(name => name !== "Général")
+        .filter(name => state.customCategories.some(category => defaultMemberForCategory(category) === name));
+    }
+
+    function renderMemberTemplateGroups(selectedMember = "") {
+      const select = document.getElementById("memberTemplateGroup");
+      const members = templateMemberNames();
+      if (!select) return;
+      if (!members.length) {
+        select.innerHTML = `<option value="">Aucun membre disponible</option>`;
+        select.disabled = true;
+        renderCategoryTemplateChoices("");
+        return;
+      }
+      select.disabled = false;
+      const active = members.includes(selectedMember) ? selectedMember : members[0];
+      select.innerHTML = members.map(member => `<option value="${escapeHTML(member)}" ${member === active ? "selected" : ""}>${escapeHTML(member)}</option>`).join("");
+      selectMemberTemplateGroup(active);
+    }
+
+    function selectMemberTemplateGroup(memberName) {
+      const name = normalizeMemberName(memberName);
+      const input = document.getElementById("categoryName");
+      if (input && name) input.value = name;
+      renderCategoryTemplateChoices(name);
+    }
+
+    function renderCategoryTemplateChoices(memberName = "") {
       const target = document.getElementById("categoryTemplateChoices");
       if (!target) return;
       if (!state.customCategories.length) {
         target.innerHTML = `<div class="notice">Aucune catégorie personnalisée pour le moment.</div>`;
         return;
       }
+      const categories = state.customCategories.filter(category => defaultMemberForCategory(category) === memberName);
+      if (!memberName || !categories.length) {
+        target.innerHTML = `<div class="notice">Aucune catégorie personnalisée pour ce membre.</div>`;
+        return;
+      }
       target.innerHTML = `
-        <div class="muted">Catégories personnalisées</div>
+        <div class="muted">Catégories personnalisées de ${escapeHTML(memberName)}</div>
         <div class="template-picks">
-          ${state.customCategories.map(category => `
+          ${categories.map(category => `
             <label class="template-chip"><input type="checkbox" name="memberTemplate" value="${category.id}"> ${escapeHTML(category.name)}</label>
           `).join("")}
         </div>
@@ -3212,7 +3250,7 @@
       state.customMemberAliases = data?.customMemberAliases && typeof data.customMemberAliases === "object" ? data.customMemberAliases : state.customMemberAliases;
       saveLocal();
       if (state.tab === "customCategories") render();
-      renderCategoryTemplateChoices();
+      renderMemberTemplateGroups(document.getElementById("memberTemplateGroup")?.value || "");
     }
 
     async function loadSharedSettings() {
