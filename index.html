@@ -1446,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.69</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.70</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1572,7 +1572,7 @@
   </div>
 
   <script>
-    const VERSION = "1.69";
+    const VERSION = "1.70";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -3659,6 +3659,19 @@
       render();
     }
 
+    function renameQuickList(id) {
+      const list = state.quickLists.find(item => item.id === id);
+      if (!list) return;
+      const value = prompt("Nouveau nom de la liste rapide", list.name);
+      if (value === null) return;
+      const name = value.trim();
+      if (!name) return;
+      list.name = name;
+      list.updatedAt = new Date().toISOString();
+      saveQuickListAndSync(list, { immediate: true });
+      render();
+    }
+
     function toggleQuickItem(itemId) {
       const list = currentQuickList();
       const item = list?.items.find(row => row.id === itemId);
@@ -4334,6 +4347,7 @@
               <details class="voyage-menu">
                 <summary class="icon-btn" title="Options de la liste rapide">⋮</summary>
                 <div class="voyage-menu-panel">
+                  <button class="menu-item" type="button" onclick="renameQuickList('${list.id}')">Renommer la liste</button>
                   <button class="menu-item" type="button" onclick="resetQuickList('${list.id}')">Tout décocher</button>
                   <button class="menu-item red" type="button" onclick="deleteQuickList('${list.id}')">Supprimer la liste</button>
                 </div>
