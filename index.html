@@ -1446,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.68</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.69</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1487,6 +1487,11 @@
           <label>Dates du voyage</label>
           <div class="calendar" id="rangeCalendar"></div>
           <div class="muted" id="voyageRangeStatus">Choisissez la date de départ, puis la date de retour.</div>
+        </div>
+        <div class="field" id="voyageParticipantsBlock">
+          <label for="voyageParticipantSelect">Participants</label>
+          <select id="voyageParticipantSelect" onchange="addVoyageParticipantFromSelect(this.value)"></select>
+          <div class="template-picks" id="voyageParticipantChoices"></div>
         </div>
         <div class="choice-block">
           <label>Transport</label>
@@ -1567,7 +1572,7 @@
   </div>
 
   <script>
-    const VERSION = "1.68";
+    const VERSION = "1.69";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1594,6 +1599,7 @@
     let activeSwipeItemId = null;
     let iconEditTarget = null;
     const weatherFetchIds = new Set();
+    let draftVoyageParticipants = [];
 
     const categoryIcons = [
       "baby", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "clothes",
@@ -1876,6 +1882,36 @@
       })));
     }
 
+    function cloneTemplateCategory(template) {
+      return {
+        id: uid("cat"),
+        name: template.name,
+        icon: categoryIcon(template),
+        items: template.items.map(itemName => ({
+          id: uid("item"),
+          name: itemName,
+          qty: 1,
+          status: "todo",
+          done: false
+        }))
+      };
+    }
+
+    function createMembersFromParticipants(participants = [], options = {}) {
+      const names = participants
+        .map(normalizeMemberName)
+        .filter(name => name && name !== "Général")
+        .filter((name, index, list) => list.indexOf(name) === index);
+      if (!names.length) return createDefaultMembers(options);
+      return names.map(name => {
+        const categories = state.customCategories
+          .filter(category => defaultMemberForCategory(category) === name)
+          .map(cloneTemplateCategory);
+        enrichCategories(categories, "Activités", options.activity || [], presetItems.activity);
+        return createMember(name, categories);
+      });
+    }
+
     function createGeneralCategories(options = {}) {
       const categories = [{
         id: uid("cat"),
@@ -2019,12 +2055,13 @@
         presetOptions: options.presetOptions || {
           transport: options.transport || [],
           lodging: options.lodging || [],
-          activity: options.activity || []
+          activity: options.activity || [],
+          participants: options.participants || []
         },
         enrichment: options.enrichment || null,
         shared: true,
         remoteRecordId: "",
-        members: createDefaultMembers(options),
+        members: createMembersFromParticipants(options.participants || [], options),
         categories: createGeneralCategories(options),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -2246,6 +2283,44 @@
       }
     }
 
+    function voyageParticipantNames() {
+      return templateMemberNames();
+    }
+
+    function renderVoyageParticipantPicker() {
+      const select = document.getElementById("voyageParticipantSelect");
+      const target = document.getElementById("voyageParticipantChoices");
+      if (!select || !target) return;
+      const members = voyageParticipantNames();
+      const selected = draftVoyageParticipants.map(normalizeMemberName);
+      const available = members.filter(name => !selected.includes(name));
+      select.disabled = !available.length;
+      select.innerHTML = [
+        `<option value="">${available.length ? "Ajouter un participant" : "Tous les participants sont ajoutés"}</option>`,
+        ...available.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`)
+      ].join("");
+      target.innerHTML = selected.length
+        ? selected.map(name => `
+          <button class="template-chip" type="button" onclick="removeVoyageParticipant('${escapeHTML(name)}')" title="Retirer ${escapeHTML(name)}">
+            ${escapeHTML(name)} ×
+          </button>
+        `).join("")
+        : `<div class="notice">Choisissez les participants du voyage.</div>`;
+    }
+
+    function addVoyageParticipantFromSelect(memberName) {
+      const name = normalizeMemberName(memberName);
+      if (!name || draftVoyageParticipants.includes(name)) return;
+      draftVoyageParticipants.push(name);
+      renderVoyageParticipantPicker();
+    }
+
+    function removeVoyageParticipant(memberName) {
+      const name = normalizeMemberName(memberName);
+      draftVoyageParticipants = draftVoyageParticipants.filter(item => item !== name);
+      renderVoyageParticipantPicker();
+    }
+
     function goHome() {
       state.tab = "voyages";
       saveLocal();
@@ -2259,8 +2334,11 @@
       document.getElementById("voyageSubmitButton").textContent = voyage ? "Enregistrer" : "Créer";
       document.getElementById("joinDivider").style.display = voyage ? "none" : "";
       document.getElementById("joinForm").style.display = voyage ? "none" : "";
+      document.getElementById("voyageParticipantsBlock").style.display = voyage ? "none" : "";
       document.getElementById("voyageName").value = "";
       document.getElementById("voyageLocation").value = "";
+      draftVoyageParticipants = [];
+      if (!voyage) renderVoyageParticipantPicker();
       selectedDestination = null;
       renderDestinationSuggestions([]);
       resetDraftDateRange();
@@ -2321,8 +2399,13 @@
         ...getVoyagePresetOptions(form),
         startDate: draftDateRange.start,
         endDate: draftDateRange.end,
-        destination: selectedDestination
+        destination: selectedDestination,
+        participants: existing ? voyageMembers(existing).map(member => member.name) : [...draftVoyageParticipants]
       };
+      if (!existing && !options.participants.length) {
+        alert("Choisis au moins un participant pour créer le voyage.");
+        return;
+      }
       if (submit) {
         submit.disabled = true;
         submit.textContent = existing ? "Enregistrement..." : "Création...";
@@ -2340,7 +2423,8 @@
         voyage.presetOptions = {
           transport: options.transport,
           lodging: options.lodging,
-          activity: options.activity
+          activity: options.activity,
+          participants: voyageMembers(voyage).map(member => member.name)
         };
         enrichCategories(voyage.categories, "Général", [...options.transport, ...options.lodging], {
           ...presetItems.transport,
@@ -2893,12 +2977,7 @@
       const categories = selectedTemplates
         .map(templateId => state.customCategories.find(category => category.id === templateId))
         .filter(Boolean)
-        .map(template => ({
-          id: uid("cat"),
-          name: template.name,
-          icon: categoryIcon(template),
-          items: template.items.map(itemName => ({ id: uid("item"), name: itemName, qty: 1, status: "todo", done: false }))
-        }));
+        .map(cloneTemplateCategory);
       const member = createMember(name, categories);
       voyage.members.push(member);
       state.openMembers[member.id] = false;
@@ -3251,6 +3330,7 @@
       saveLocal();
       if (state.tab === "customCategories") render();
       renderMemberTemplateGroups(document.getElementById("memberTemplateGroup")?.value || "");
+      renderVoyageParticipantPicker();
     }
 
     async function loadSharedSettings() {
