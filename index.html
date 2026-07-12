@@ -1446,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.70</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.71</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1572,7 +1572,7 @@
   </div>
 
   <script>
-    const VERSION = "1.70";
+    const VERSION = "1.71";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1796,6 +1796,29 @@
     function normalizeItemStatus(item) {
       if (item?.status === "checked" || item?.status === "done") return item.status;
       return item?.done ? "done" : "todo";
+    }
+
+    function compareItemNames(a, b) {
+      return String(a?.name || a || "").localeCompare(String(b?.name || b || ""), "fr", { sensitivity: "base" });
+    }
+
+    function sortCategoryItems(category) {
+      if (!category?.items) return;
+      const order = { todo: 0, checked: 1, done: 2 };
+      category.items.sort((a, b) => {
+        const statusDiff = order[normalizeItemStatus(a)] - order[normalizeItemStatus(b)];
+        return statusDiff || compareItemNames(a, b);
+      });
+    }
+
+    function sortQuickItems(list) {
+      if (!list?.items) return;
+      list.items.sort((a, b) => Number(a.done === true) - Number(b.done === true) || compareItemNames(a, b));
+    }
+
+    function sortCustomCategoryItems(category) {
+      if (!category?.items) return;
+      category.items.sort((a, b) => compareItemNames(a, b));
     }
 
     function isUserEditing() {
@@ -2961,6 +2984,7 @@
           item.done = false;
           item.status = "todo";
         });
+        sortCategoryItems(category);
       });
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
@@ -3179,10 +3203,8 @@
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
       if (!name) return;
-      const item = { id: uid("item"), name, qty: 1, status: "todo", done: false };
-      const firstCheckedIndex = category.items.findIndex(row => normalizeItemStatus(row) !== "todo");
-      if (firstCheckedIndex >= 0) category.items.splice(firstCheckedIndex, 0, item);
-      else category.items.push(item);
+      category.items.push({ id: uid("item"), name, qty: 1, status: "todo", done: false });
+      sortCategoryItems(category);
       input.value = "";
       state.openCats[categoryId] = true;
       voyage.updatedAt = new Date().toISOString();
@@ -3197,11 +3219,7 @@
       if (!voyage || !category || !item) return;
       item.status = item.status === "todo" ? "checked" : item.status === "checked" ? "done" : "todo";
       item.done = item.status === "done";
-      category.items = [
-        ...category.items.filter(row => normalizeItemStatus(row) === "todo"),
-        ...category.items.filter(row => normalizeItemStatus(row) === "checked"),
-        ...category.items.filter(row => normalizeItemStatus(row) === "done")
-      ];
+      sortCategoryItems(category);
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
@@ -3218,6 +3236,7 @@
       const name = value.trim();
       if (!name) return;
       item.name = name;
+      sortCategoryItems(category);
       voyage.updatedAt = new Date().toISOString();
       saveAndSync(voyage);
       render();
@@ -3637,10 +3656,8 @@
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
       if (!list || !name) return;
-      const item = { id: uid("quick-item"), name, done: false };
-      const firstDoneIndex = list.items.findIndex(row => row.done);
-      if (firstDoneIndex >= 0) list.items.splice(firstDoneIndex, 0, item);
-      else list.items.push(item);
+      list.items.push({ id: uid("quick-item"), name, done: false });
+      sortQuickItems(list);
       input.value = "";
       list.updatedAt = new Date().toISOString();
       saveQuickListAndSync(list);
@@ -3654,6 +3671,7 @@
       list.items.forEach(item => {
         item.done = false;
       });
+      sortQuickItems(list);
       list.updatedAt = new Date().toISOString();
       saveQuickListAndSync(list, { immediate: true });
       render();
@@ -3677,10 +3695,7 @@
       const item = list?.items.find(row => row.id === itemId);
       if (!list || !item) return;
       item.done = !item.done;
-      list.items = [
-        ...list.items.filter(row => !row.done),
-        ...list.items.filter(row => row.done)
-      ];
+      sortQuickItems(list);
       list.updatedAt = new Date().toISOString();
       saveQuickListAndSync(list);
       render();
@@ -4032,6 +4047,7 @@
       const name = input.value.trim();
       if (!category || !name) return;
       category.items.push(name);
+      sortCustomCategoryItems(category);
       input.value = "";
       saveLocal();
       saveSharedSettings();
@@ -4046,6 +4062,7 @@
       const name = value.trim();
       if (!name) return;
       category.items[itemIndex] = name;
+      sortCustomCategoryItems(category);
       saveLocal();
       saveSharedSettings();
       render();
@@ -4180,6 +4197,7 @@
     function renderCustomCategories() {
       const content = document.getElementById("content");
       const renderCustomCategoryCard = category => {
+        sortCustomCategoryItems(category);
         const open = state.openCats[category.id] === true;
         const items = category.items.map((item, index) => `
           <article class="item template-item">
@@ -4320,6 +4338,7 @@
         renderQuickLists();
         return;
       }
+      sortQuickItems(list);
       const done = list.items.filter(item => item.done).length;
       const total = list.items.length;
       const percent = total ? Math.round((done / total) * 100) : 0;
@@ -4536,6 +4555,7 @@
     }
 
     function renderCategory(voyage, category) {
+      sortCategoryItems(category);
       const progress = progressForCategory(category);
       const open = state.openCats[category.id] === true;
       const items = category.items.map(item => {
