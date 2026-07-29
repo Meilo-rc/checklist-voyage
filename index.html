@@ -1446,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.71</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.72</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1572,7 +1572,7 @@
   </div>
 
   <script>
-    const VERSION = "1.71";
+    const VERSION = "1.72";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1839,6 +1839,15 @@
 
     function currentQuickList() {
       return state.quickLists.find(list => list.id === state.currentQuickListId) || state.quickLists[0] || null;
+    }
+
+    function timestampValue(value) {
+      const time = Date.parse(value || "");
+      return Number.isFinite(time) ? time : 0;
+    }
+
+    function isRemoteNewer(remoteData, localData) {
+      return timestampValue(remoteData?.updatedAt) > timestampValue(localData?.updatedAt);
     }
 
     function closeVoyageCategoryPanels(voyage) {
@@ -3432,7 +3441,7 @@
       return {
         ...voyage,
         shared: true,
-        updatedAt: new Date().toISOString()
+        updatedAt: voyage.updatedAt || new Date().toISOString()
       };
     }
 
@@ -3458,6 +3467,19 @@
             record = await findRecordByCode(voyage.code);
           } catch (error) {
             record = null;
+          }
+        }
+        if (record?.data) {
+          const remoteData = normalizeVoyage({
+            ...(record.data.voyage || record.data),
+            shared: true,
+            remoteRecordId: record.id
+          });
+          if (isRemoteNewer(remoteData, voyage)) {
+            applyRemoteVoyage(remoteData);
+            setStatus("Synchronisé");
+            subscribeToCurrentVoyage();
+            return;
           }
         }
         const data = remotePayload(voyage);
@@ -3496,7 +3518,7 @@
         ...list,
         type: "quickList",
         shared: true,
-        updatedAt: new Date().toISOString()
+        updatedAt: list.updatedAt || new Date().toISOString()
       };
     }
 
@@ -3522,6 +3544,20 @@
             record = await findRecordByCode(list.code);
           } catch (error) {
             record = null;
+          }
+        }
+        if (record?.data) {
+          const remoteData = record.data.quickList || record.data;
+          const remoteList = normalizeQuickList({
+            ...remoteData,
+            shared: true,
+            remoteRecordId: record.id
+          });
+          if (isRemoteNewer(remoteList, list)) {
+            applyRemoteQuickList(remoteList);
+            setStatus("Synchronisé");
+            subscribeToCurrentQuickList();
+            return;
           }
         }
         const data = quickListPayload(list);
@@ -3553,6 +3589,17 @@
         .forEach((list, index) => {
           setTimeout(() => saveQuickListRemote(list), options.immediate ? 0 : index * 250);
         });
+    }
+
+    function applyRemoteQuickList(incoming) {
+      const index = state.quickLists.findIndex(item => item.code === incoming.code || item.id === incoming.id);
+      if (index >= 0) {
+        state.quickLists[index] = { ...incoming, id: state.quickLists[index].id };
+      } else {
+        state.quickLists.unshift(incoming);
+      }
+      saveLocal();
+      if (!isUserEditing()) render();
     }
 
     async function subscribeToCurrentQuickList() {
@@ -3587,10 +3634,7 @@
             shared: true,
             remoteRecordId: event.record.id
           });
-          const index = state.quickLists.findIndex(item => item.code === incoming.code || item.id === incoming.id);
-          if (index >= 0) state.quickLists[index] = { ...incoming, id: state.quickLists[index].id };
-          saveLocal();
-          if (!isUserEditing()) render();
+          applyRemoteQuickList(incoming);
         }, { requestKey: null });
       } catch (error) {
         setStatus(list.shared ? "Synchronisé" : "Hors ligne");
