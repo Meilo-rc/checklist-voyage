@@ -789,6 +789,40 @@
       font-weight: 820;
     }
 
+    .checklist-group {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .62);
+    }
+
+    .checklist-group-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .checklist-group-title::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--blue);
+      flex: 0 0 auto;
+    }
+
+    .checklist-group-items {
+      display: grid;
+      gap: 8px;
+    }
+
     .icon-picker-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
@@ -1447,7 +1481,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.78</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.79</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1589,7 +1623,7 @@
   </div>
 
   <script>
-    const VERSION = "1.78";
+    const VERSION = "1.79";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2313,6 +2347,17 @@
     function progressStyle(percent) {
       const value = Math.max(1, Math.min(100, Number(percent) || 0));
       return `width:${percent}%; --progress-value:${value};`;
+    }
+
+    function renderChecklistGroup(title, content, emptyLabel = "") {
+      return `
+        <section class="checklist-group">
+          <h3 class="checklist-group-title">${escapeHTML(title)}</h3>
+          <div class="checklist-group-items">
+            ${content || (emptyLabel ? `<div class="notice">${escapeHTML(emptyLabel)}</div>` : "")}
+          </div>
+        </section>
+      `;
     }
 
     function setStatus(text) {
@@ -4369,11 +4414,11 @@
         `;
       };
 
-      const groups = customMemberNames().map(groupName => {
+      const memberCards = customMemberNames().map(groupName => {
         const groupId = `custom-${groupName}`;
         const open = state.openMembers[groupId] === true;
         const categories = state.customCategories.filter(category => defaultMemberForCategory(category) === groupName);
-        return `
+        const html = `
           <article class="category ${open ? "open" : ""}">
             <div class="category-head">
               <button class="category-title" type="button" onclick="toggleMember('${groupId}')">
@@ -4397,7 +4442,14 @@
             </div>
           </article>
         `;
-      }).join("");
+        return { groupName, html };
+      });
+      const generalCards = memberCards.filter(card => normalizeMemberName(card.groupName) === "Général").map(card => card.html).join("");
+      const familyCards = memberCards.filter(card => normalizeMemberName(card.groupName) !== "Général").map(card => card.html).join("");
+      const groups = [
+        renderChecklistGroup("Général", generalCards, "Aucune catégorie générale."),
+        renderChecklistGroup("Famille", familyCards, "Aucun membre dans la famille.")
+      ].join("");
 
       content.innerHTML = `
         <section class="toolbar">
@@ -4589,6 +4641,10 @@
       const progress = progressForVoyage(voyage);
       const general = renderGeneralSection(voyage);
       const members = voyageMembers(voyage).map(member => renderMember(voyage, member)).join("");
+      const groupedLists = [
+        renderChecklistGroup("Général", general, "Aucune information générale."),
+        renderChecklistGroup("Famille", members, "Ajoutez un membre pour commencer.")
+      ].join("");
       const daysLeft = daysUntilTrip(voyage);
       const dateLine = formatTripDateLine(voyage);
       const durationLabel = tripDurationLabel(voyage);
@@ -4623,8 +4679,7 @@
         </section>
         ${weatherPanel}
         <section class="grid">
-          ${general}
-          ${members || `<div class="panel empty"><h2>Liste vide</h2><p>Ajoutez un membre pour commencer.</p></div>`}
+          ${groupedLists}
         </section>
       `;
     }
