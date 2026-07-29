@@ -714,7 +714,7 @@
       height: 8px;
       overflow: hidden;
       border-radius: 999px;
-      background: #edf0f4;
+      background: linear-gradient(90deg, rgba(249, 42, 68, .12), rgba(22, 138, 74, .12), rgba(105, 195, 235, .16));
     }
 
     .progress span {
@@ -722,7 +722,7 @@
       height: 100%;
       width: 0;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--blue), var(--green));
+      background: linear-gradient(90deg, var(--red) 0%, var(--green) 52%, var(--blue) 100%);
       transition: width .25s ease;
     }
 
@@ -1446,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.74</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.75</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1572,7 +1572,7 @@
   </div>
 
   <script>
-    const VERSION = "1.74";
+    const VERSION = "1.75";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
