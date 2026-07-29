@@ -1481,7 +1481,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.81</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.82</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1626,7 +1626,7 @@
   </div>
 
   <script>
-    const VERSION = "1.81";
+    const VERSION = "1.82";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1745,7 +1745,8 @@
       openCats: {},
       customCategories: [],
       customCategoryMembers: [],
-      customMemberAliases: {}
+      customMemberAliases: {},
+      customMemberGroups: {}
     };
 
     const legacyMemberNameMap = {
@@ -2274,6 +2275,7 @@
         customCategories: state.customCategories,
         customCategoryMembers: state.customCategoryMembers,
         customMemberAliases: state.customMemberAliases,
+        customMemberGroups: state.customMemberGroups,
         settingsRecordId
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -2293,6 +2295,7 @@
           state.customCategories = Array.isArray(parsed.customCategories) ? parsed.customCategories.map(normalizeCustomCategory) : [];
           state.customCategoryMembers = Array.isArray(parsed.customCategoryMembers) ? parsed.customCategoryMembers.map(normalizeMemberName) : [];
           state.customMemberAliases = parsed.customMemberAliases && typeof parsed.customMemberAliases === "object" ? parsed.customMemberAliases : {};
+          state.customMemberGroups = parsed.customMemberGroups && typeof parsed.customMemberGroups === "object" ? parsed.customMemberGroups : {};
           settingsRecordId = parsed.settingsRecordId || "";
           return;
         } catch (error) {
@@ -3440,6 +3443,7 @@
         customCategories: state.customCategories,
         customCategoryMembers: state.customCategoryMembers,
         customMemberAliases: state.customMemberAliases,
+        customMemberGroups: state.customMemberGroups,
         voyage: {
           id: "settings-voyage",
           code: SETTINGS_CODE,
@@ -3456,6 +3460,7 @@
       state.customCategories = Array.isArray(source) ? source.map(normalizeCustomCategory) : [];
       state.customCategoryMembers = Array.isArray(data?.customCategoryMembers) ? data.customCategoryMembers.map(normalizeMemberName) : state.customCategoryMembers;
       state.customMemberAliases = data?.customMemberAliases && typeof data.customMemberAliases === "object" ? data.customMemberAliases : state.customMemberAliases;
+      state.customMemberGroups = data?.customMemberGroups && typeof data.customMemberGroups === "object" ? data.customMemberGroups : state.customMemberGroups;
       saveLocal();
       if (state.tab === "customCategories") render();
       renderMemberTemplateGroups(document.getElementById("memberTemplateGroup")?.value || "");
@@ -4043,12 +4048,12 @@
       render();
     }
 
-    function addCustomCategory(event) {
+    function addCustomCategory(event, group = "family") {
       event.preventDefault();
       const input = event.currentTarget.querySelector("input");
       const name = input.value.trim();
       if (!name) return;
-      addCustomMember(name);
+      addCustomMember(name, group);
       input.value = "";
       render();
     }
@@ -4063,6 +4068,21 @@
         .map(normalizeMemberName)
         .filter(name => !defaultCustomGroupNames.includes(name) || aliasedDefaults.includes(name))
         .filter((name, index, list) => list.indexOf(name) === index);
+    }
+
+    function customMemberGroup(memberName) {
+      const name = normalizeMemberName(memberName);
+      if (name === "Général") return "general";
+      return state.customMemberGroups?.[name] === "general" ? "general" : "family";
+    }
+
+    function renderAddCustomMemberForm(group) {
+      return `
+        <form class="add-item" onsubmit="addCustomCategory(event, '${group}')">
+          <button class="btn blue" type="submit">+</button>
+          <input autocomplete="off" placeholder="Ajouter un membre">
+        </form>
+      `;
     }
 
     function buildIdealCustomCategories() {
@@ -4083,11 +4103,12 @@
       render();
     }
 
-    function addCustomMember(name) {
+    function addCustomMember(name, group = "family") {
       const memberName = normalizeMemberName(name);
       if (!state.customCategoryMembers.includes(memberName) && !defaultCustomGroupNames.includes(memberName)) {
         state.customCategoryMembers.push(memberName);
       }
+      if (memberName !== "Général") state.customMemberGroups[memberName] = group === "general" ? "general" : "family";
       state.openMembers[`custom-${memberName}`] = true;
       saveLocal();
       saveSharedSettings();
@@ -4122,6 +4143,10 @@
         .filter((name, index, list) => list.indexOf(name) === index && !aliasedDefaults.includes(name) && !defaultCustomGroupNames.includes(name));
       state.openMembers[`custom-${next}`] = state.openMembers[`custom-${current}`] ?? true;
       delete state.openMembers[`custom-${current}`];
+      if (state.customMemberGroups[current]) {
+        state.customMemberGroups[next] = state.customMemberGroups[current];
+        delete state.customMemberGroups[current];
+      }
       saveLocal();
       saveSharedSettings();
       render();
@@ -4139,6 +4164,7 @@
       Object.entries(state.customMemberAliases).forEach(([source, alias]) => {
         if (normalizeMemberName(alias) === current) delete state.customMemberAliases[source];
       });
+      delete state.customMemberGroups[current];
       delete state.openMembers[`custom-${current}`];
       saveLocal();
       saveSharedSettings();
@@ -4466,11 +4492,11 @@
         `;
         return { groupName, html };
       });
-      const generalCards = memberCards.filter(card => normalizeMemberName(card.groupName) === "Général").map(card => card.html).join("");
-      const familyCards = memberCards.filter(card => normalizeMemberName(card.groupName) !== "Général").map(card => card.html).join("");
+      const generalCards = memberCards.filter(card => customMemberGroup(card.groupName) === "general").map(card => card.html).join("");
+      const familyCards = memberCards.filter(card => customMemberGroup(card.groupName) !== "general").map(card => card.html).join("");
       const groups = [
-        renderChecklistGroup("Général", generalCards, "Aucune catégorie générale."),
-        renderChecklistGroup("Famille", familyCards, "Aucun membre dans la famille.")
+        renderChecklistGroup("G\u00e9n\u00e9ral", `${generalCards || `<div class="notice">Aucune cat\u00e9gorie g\u00e9n\u00e9rale.</div>`}${renderAddCustomMemberForm("general")}`),
+        renderChecklistGroup("Famille", `${familyCards || `<div class="notice">Aucun membre dans la famille.</div>`}${renderAddCustomMemberForm("family")}`)
       ].join("");
 
       content.innerHTML = `
@@ -4480,10 +4506,6 @@
             <p>Ces modèles sont partagés via PocketBase et proposés ensuite dans chaque voyage.</p>
           </div>
         </section>
-        <form class="add-item section" onsubmit="addCustomCategory(event)">
-          <button class="btn blue" type="submit">+</button>
-          <input autocomplete="off" placeholder="Ajouter un membre">
-        </form>
         <section class="grid">
           ${groups || `<div class="panel empty"><h2>Aucun modèle</h2><p>Créez une catégorie personnalisée pour la retrouver lors de l'ajout dans un voyage.</p></div>`}
         </section>
