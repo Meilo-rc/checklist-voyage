@@ -1446,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.73</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.74</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1572,7 +1572,7 @@
   </div>
 
   <script>
-    const VERSION = "1.73";
+    const VERSION = "1.74";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2902,6 +2902,16 @@
         return `du ${start.day} au ${end.day}/${end.month}/${end.shortYear}`;
       }
       return `du ${start.day}/${start.month} au ${end.day}/${end.month}/${end.shortYear}`;
+    }
+
+    function tripDurationLabel(voyage) {
+      if (!voyage.startDate) return "";
+      const start = new Date(`${voyage.startDate}T00:00:00`);
+      const end = new Date(`${voyage.endDate || voyage.startDate}T00:00:00`);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+      const nights = Math.round((end - start) / 86400000);
+      if (nights < 0) return "";
+      return `${nights + 1}j${nights}n`;
     }
 
     function daysUntilTrip(voyage) {
@@ -4505,6 +4515,8 @@
       const general = renderGeneralSection(voyage);
       const members = voyageMembers(voyage).map(member => renderMember(voyage, member)).join("");
       const daysLeft = daysUntilTrip(voyage);
+      const dateLine = formatTripDateLine(voyage);
+      const durationLabel = tripDurationLabel(voyage);
       const weatherPanel = renderWeatherPanel(voyage);
       ensureTripWeather(voyage);
       content.innerHTML = `
@@ -4516,7 +4528,7 @@
                 ${renderDestinationLink(voyage)}
                 <button class="code-button" type="button" onclick="copyCode('${voyage.code}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
               </div>
-              ${formatTripDateLine(voyage) ? `<p>${escapeHTML(formatTripDateLine(voyage))}</p>` : ""}
+              ${dateLine ? `<p>${escapeHTML(dateLine)} ${durationLabel ? `<span class="badge">${escapeHTML(durationLabel)}</span>` : ""}</p>` : ""}
               <p>${progress.done}/${progress.total} éléments prêts</p>
             </div>
             <div class="category-actions trip-actions">
