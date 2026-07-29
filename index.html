@@ -1446,7 +1446,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.72</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.73</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1572,7 +1572,7 @@
   </div>
 
   <script>
-    const VERSION = "1.72";
+    const VERSION = "1.73";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -4453,6 +4453,7 @@
       const cards = state.voyages.map(voyage => {
         const progress = progressForVoyage(voyage);
         const isCurrent = voyage.id === state.currentVoyageId;
+        const dateLine = formatTripDateLine(voyage);
         return `
           <article class="voyage-card clickable ${isCurrent ? "active" : ""}" onclick="selectVoyage('${voyage.id}')">
             <div class="voyage-main">
@@ -4461,8 +4462,9 @@
                   <h2 class="voyage-name">${escapeHTML(voyage.name)}</h2>
                   ${renderDestinationLink(voyage)}
                 </div>
+                ${dateLine ? `<p class="muted">${escapeHTML(dateLine)}</p>` : ""}
                 <div class="voyage-meta">
-                  ${voyage.date ? `<span class="badge">${escapeHTML(voyage.date)}</span>` : ""}
+                  <span class="badge">${progress.done}/${progress.total} éléments prêts</span>
                   <span class="badge blue">${escapeHTML(voyage.code)}</span>
                 </div>
               </div>
