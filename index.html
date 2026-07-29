@@ -1447,7 +1447,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.77</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.78</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1572,8 +1572,24 @@
     </section>
   </div>
 
+  <div class="sheet-backdrop" id="customCategoryMoveSheet" onclick="closeSheetOnBackdrop(event, 'customCategoryMoveSheet')">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="customCategoryMoveTitle">
+      <div class="sheet-head">
+        <h2 id="customCategoryMoveTitle">Déplacer une catégorie</h2>
+        <button class="icon-btn" type="button" onclick="closeSheet('customCategoryMoveSheet')" title="Fermer">&times;</button>
+      </div>
+      <form class="grid section" onsubmit="saveCustomCategoryMemberChange(event)">
+        <div class="field">
+          <label for="customCategoryTargetMember">Nouveau membre</label>
+          <select id="customCategoryTargetMember"></select>
+        </div>
+        <button class="btn blue full" id="customCategoryMoveSubmit" type="submit">Déplacer</button>
+      </form>
+    </section>
+  </div>
+
   <script>
-    const VERSION = "1.77";
+    const VERSION = "1.78";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1599,6 +1615,7 @@
     let swipeStartY = 0;
     let activeSwipeItemId = null;
     let iconEditTarget = null;
+    let customCategoryMoveTarget = null;
     const weatherFetchIds = new Set();
     let draftVoyageParticipants = [];
 
@@ -2415,6 +2432,7 @@
       document.getElementById(id).classList.remove("open");
       if (id === "voyageSheet") editingVoyageId = null;
       if (id === "iconSheet") iconEditTarget = null;
+      if (id === "customCategoryMoveSheet") customCategoryMoveTarget = null;
     }
 
     function closeSheetOnBackdrop(event, id) {
@@ -4100,6 +4118,55 @@
       render();
     }
 
+    function openCustomCategoryMemberSheet(action, categoryId) {
+      const category = state.customCategories.find(item => item.id === categoryId);
+      if (!category || !["move", "duplicate"].includes(action)) return;
+      const currentMember = defaultMemberForCategory(category);
+      const members = customMemberNames().filter(name => normalizeMemberName(name) !== currentMember);
+      if (!members.length) {
+        alert("Ajoute d'abord un autre membre pour déplacer ou dupliquer cette catégorie.");
+        return;
+      }
+      customCategoryMoveTarget = { action, categoryId };
+      document.getElementById("customCategoryMoveTitle").textContent = action === "move" ? "Déplacer une catégorie" : "Dupliquer une catégorie";
+      document.getElementById("customCategoryMoveSubmit").textContent = action === "move" ? "Déplacer" : "Dupliquer";
+      document.getElementById("customCategoryTargetMember").innerHTML = members
+        .map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`)
+        .join("");
+      closeOpenMenus();
+      document.getElementById("customCategoryMoveSheet").classList.add("open");
+    }
+
+    function saveCustomCategoryMemberChange(event) {
+      event.preventDefault();
+      const target = customCategoryMoveTarget;
+      if (!target) return;
+      const category = state.customCategories.find(item => item.id === target.categoryId);
+      const member = normalizeMemberName(document.getElementById("customCategoryTargetMember").value);
+      if (!category || !member) return;
+      if (target.action === "move") {
+        category.member = member;
+        state.openMembers[`custom-${member}`] = true;
+        state.openCats[category.id] = true;
+        showToast("Catégorie déplacée");
+      } else {
+        const copy = {
+          ...category,
+          id: uid("tpl"),
+          member,
+          items: [...category.items]
+        };
+        state.customCategories.push(copy);
+        state.openMembers[`custom-${member}`] = true;
+        state.openCats[copy.id] = true;
+        showToast("Catégorie dupliquée");
+      }
+      closeSheet("customCategoryMoveSheet");
+      saveLocal();
+      saveSharedSettings();
+      render();
+    }
+
     function addCustomItem(event, categoryId) {
       event.preventDefault();
       const category = state.customCategories.find(item => item.id === categoryId);
@@ -4284,6 +4351,8 @@
                   <div class="voyage-menu-panel">
                     <button class="menu-item" type="button" onclick="openIconSheet('custom', '${category.id}')">Modifier l'icône</button>
                     <button class="menu-item" type="button" onclick="renameCustomCategory('${category.id}')">Renommer la catégorie</button>
+                    <button class="menu-item" type="button" onclick="openCustomCategoryMemberSheet('move', '${category.id}')">Déplacer une catégorie</button>
+                    <button class="menu-item" type="button" onclick="openCustomCategoryMemberSheet('duplicate', '${category.id}')">Dupliquer une catégorie</button>
                     <button class="menu-item red" type="button" onclick="deleteCustomCategory('${category.id}')">Supprimer la catégorie</button>
                   </div>
                 </details>
