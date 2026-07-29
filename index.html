@@ -714,7 +714,7 @@
       height: 8px;
       overflow: hidden;
       border-radius: 999px;
-      background: linear-gradient(90deg, rgba(249, 42, 68, .12), rgba(22, 138, 74, .12), rgba(105, 195, 235, .16));
+      background: #edf0f4;
     }
 
     .progress span {
@@ -722,7 +722,8 @@
       height: 100%;
       width: 0;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--red) 0%, var(--green) 52%, var(--blue) 100%);
+      background: linear-gradient(90deg, var(--red) 0%, var(--blue) 100%);
+      background-size: calc(10000% / var(--progress-value, 100)) 100%;
       transition: width .25s ease;
     }
 
@@ -1446,7 +1447,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.75</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.76</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1572,7 +1573,7 @@
   </div>
 
   <script>
-    const VERSION = "1.75";
+    const VERSION = "1.76";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -2290,6 +2291,11 @@
         done,
         percent: total ? Math.round((done / total) * 100) : 0
       };
+    }
+
+    function progressStyle(percent) {
+      const value = Math.max(1, Math.min(100, Number(percent) || 0));
+      return `width:${percent}%; --progress-value:${value};`;
     }
 
     function setStatus(text) {
@@ -4359,7 +4365,7 @@
               </div>
               <div class="status">${percent}%</div>
             </div>
-            <div class="progress" aria-hidden="true"><span style="width:${percent}%"></span></div>
+            <div class="progress" aria-hidden="true"><span style="${progressStyle(percent)}"></span></div>
           </article>
         `;
       }).join("");
@@ -4427,7 +4433,7 @@
               </details>
             </div>
           </div>
-          <div class="progress" aria-hidden="true"><span style="width:${percent}%"></span></div>
+          <div class="progress" aria-hidden="true"><span style="${progressStyle(percent)}"></span></div>
         </section>
         <section class="panel panel-pad section">
           <div class="grid">
@@ -4480,7 +4486,7 @@
               </div>
               <div class="status">${progress.percent}%</div>
             </div>
-            <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
+            <div class="progress" aria-hidden="true"><span style="${progressStyle(progress.percent)}"></span></div>
           </article>
         `;
       }).join("");
@@ -4544,7 +4550,7 @@
               ${daysLeft ? `<span class="days-left">${escapeHTML(daysLeft)}</span>` : ""}
             </div>
           </div>
-          <div class="progress" aria-hidden="true"><span style="width:${progress.percent}%"></span></div>
+          <div class="progress" aria-hidden="true"><span style="${progressStyle(progress.percent)}"></span></div>
         </section>
         ${weatherPanel}
         <section class="grid">
