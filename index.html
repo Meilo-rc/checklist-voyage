@@ -1481,7 +1481,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.79</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.80</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -1583,11 +1583,14 @@
       </div>
       <form class="grid section" onsubmit="saveMemberSheet(event)">
         <div class="field">
-          <label for="categoryName">Nom du membre</label>
-          <input id="categoryName" autocomplete="off" placeholder="Ex. Papa, Maman, Zoé">
+          <label for="memberListGroup">Liste</label>
+          <select id="memberListGroup" onchange="renderMemberTemplateGroups()">
+            <option value="general">Général</option>
+            <option value="family" selected>Famille</option>
+          </select>
         </div>
         <div class="field">
-          <label for="memberTemplateGroup">Catégories personnalisées</label>
+          <label for="memberTemplateGroup">Membre</label>
           <select id="memberTemplateGroup" onchange="selectMemberTemplateGroup(this.value)"></select>
         </div>
         <div class="grid" id="categoryTemplateChoices"></div>
@@ -1623,7 +1626,7 @@
   </div>
 
   <script>
-    const VERSION = "1.79";
+    const VERSION = "1.80";
     const STORAGE_KEY = "checklist-voyage-state-v2";
     const OLD_STORAGE_KEY = "travelChecklistState";
     const PB_URL = "https://psyco.fly.dev";
@@ -1950,10 +1953,15 @@
       return normalizeMemberName(category?.member || category?.memberName || "");
     }
 
-    function createMember(name, categories = []) {
+    function normalizeMemberGroup(value) {
+      return value === "general" ? "general" : "family";
+    }
+
+    function createMember(name, categories = [], options = {}) {
       return {
         id: uid("member"),
         name: normalizeMemberName(name),
+        group: normalizeMemberGroup(options.group),
         categories
       };
     }
@@ -2018,6 +2026,7 @@
       return {
         id: member.id || uid("member"),
         name: normalizeMemberName(member.name || "Membre"),
+        group: normalizeMemberGroup(member.group),
         categories: Array.isArray(member.categories) ? member.categories.map(normalizeCategory) : []
       };
     }
@@ -3083,14 +3092,26 @@
       openMemberSheet();
     }
 
-    function createMemberFromName(name, selectedTemplates = []) {
+    function createMemberFromName(name, selectedTemplates = [], group = "family") {
       const voyage = currentVoyage();
       if (!voyage || !name) return;
       const categories = selectedTemplates
         .map(templateId => state.customCategories.find(category => category.id === templateId))
         .filter(Boolean)
         .map(cloneTemplateCategory);
-      const member = createMember(name, categories);
+      if (normalizeMemberGroup(group) === "general" && normalizeMemberName(name) === "Général") {
+        voyage.categories = Array.isArray(voyage.categories) ? voyage.categories : [];
+        voyage.categories.push(...categories);
+        state.openMembers.general = true;
+        categories.forEach(category => {
+          state.openCats[category.id] = false;
+        });
+        voyage.updatedAt = new Date().toISOString();
+        saveAndSync(voyage);
+        render();
+        return;
+      }
+      const member = createMember(name, categories, { group });
       voyage.members.push(member);
       state.openMembers[member.id] = false;
       categories.forEach(category => {
@@ -3147,25 +3168,25 @@
     }
 
     function openMemberSheet() {
-      const input = document.getElementById("categoryName");
-      if (input) input.value = "";
+      const groupSelect = document.getElementById("memberListGroup");
+      if (groupSelect) groupSelect.value = "family";
       renderMemberTemplateGroups();
       document.getElementById("categorySheet").classList.add("open");
-      setTimeout(() => input?.focus(), 50);
+      setTimeout(() => groupSelect?.focus(), 50);
     }
 
     function saveMemberSheet(event) {
       event.preventDefault();
-      const input = document.getElementById("categoryName");
-      const name = input.value.trim();
+      const group = normalizeMemberGroup(document.getElementById("memberListGroup")?.value);
+      const name = normalizeMemberName(document.getElementById("memberTemplateGroup")?.value);
       if (!name) return;
       const selectedTemplates = [...event.currentTarget.querySelectorAll("input[name='memberTemplate']:checked")]
         .map(item => item.value);
-      createMemberFromName(name, selectedTemplates);
+      createMemberFromName(name, selectedTemplates, group);
       closeSheet("categorySheet");
     }
 
-    function templateMemberNames() {
+    function templateMemberNames(group = "family") {
       return customMemberNames()
         .filter(name => name !== "Général")
         .filter(name => state.customCategories.some(category => defaultMemberForCategory(category) === name));
@@ -3173,7 +3194,10 @@
 
     function renderMemberTemplateGroups(selectedMember = "") {
       const select = document.getElementById("memberTemplateGroup");
-      const members = templateMemberNames();
+      const group = normalizeMemberGroup(document.getElementById("memberListGroup")?.value);
+      const members = customMemberNames()
+        .filter(name => group === "general" || normalizeMemberName(name) !== "Général")
+        .filter(name => state.customCategories.some(category => defaultMemberForCategory(category) === name));
       if (!select) return;
       if (!members.length) {
         select.innerHTML = `<option value="">Aucun membre disponible</option>`;
@@ -3189,8 +3213,6 @@
 
     function selectMemberTemplateGroup(memberName) {
       const name = normalizeMemberName(memberName);
-      const input = document.getElementById("categoryName");
-      if (input && name) input.value = name;
       renderCategoryTemplateChoices(name);
     }
 
@@ -3207,7 +3229,7 @@
         return;
       }
       target.innerHTML = `
-        <div class="muted">Catégories personnalisées de ${escapeHTML(memberName)}</div>
+        <div class="muted">Sélectionner les catégories à importer</div>
         <div class="template-picks">
           ${categories.map(category => `
             <label class="template-chip"><input type="checkbox" name="memberTemplate" value="${category.id}"> ${escapeHTML(category.name)}</label>
@@ -4640,10 +4662,17 @@
       }
       const progress = progressForVoyage(voyage);
       const general = renderGeneralSection(voyage);
-      const members = voyageMembers(voyage).map(member => renderMember(voyage, member)).join("");
+      const generalMembers = voyageMembers(voyage)
+        .filter(member => normalizeMemberGroup(member.group) === "general")
+        .map(member => renderMember(voyage, member))
+        .join("");
+      const familyMembers = voyageMembers(voyage)
+        .filter(member => normalizeMemberGroup(member.group) !== "general")
+        .map(member => renderMember(voyage, member))
+        .join("");
       const groupedLists = [
-        renderChecklistGroup("Général", general, "Aucune information générale."),
-        renderChecklistGroup("Famille", members, "Ajoutez un membre pour commencer.")
+        renderChecklistGroup("Général", general + generalMembers, "Aucune information générale."),
+        renderChecklistGroup("Famille", familyMembers, "Ajoutez un membre pour commencer.")
       ].join("");
       const daysLeft = daysUntilTrip(voyage);
       const dateLine = formatTripDateLine(voyage);
