@@ -1,4 +1,4 @@
-const VERSION = "1.84";
+const VERSION = "1.85";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -755,6 +755,100 @@ function saveLocal() {
     settingsRecordId
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+}
+
+function backupPayload() {
+  return {
+    schema: "checklist-voyage-backup-v1",
+    app: "checklist-voyage",
+    version: VERSION,
+    exportedAt: new Date().toISOString(),
+    data: {
+      currentVoyageId: state.currentVoyageId,
+      currentQuickListId: state.currentQuickListId,
+      voyages: state.voyages,
+      quickLists: state.quickLists,
+      openMembers: state.openMembers,
+      openCats: state.openCats,
+      customCategories: state.customCategories,
+      customCategoryMembers: state.customCategoryMembers,
+      customMemberAliases: state.customMemberAliases,
+      customMemberGroups: state.customMemberGroups,
+      settingsRecordId
+    }
+  };
+}
+
+function exportBackup() {
+  closeSettingsMenu();
+  const stamp = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([JSON.stringify(backupPayload(), null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `sauvegarde-checklist-voyage-${stamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showToast("Sauvegarde export\u00e9e");
+}
+
+function openBackupImport() {
+  closeSettingsMenu();
+  const input = document.getElementById("backupImportInput");
+  if (!input) return;
+  input.value = "";
+  input.click();
+}
+
+function readBackupData(payload) {
+  const data = payload?.schema === "checklist-voyage-backup-v1" && payload?.data ? payload.data : payload;
+  if (!data || typeof data !== "object") throw new Error("Format invalide");
+  return data;
+}
+
+async function importBackupFile(event) {
+  const input = event.currentTarget;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const payload = JSON.parse(await file.text());
+    const data = readBackupData(payload);
+    const message = "Importer cette sauvegarde va remplacer les voyages, listes rapides et cat\u00e9gories personnalis\u00e9es de cet appareil, puis relancer la synchronisation PocketBase.";
+    if (!window.confirm(message)) return;
+
+    state.voyages = Array.isArray(data.voyages) ? data.voyages.map(normalizeVoyage) : [];
+    state.quickLists = Array.isArray(data.quickLists) ? data.quickLists.map(normalizeQuickList) : [];
+    state.currentVoyageId = data.currentVoyageId && state.voyages.some(voyage => voyage.id === data.currentVoyageId)
+      ? data.currentVoyageId
+      : state.voyages[0]?.id || null;
+    state.currentQuickListId = data.currentQuickListId && state.quickLists.some(list => list.id === data.currentQuickListId)
+      ? data.currentQuickListId
+      : state.quickLists[0]?.id || null;
+    state.openMembers = data.openMembers && typeof data.openMembers === "object" ? data.openMembers : {};
+    state.openCats = data.openCats && typeof data.openCats === "object" ? data.openCats : {};
+    state.customCategories = Array.isArray(data.customCategories) ? data.customCategories.map(normalizeCustomCategory) : [];
+    state.customCategoryMembers = Array.isArray(data.customCategoryMembers) ? data.customCategoryMembers.map(normalizeMemberName) : [];
+    state.customMemberAliases = data.customMemberAliases && typeof data.customMemberAliases === "object" ? data.customMemberAliases : {};
+    state.customMemberGroups = data.customMemberGroups && typeof data.customMemberGroups === "object" ? data.customMemberGroups : {};
+    settingsRecordId = data.settingsRecordId || settingsRecordId || "";
+
+    saveLocal();
+    render();
+    showToast("Sauvegarde import\u00e9e");
+    setStatus("Synchronisation...");
+    await saveSharedSettings();
+    syncAllVoyages({ immediate: true });
+    syncAllQuickLists({ immediate: true });
+    subscribeToCurrentVoyage();
+    subscribeToCurrentQuickList();
+  } catch (error) {
+    console.warn("Import de sauvegarde impossible", error);
+    alert("Cette sauvegarde ne peut pas \u00eatre import\u00e9e. V\u00e9rifie que c'est bien un fichier JSON export\u00e9 depuis l'application.");
+  } finally {
+    input.value = "";
+  }
 }
 
 function loadLocal() {
