@@ -1,4 +1,4 @@
-const VERSION = "1.83";
+const VERSION = "1.84";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -278,6 +278,40 @@ function isRemoteNewer(remoteData, localData) {
   return timestampValue(remoteData?.updatedAt) > timestampValue(localData?.updatedAt);
 }
 
+function nowISO() {
+  return new Date().toISOString();
+}
+
+function entityTimestamp(entity) {
+  return Math.max(timestampValue(entity?.updatedAt), timestampValue(entity?.deletedAt));
+}
+
+function isDeleted(entity) {
+  return Boolean(entity?.deletedAt);
+}
+
+function visibleItems(items = []) {
+  return items.filter(item => !isDeleted(item));
+}
+
+function visibleCategories(categories = []) {
+  return categories.filter(category => !isDeleted(category));
+}
+
+function visibleMembers(members = []) {
+  return members.filter(member => !isDeleted(member));
+}
+
+function touchEntity(entity, timestamp = nowISO()) {
+  if (entity) entity.updatedAt = timestamp;
+  return timestamp;
+}
+
+function touchVoyage(voyage, timestamp = nowISO()) {
+  if (voyage) voyage.updatedAt = timestamp;
+  return timestamp;
+}
+
 function closeVoyageCategoryPanels(voyage) {
   if (!voyage) return;
   state.openMembers.general = false;
@@ -331,10 +365,13 @@ function normalizeMemberGroup(value) {
 }
 
 function createMember(name, categories = [], options = {}) {
+  const timestamp = nowISO();
   return {
     id: uid("member"),
     name: normalizeMemberName(name),
     group: normalizeMemberGroup(options.group),
+    updatedAt: options.updatedAt || timestamp,
+    deletedAt: options.deletedAt || "",
     categories
   };
 }
@@ -348,16 +385,21 @@ function createDefaultMembers(options = {}) {
 }
 
 function cloneTemplateCategory(template) {
+  const timestamp = nowISO();
   return {
     id: uid("cat"),
     name: template.name,
     icon: categoryIcon(template),
+    updatedAt: timestamp,
+    deletedAt: "",
     items: template.items.map(itemName => ({
       id: uid("item"),
       name: itemName,
       qty: 1,
       status: "todo",
-      done: false
+      done: false,
+      updatedAt: timestamp,
+      deletedAt: ""
     }))
   };
 }
@@ -400,30 +442,32 @@ function normalizeMember(raw) {
     id: member.id || uid("member"),
     name: normalizeMemberName(member.name || "Membre"),
     group: normalizeMemberGroup(member.group),
+    updatedAt: member.updatedAt || "",
+    deletedAt: member.deletedAt || "",
     categories: Array.isArray(member.categories) ? member.categories.map(normalizeCategory) : []
   };
 }
 
 function voyageMembers(voyage) {
-  if (Array.isArray(voyage?.members) && voyage.members.length) return voyage.members;
+  if (Array.isArray(voyage?.members) && voyage.members.length) return visibleMembers(voyage.members);
   return [];
 }
 
 function allVoyageCategories(voyage) {
   const members = voyageMembers(voyage);
   if (members.length) return [
-    ...(Array.isArray(voyage?.categories) ? voyage.categories : []),
-    ...members.flatMap(member => member.categories || [])
+    ...(Array.isArray(voyage?.categories) ? visibleCategories(voyage.categories) : []),
+    ...members.flatMap(member => visibleCategories(member.categories || []))
   ];
-  return Array.isArray(voyage?.categories) ? voyage.categories : [];
+  return Array.isArray(voyage?.categories) ? visibleCategories(voyage.categories) : [];
 }
 
 function findCategoryInVoyage(voyage, categoryId) {
   for (const member of voyageMembers(voyage)) {
-    const category = member.categories?.find(item => item.id === categoryId);
+    const category = visibleCategories(member.categories || []).find(item => item.id === categoryId);
     if (category) return { member, category };
   }
-  const category = voyage?.categories?.find(item => item.id === categoryId);
+  const category = visibleCategories(voyage?.categories || []).find(item => item.id === categoryId);
   return category ? { member: null, category } : { member: null, category: null };
 }
 
@@ -582,6 +626,8 @@ function normalizeCategory(raw) {
     id: category.id || uid("cat"),
     name: category.name || "Catégorie",
     icon: category.icon && categoryIcons.includes(category.icon) ? category.icon : categoryIconForName(category.name || "Catégorie"),
+    updatedAt: category.updatedAt || "",
+    deletedAt: category.deletedAt || "",
     items: Array.isArray(category.items) ? category.items.map(normalizeItem) : []
   };
 }
@@ -618,7 +664,9 @@ function normalizeItem(raw) {
     name: item.name || "Élément",
     qty: normalizeQty(item.qty || 1),
     status,
-    done: status === "done"
+    done: status === "done",
+    updatedAt: item.updatedAt || "",
+    deletedAt: item.deletedAt || ""
   };
 }
 
@@ -633,6 +681,62 @@ function normalizeCustomCategory(raw) {
       ? category.items.map(item => typeof item === "string" ? item : item?.name).filter(Boolean)
       : []
   };
+}
+
+function newerEntity(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  return entityTimestamp(b) > entityTimestamp(a) ? b : a;
+}
+
+function mergeById(localItems = [], remoteItems = [], mergeEntity = newerEntity) {
+  const ids = new Set([
+    ...localItems.map(item => item?.id).filter(Boolean),
+    ...remoteItems.map(item => item?.id).filter(Boolean)
+  ]);
+  return [...ids].map(id => {
+    const local = localItems.find(item => item?.id === id);
+    const remote = remoteItems.find(item => item?.id === id);
+    return mergeEntity(local, remote);
+  }).filter(Boolean);
+}
+
+function mergeItems(local, remote) {
+  return newerEntity(local, remote);
+}
+
+function mergeCategories(local, remote) {
+  const base = newerEntity(local, remote);
+  if (!local || !remote) return base;
+  return {
+    ...base,
+    items: mergeById(local.items || [], remote.items || [], mergeItems)
+  };
+}
+
+function mergeMembers(local, remote) {
+  const base = newerEntity(local, remote);
+  if (!local || !remote) return base;
+  return {
+    ...base,
+    categories: mergeById(local.categories || [], remote.categories || [], mergeCategories)
+  };
+}
+
+function mergeVoyages(localVoyage, remoteVoyage) {
+  const local = normalizeVoyage(localVoyage);
+  const remote = normalizeVoyage(remoteVoyage);
+  const base = timestampValue(remote.updatedAt) > timestampValue(local.updatedAt) ? remote : local;
+  return normalizeVoyage({
+    ...base,
+    id: local.id || remote.id,
+    code: local.code || remote.code,
+    remoteRecordId: remote.remoteRecordId || local.remoteRecordId,
+    shared: true,
+    categories: mergeById(local.categories || [], remote.categories || [], mergeCategories),
+    members: mergeById(local.members || [], remote.members || [], mergeMembers),
+    updatedAt: nowISO()
+  });
 }
 
 function saveLocal() {
@@ -708,8 +812,9 @@ function progressForVoyage(voyage) {
 }
 
 function progressForCategory(category) {
-  const total = category.items.length;
-  const done = category.items.filter(item => normalizeItemStatus(item) === "done").length;
+  const items = visibleItems(category.items || []);
+  const total = items.length;
+  const done = items.filter(item => normalizeItemStatus(item) === "done").length;
   return {
     total,
     done,
@@ -718,7 +823,7 @@ function progressForCategory(category) {
 }
 
 function progressForMember(member) {
-  const items = (member.categories || []).flatMap(category => category.items || []);
+  const items = visibleCategories(member.categories || []).flatMap(category => visibleItems(category.items || []));
   const total = items.length;
   const done = items.filter(item => normalizeItemStatus(item) === "done").length;
   return {
@@ -918,7 +1023,7 @@ async function saveVoyageSheet(event) {
     voyageMembers(voyage).forEach(member => {
       enrichCategories(member.categories, "Activités", options.activity, presetItems.activity);
     });
-    voyage.updatedAt = new Date().toISOString();
+    touchVoyage(voyage);
   } else {
     voyage = makeVoyage(voyageName, date, options);
     state.voyages.unshift(voyage);
@@ -1221,7 +1326,7 @@ async function refreshTripWeather(voyageId, notify = false) {
       ...(enrichment || {}),
       weatherKey: weatherCacheKey(voyage)
     };
-    voyage.updatedAt = new Date().toISOString();
+    touchVoyage(voyage);
     saveAndSync(voyage);
     if (notify) showToast("Météo actualisée");
     render();
@@ -1411,7 +1516,7 @@ function renameVoyage(id) {
   const next = value.trim();
   if (!next) return;
   voyage.name = next;
-  voyage.updatedAt = new Date().toISOString();
+  touchVoyage(voyage);
   saveAndSync(voyage);
   render();
 }
@@ -1452,13 +1557,16 @@ function resetVoyageLists(id) {
   if (!voyage) return;
   if (!confirm(`Tout décocher dans "${voyage.name}" ?`)) return;
   allVoyageCategories(voyage).forEach(category => {
-    category.items.forEach(item => {
+    visibleItems(category.items || []).forEach(item => {
+      const timestamp = nowISO();
       item.done = false;
       item.status = "todo";
+      touchEntity(item, timestamp);
     });
+    touchEntity(category);
     sortCategoryItems(category);
   });
-  voyage.updatedAt = new Date().toISOString();
+  touchVoyage(voyage);
   saveAndSync(voyage);
   render();
 }
@@ -1481,7 +1589,7 @@ function createMemberFromName(name, selectedTemplates = [], group = "family") {
     categories.forEach(category => {
       state.openCats[category.id] = false;
     });
-    voyage.updatedAt = new Date().toISOString();
+    touchVoyage(voyage);
     saveAndSync(voyage);
     render();
     return;
@@ -1492,7 +1600,7 @@ function createMemberFromName(name, selectedTemplates = [], group = "family") {
   categories.forEach(category => {
     state.openCats[category.id] = false;
   });
-  voyage.updatedAt = new Date().toISOString();
+  touchVoyage(voyage);
   saveAndSync(voyage);
   render();
 }
@@ -1502,25 +1610,29 @@ function addCategoryToMember(memberId, templateId = "") {
   const member = voyageMembers(voyage).find(item => item.id === memberId);
   if (!voyage || !member) return;
   let category = null;
+  const timestamp = nowISO();
   const template = templateId ? state.customCategories.find(item => item.id === templateId) : null;
   if (template) {
     category = {
       id: uid("cat"),
       name: template.name,
       icon: categoryIcon(template),
-      items: template.items.map(itemName => ({ id: uid("item"), name: itemName, qty: 1, status: "todo", done: false }))
+      updatedAt: timestamp,
+      deletedAt: "",
+      items: template.items.map(itemName => ({ id: uid("item"), name: itemName, qty: 1, status: "todo", done: false, updatedAt: timestamp, deletedAt: "" }))
     };
   } else {
     const value = prompt("Nom de la catégorie");
     if (value === null) return;
     const name = value.trim();
     if (!name) return;
-    category = { id: uid("cat"), name, icon: categoryIconForName(name), items: [] };
+    category = { id: uid("cat"), name, icon: categoryIconForName(name), updatedAt: timestamp, deletedAt: "", items: [] };
   }
   member.categories.push(category);
   state.openMembers[member.id] = true;
   state.openCats[category.id] = false;
-  voyage.updatedAt = new Date().toISOString();
+  touchEntity(member);
+  touchVoyage(voyage);
   saveAndSync(voyage);
   render();
 }
@@ -1532,12 +1644,13 @@ function addCategoryToGeneral() {
   if (value === null) return;
   const name = value.trim();
   if (!name) return;
-  const category = { id: uid("cat"), name, icon: categoryIconForName(name), items: [] };
+  const timestamp = nowISO();
+  const category = { id: uid("cat"), name, icon: categoryIconForName(name), updatedAt: timestamp, deletedAt: "", items: [] };
   voyage.categories = Array.isArray(voyage.categories) ? voyage.categories : [];
   voyage.categories.push(category);
   state.openMembers.general = true;
   state.openCats[category.id] = false;
-  voyage.updatedAt = new Date().toISOString();
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1615,7 +1728,7 @@ function renderCategoryTemplateChoices(memberName = "") {
 
 function renameCategory(categoryId) {
   const voyage = currentVoyage();
-  const { category } = findCategoryInVoyage(voyage, categoryId);
+  const { member, category } = findCategoryInVoyage(voyage, categoryId);
   if (!category) return;
   const value = prompt("Nouveau nom de la catégorie", category.name);
   if (value === null) return;
@@ -1623,7 +1736,9 @@ function renameCategory(categoryId) {
   if (!name) return;
   category.name = name;
   if (!category.icon) category.icon = categoryIconForName(name);
-  voyage.updatedAt = new Date().toISOString();
+  const timestamp = touchEntity(category);
+  if (member) touchEntity(member, timestamp);
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1633,10 +1748,16 @@ function deleteCategory(categoryId) {
   const { member, category } = findCategoryInVoyage(voyage, categoryId);
   if (!voyage || !category) return;
   if (!confirm(`Supprimer la catégorie "${category.name}" ?`)) return;
-  if (member) member.categories = member.categories.filter(item => item.id !== categoryId);
-  else voyage.categories = voyage.categories.filter(item => item.id !== categoryId);
+  const timestamp = nowISO();
+  category.deletedAt = timestamp;
+  touchEntity(category, timestamp);
+  visibleItems(category.items || []).forEach(item => {
+    item.deletedAt = timestamp;
+    touchEntity(item, timestamp);
+  });
+  if (member) touchEntity(member, timestamp);
   delete state.openCats[categoryId];
-  voyage.updatedAt = new Date().toISOString();
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1656,7 +1777,8 @@ function renameMember(memberId) {
   const name = value.trim();
   if (!name) return;
   member.name = name;
-  voyage.updatedAt = new Date().toISOString();
+  const timestamp = touchEntity(member);
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1666,10 +1788,20 @@ function deleteMember(memberId) {
   const member = voyageMembers(voyage).find(item => item.id === memberId);
   if (!voyage || !member) return;
   if (!confirm(`Supprimer le membre "${member.name}" ?`)) return;
-  voyage.members = voyageMembers(voyage).filter(item => item.id !== memberId);
+  const timestamp = nowISO();
+  member.deletedAt = timestamp;
+  touchEntity(member, timestamp);
   delete state.openMembers[memberId];
-  member.categories.forEach(category => delete state.openCats[category.id]);
-  voyage.updatedAt = new Date().toISOString();
+  visibleCategories(member.categories || []).forEach(category => {
+    category.deletedAt = timestamp;
+    touchEntity(category, timestamp);
+    visibleItems(category.items || []).forEach(item => {
+      item.deletedAt = timestamp;
+      touchEntity(item, timestamp);
+    });
+    delete state.openCats[category.id];
+  });
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1688,11 +1820,13 @@ function addItem(event, categoryId) {
   const input = event.currentTarget.querySelector("input");
   const name = input.value.trim();
   if (!name) return;
-  category.items.push({ id: uid("item"), name, qty: 1, status: "todo", done: false });
+  const timestamp = nowISO();
+  category.items.push({ id: uid("item"), name, qty: 1, status: "todo", done: false, updatedAt: timestamp, deletedAt: "" });
+  touchEntity(category, timestamp);
   sortCategoryItems(category);
   input.value = "";
   state.openCats[categoryId] = true;
-  voyage.updatedAt = new Date().toISOString();
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1704,8 +1838,10 @@ function toggleItem(categoryId, itemId) {
   if (!voyage || !category || !item) return;
   item.status = item.status === "todo" ? "checked" : item.status === "checked" ? "done" : "todo";
   item.done = item.status === "done";
+  const timestamp = touchEntity(item);
+  touchEntity(category, timestamp);
   sortCategoryItems(category);
-  voyage.updatedAt = new Date().toISOString();
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1721,8 +1857,10 @@ function renameItem(categoryId, itemId) {
   const name = value.trim();
   if (!name) return;
   item.name = name;
+  const timestamp = touchEntity(item);
+  touchEntity(category, timestamp);
   sortCategoryItems(category);
-  voyage.updatedAt = new Date().toISOString();
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1731,8 +1869,13 @@ function deleteItem(categoryId, itemId) {
   const voyage = currentVoyage();
   const { category } = findCategoryInVoyage(voyage, categoryId);
   if (!voyage || !category) return;
-  category.items = category.items.filter(item => item.id !== itemId);
-  voyage.updatedAt = new Date().toISOString();
+  const item = category.items.find(row => row.id === itemId);
+  if (!item) return;
+  const timestamp = nowISO();
+  item.deletedAt = timestamp;
+  touchEntity(item, timestamp);
+  touchEntity(category, timestamp);
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1759,7 +1902,9 @@ function changeQty(categoryId, itemId, deltaOrValue) {
   } else {
     item.qty = normalizeQty(deltaOrValue);
   }
-  voyage.updatedAt = new Date().toISOString();
+  const timestamp = touchEntity(item);
+  touchEntity(category, timestamp);
+  touchVoyage(voyage, timestamp);
   saveAndSync(voyage);
   render();
 }
@@ -1919,7 +2064,7 @@ function remotePayload(voyage) {
   return {
     ...voyage,
     shared: true,
-    updatedAt: voyage.updatedAt || new Date().toISOString()
+    updatedAt: voyage.updatedAt || nowISO()
   };
 }
 
@@ -1947,42 +2092,39 @@ async function saveVoyageRemote(voyage) {
         record = null;
       }
     }
+
+    let data = remotePayload(voyage);
     if (record?.data) {
       const remoteData = normalizeVoyage({
         ...(record.data.voyage || record.data),
         shared: true,
         remoteRecordId: record.id
       });
-      if (isRemoteNewer(remoteData, voyage)) {
-        applyRemoteVoyage(remoteData);
-        setStatus("Synchronisé");
-        subscribeToCurrentVoyage();
-        return;
-      }
+      data = remotePayload(mergeVoyages(voyage, remoteData));
     }
-    const data = remotePayload(voyage);
+
     if (record) {
       record = await client.collection(PB_COLLECTION).update(record.id, {
-        code: voyage.code,
+        code: data.code,
         data
       }, { requestKey: null });
     } else {
       record = await client.collection(PB_COLLECTION).create({
-        code: voyage.code,
+        code: data.code,
         data
       }, { requestKey: null });
     }
-    voyage.shared = true;
-    voyage.remoteRecordId = record.id;
+
+    const synced = normalizeVoyage({ ...data, remoteRecordId: record.id, shared: true });
+    Object.assign(voyage, synced, { id: voyage.id });
     saveLocal();
-    setStatus("Synchronisé");
+    setStatus("Synchronis\u00e9");
     subscribeToCurrentVoyage();
   } catch (error) {
     console.warn("Synchronisation impossible", error);
     setStatus("Hors ligne");
   }
 }
-
 function syncAllVoyages(options = {}) {
   state.voyages
     .filter(voyage => voyage?.code && voyage.code !== SETTINGS_CODE)
@@ -2311,7 +2453,7 @@ function applyRemoteVoyage(incoming) {
   const index = state.voyages.findIndex(voyage => voyage.code === incoming.code || voyage.id === incoming.id);
   if (index >= 0) {
     const previousId = state.voyages[index].id;
-    state.voyages[index] = { ...incoming, id: previousId };
+    state.voyages[index] = { ...mergeVoyages(state.voyages[index], incoming), id: previousId };
     if (state.currentVoyageId === incoming.id) state.currentVoyageId = previousId;
   } else {
     state.voyages.unshift(incoming);
@@ -2712,7 +2854,8 @@ function selectCategoryIcon(icon) {
     saveLocal();
     saveSharedSettings();
   } else if (target.voyage) {
-    target.voyage.updatedAt = new Date().toISOString();
+    const timestamp = touchEntity(target.category);
+    touchVoyage(target.voyage, timestamp);
     saveAndSync(target.voyage);
   }
   closeSheet("iconSheet");
@@ -3108,7 +3251,7 @@ function renderChecklist() {
 }
 
 function renderGeneralSection(voyage) {
-  const categories = voyage.categories || [];
+  const categories = visibleCategories(voyage.categories || []);
   const progress = progressForMember({ categories });
   const open = state.openMembers.general === true;
   return `
@@ -3138,7 +3281,7 @@ function renderGeneralSection(voyage) {
 function renderMember(voyage, member) {
   const progress = progressForMember(member);
   const open = state.openMembers[member.id] === true;
-  const categories = (member.categories || []).map(category => renderCategory(voyage, category)).join("");
+  const categories = visibleCategories(member.categories || []).map(category => renderCategory(voyage, category)).join("");
   return `
     <article class="category ${open ? "open" : ""}">
       <div class="category-head">
@@ -3169,7 +3312,7 @@ function renderCategory(voyage, category) {
   sortCategoryItems(category);
   const progress = progressForCategory(category);
   const open = state.openCats[category.id] === true;
-  const items = category.items.map(item => {
+  const items = visibleItems(category.items || []).map(item => {
     const status = normalizeItemStatus(item);
     return `
     <article class="item ${status === "checked" ? "checked" : ""} ${status === "done" ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
