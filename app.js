@@ -1,4 +1,4 @@
-﻿const VERSION = "1.91";
+﻿const VERSION = "1.92";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -256,6 +256,18 @@ function sortCustomCategoryItems(category) {
 
 function customItemName(item) {
   return typeof item === "string" ? item : item?.name || "";
+}
+
+function normalizeStateInPlace() {
+  state.voyages = Array.isArray(state.voyages) ? state.voyages.filter(Boolean).map(normalizeVoyage) : [];
+  state.quickLists = Array.isArray(state.quickLists) ? state.quickLists.filter(Boolean).map(normalizeQuickList) : [];
+  state.customCategories = Array.isArray(state.customCategories) ? state.customCategories.filter(Boolean).map(normalizeCustomCategory) : [];
+  state.customCategoryMembers = Array.isArray(state.customCategoryMembers) ? state.customCategoryMembers.map(normalizeMemberName) : [];
+  state.openMembers = state.openMembers && typeof state.openMembers === "object" ? state.openMembers : {};
+  state.openCats = state.openCats && typeof state.openCats === "object" ? state.openCats : {};
+  state.customMemberAliases = state.customMemberAliases && typeof state.customMemberAliases === "object" ? state.customMemberAliases : {};
+  state.customMemberGroups = state.customMemberGroups && typeof state.customMemberGroups === "object" ? state.customMemberGroups : {};
+  state.customMemberDeletedAt = state.customMemberDeletedAt && typeof state.customMemberDeletedAt === "object" ? state.customMemberDeletedAt : {};
 }
 
 function isUserEditing() {
@@ -3438,18 +3450,34 @@ function selectCategoryIcon(icon) {
 }
 
 function render() {
-  const voyage = currentVoyage();
-  setStatus(voyage ? (voyage.shared ? "Synchronisé" : "Synchronisation...") : "Synchronisé");
+  try {
+    normalizeStateInPlace();
+    const voyage = currentVoyage();
+    setStatus(voyage ? (voyage.shared ? "Synchronisé" : "Synchronisation...") : "Synchronisé");
 
-  if (!voyage && state.tab === "liste") state.tab = "voyages";
+    if (!voyage && state.tab === "liste") state.tab = "voyages";
 
-  if (state.tab === "liste") renderChecklist();
-  else if (state.tab === "customCategories") renderCustomCategories();
-  else if (state.tab === "installation") renderInstallation();
-  else if (state.tab === "quickLists") renderQuickLists();
-  else if (state.tab === "quickListDetail") renderQuickListDetail();
-  else renderVoyages();
-  renderBottomNav();
+    if (state.tab === "liste") renderChecklist();
+    else if (state.tab === "customCategories") renderCustomCategories();
+    else if (state.tab === "installation") renderInstallation();
+    else if (state.tab === "quickLists") renderQuickLists();
+    else if (state.tab === "quickListDetail") renderQuickListDetail();
+    else renderVoyages();
+    renderBottomNav();
+  } catch (error) {
+    console.error("Rendu impossible", error);
+    state.tab = "voyages";
+    const content = document.getElementById("content");
+    if (content) {
+      content.innerHTML = `
+        <section class="panel empty">
+          <h2>Affichage bloqué</h2>
+          <p>Une donnée restaurée empêche l'affichage. Essayez de réimporter une sauvegarde ou de recharger l'application.</p>
+        </section>
+      `;
+    }
+    renderBottomNav();
+  }
 }
 
 function renderBottomNav() {
@@ -4039,17 +4067,25 @@ if ("serviceWorker" in navigator) {
 }
 
 async function startApp() {
-  loadLocal();
-  cleanupMigrationPlaceholders();
-  repairCustomMemberVisibility();
-  render();
-  await loadAppStateRemote();
-  await loadSharedSettings();
-  await saveAppStateRemote();
-  render();
+  try {
+    loadLocal();
+    normalizeStateInPlace();
+    cleanupMigrationPlaceholders();
+    repairCustomMemberVisibility();
+    render();
+    await loadAppStateRemote();
+    await loadSharedSettings();
+    await saveAppStateRemote();
+    render();
+  } catch (error) {
+    console.error("Démarrage impossible", error);
+    setStatus("Hors ligne");
+    render();
+  }
 }
 
 startApp();
+
 
 
 
