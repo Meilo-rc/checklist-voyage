@@ -1,4 +1,4 @@
-﻿const VERSION = "1.93";
+﻿const VERSION = "1.94";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -799,6 +799,44 @@ function mergeQuickLists(localList, remoteList) {
   });
 }
 
+function quickListKey(list) {
+  return normalizeText(list?.name) || cleanCode(list?.code) || list?.id || "";
+}
+
+function quickListScore(list) {
+  const visibleCount = visibleQuickItems(list?.items || []).length;
+  return timestampValue(list?.updatedAt) + visibleCount;
+}
+
+function dedupeQuickLists() {
+  const before = state.quickLists.length;
+  const groups = new Map();
+  state.quickLists
+    .filter(Boolean)
+    .map(normalizeQuickList)
+    .forEach(list => {
+      const key = quickListKey(list);
+      if (!key) return;
+      const existing = groups.get(key);
+      if (!existing) {
+        groups.set(key, list);
+        return;
+      }
+      const base = quickListScore(list) > quickListScore(existing) ? list : existing;
+      const other = base === list ? existing : list;
+      const merged = mergeQuickLists(base, other);
+      merged.id = base.id;
+      merged.code = base.code || other.code;
+      merged.remoteRecordId = base.remoteRecordId || other.remoteRecordId;
+      groups.set(key, merged);
+    });
+  state.quickLists = [...groups.values()].sort((a, b) => timestampValue(b.updatedAt) - timestampValue(a.updatedAt));
+  if (!state.quickLists.some(list => list.id === state.currentQuickListId)) {
+    state.currentQuickListId = state.quickLists[0]?.id || null;
+  }
+  return state.quickLists.length !== before;
+}
+
 function mergeCustomCategories(localCategory, remoteCategory) {
   const local = normalizeCustomCategory(localCategory);
   const remote = normalizeCustomCategory(remoteCategory);
@@ -936,6 +974,7 @@ async function importBackupFile(event) {
 
     state.voyages = Array.isArray(data.voyages) ? data.voyages.map(normalizeVoyage) : [];
     state.quickLists = Array.isArray(data.quickLists) ? data.quickLists.map(normalizeQuickList) : [];
+    dedupeQuickLists();
     state.currentVoyageId = data.currentVoyageId && state.voyages.some(voyage => voyage.id === data.currentVoyageId)
       ? data.currentVoyageId
       : state.voyages[0]?.id || null;
@@ -975,8 +1014,11 @@ function loadLocal() {
       const parsed = JSON.parse(raw);
       state.voyages = Array.isArray(parsed.voyages) ? parsed.voyages.map(normalizeVoyage) : [];
       state.quickLists = Array.isArray(parsed.quickLists) ? parsed.quickLists.map(normalizeQuickList) : [];
+      dedupeQuickLists();
       state.currentVoyageId = parsed.currentVoyageId || state.voyages[0]?.id || null;
-      state.currentQuickListId = parsed.currentQuickListId || state.quickLists[0]?.id || null;
+      state.currentQuickListId = parsed.currentQuickListId && state.quickLists.some(list => list.id === parsed.currentQuickListId)
+        ? parsed.currentQuickListId
+        : state.quickLists[0]?.id || null;
       state.openMembers = parsed.openMembers && typeof parsed.openMembers === "object" ? parsed.openMembers : {};
       state.openCats = parsed.openCats && typeof parsed.openCats === "object" ? parsed.openCats : {};
       state.customCategories = Array.isArray(parsed.customCategories) ? parsed.customCategories.map(normalizeCustomCategory) : [];
@@ -2428,6 +2470,8 @@ function saveQuickListAndSync(list, options = {}) {
 }
 
 function syncAllQuickLists(options = {}) {
+  dedupeQuickLists();
+  saveLocal();
   state.quickLists
     .filter(list => list?.code)
     .forEach((list, index) => {
@@ -2436,12 +2480,14 @@ function syncAllQuickLists(options = {}) {
 }
 
 function applyRemoteQuickList(incoming) {
-  const index = state.quickLists.findIndex(item => item.code === incoming.code || item.id === incoming.id);
+  const incomingKey = quickListKey(incoming);
+  const index = state.quickLists.findIndex(item => item.code === incoming.code || item.id === incoming.id || quickListKey(item) === incomingKey);
   if (index >= 0) {
     state.quickLists[index] = mergeQuickLists(state.quickLists[index], incoming);
   } else {
     state.quickLists.unshift(incoming);
   }
+  dedupeQuickLists();
   saveLocal();
   if (!isUserEditing()) render();
 }
@@ -2490,6 +2536,14 @@ function createQuickList() {
   if (value === null) return;
   const name = value.trim();
   if (!name) return;
+  const existing = state.quickLists.find(list => quickListKey(list) === normalizeText(name));
+  if (existing) {
+    state.currentQuickListId = existing.id;
+    state.tab = "quickListDetail";
+    saveLocal();
+    render();
+    return;
+  }
   const list = normalizeQuickList({ name, items: [] });
   state.quickLists.unshift(list);
   state.currentQuickListId = list.id;
@@ -3370,6 +3424,7 @@ function renderCustomCategories() {
 
 function renderQuickLists() {
   const content = document.getElementById("content");
+  if (dedupeQuickLists()) saveLocal();
   const cards = state.quickLists.map(list => {
     const visible = visibleQuickItems(list.items || []);
     const done = visible.filter(item => item.done).length;
@@ -3802,5 +3857,6 @@ loadSharedSettings();
 syncAllVoyages();
 syncAllQuickLists();
 subscribeToCurrentVoyage();
+
 
 
