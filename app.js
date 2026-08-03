@@ -1,4 +1,4 @@
-﻿const VERSION = "1.94";
+const VERSION = "1.95";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -889,6 +889,57 @@ function mergeSettingsData(localData, remoteData) {
     },
     updatedAt: nowISO()
   };
+}
+
+function customMemberGroupValue(memberName, groups = state.customMemberGroups) {
+  const name = normalizeMemberName(memberName);
+  if (name === "Général") return "general";
+  const group = groups?.[name];
+  return group === "general" || group === "personal" ? group : "family";
+}
+
+function isPersonalCustomMember(memberName, groups = state.customMemberGroups) {
+  return customMemberGroupValue(memberName, groups) === "personal";
+}
+
+function isPersonalCustomCategory(category, groups = state.customMemberGroups) {
+  return isPersonalCustomMember(defaultMemberForCategory(category), groups);
+}
+
+function personalSettingsSnapshot() {
+  const groups = state.customMemberGroups || {};
+  const categories = state.customCategories.filter(category => isPersonalCustomCategory(category, groups));
+  const personalMembers = new Set([
+    ...state.customCategoryMembers.filter(name => isPersonalCustomMember(name, groups)),
+    ...categories.map(defaultMemberForCategory)
+  ].map(normalizeMemberName));
+  const memberGroups = Object.fromEntries(
+    Object.entries(groups).filter(([name, group]) => group === "personal" || personalMembers.has(normalizeMemberName(name)))
+  );
+  const memberDeletedAt = Object.fromEntries(
+    Object.entries(state.customMemberDeletedAt || {}).filter(([name]) => personalMembers.has(normalizeMemberName(name)))
+  );
+  return {
+    customCategories: categories,
+    customCategoryMembers: [...personalMembers],
+    customMemberGroups: memberGroups,
+    customMemberDeletedAt: memberDeletedAt
+  };
+}
+
+function syncedSettingsState() {
+  const customCategories = state.customCategories.filter(category => !isPersonalCustomCategory(category));
+  const customCategoryMembers = state.customCategoryMembers
+    .map(normalizeMemberName)
+    .filter(name => !isPersonalCustomMember(name))
+    .filter((name, index, list) => list.indexOf(name) === index);
+  const customMemberGroups = Object.fromEntries(
+    Object.entries(state.customMemberGroups || {}).filter(([, group]) => group !== "personal")
+  );
+  const customMemberDeletedAt = Object.fromEntries(
+    Object.entries(state.customMemberDeletedAt || {}).filter(([name]) => !isPersonalCustomMember(name))
+  );
+  return { customCategories, customCategoryMembers, customMemberGroups, customMemberDeletedAt };
 }
 
 function saveLocal() {
@@ -2198,7 +2249,8 @@ async function findRecordByCode(code) {
 }
 
 function settingsPayload() {
-  const categories = visibleCustomCategories(state.customCategories).map(category => ({
+  const syncedState = syncedSettingsState();
+  const categories = visibleCustomCategories(syncedState.customCategories).map(category => ({
     id: category.id,
     name: category.name,
     icon: categoryIcon(category),
@@ -2216,11 +2268,11 @@ function settingsPayload() {
   }));
   return {
     type: "settings",
-    customCategories: state.customCategories,
-    customCategoryMembers: state.customCategoryMembers,
+    customCategories: syncedState.customCategories,
+    customCategoryMembers: syncedState.customCategoryMembers,
     customMemberAliases: state.customMemberAliases,
-    customMemberGroups: state.customMemberGroups,
-    customMemberDeletedAt: state.customMemberDeletedAt,
+    customMemberGroups: syncedState.customMemberGroups,
+    customMemberDeletedAt: syncedState.customMemberDeletedAt,
     voyage: {
       id: "settings-voyage",
       code: SETTINGS_CODE,
@@ -2234,12 +2286,23 @@ function settingsPayload() {
 }
 
 function applySettingsData(data) {
+  const personal = personalSettingsSnapshot();
   const merged = mergeSettingsData(settingsPayload(), data);
-  state.customCategories = Array.isArray(merged.customCategories) ? merged.customCategories.map(normalizeCustomCategory) : [];
-  state.customCategoryMembers = Array.isArray(merged.customCategoryMembers) ? merged.customCategoryMembers.map(normalizeMemberName) : state.customCategoryMembers;
+  const syncedCategories = Array.isArray(merged.customCategories) ? merged.customCategories.map(normalizeCustomCategory) : [];
+  const syncedMembers = Array.isArray(merged.customCategoryMembers) ? merged.customCategoryMembers.map(normalizeMemberName) : [];
+  state.customCategories = [...personal.customCategories, ...syncedCategories];
+  state.customCategoryMembers = [...personal.customCategoryMembers, ...syncedMembers]
+    .map(normalizeMemberName)
+    .filter((name, index, list) => list.indexOf(name) === index);
   state.customMemberAliases = merged.customMemberAliases && typeof merged.customMemberAliases === "object" ? merged.customMemberAliases : state.customMemberAliases;
-  state.customMemberGroups = merged.customMemberGroups && typeof merged.customMemberGroups === "object" ? merged.customMemberGroups : state.customMemberGroups;
-  state.customMemberDeletedAt = merged.customMemberDeletedAt && typeof merged.customMemberDeletedAt === "object" ? merged.customMemberDeletedAt : state.customMemberDeletedAt;
+  state.customMemberGroups = {
+    ...(merged.customMemberGroups && typeof merged.customMemberGroups === "object" ? merged.customMemberGroups : {}),
+    ...personal.customMemberGroups
+  };
+  state.customMemberDeletedAt = {
+    ...(merged.customMemberDeletedAt && typeof merged.customMemberDeletedAt === "object" ? merged.customMemberDeletedAt : {}),
+    ...personal.customMemberDeletedAt
+  };
   saveLocal();
   if (state.tab === "customCategories") render();
   renderMemberTemplateGroups(document.getElementById("memberTemplateGroup")?.value || "");
@@ -2281,12 +2344,15 @@ async function saveSharedSettings() {
     }
     let data = settingsPayload();
     if (record?.data) {
+      const personal = personalSettingsSnapshot();
       data = mergeSettingsData(data, record.data);
-      state.customCategories = data.customCategories.map(normalizeCustomCategory);
-      state.customCategoryMembers = data.customCategoryMembers.map(normalizeMemberName);
+      state.customCategories = [...personal.customCategories, ...data.customCategories.map(normalizeCustomCategory)];
+      state.customCategoryMembers = [...personal.customCategoryMembers, ...data.customCategoryMembers.map(normalizeMemberName)]
+        .map(normalizeMemberName)
+        .filter((name, index, list) => list.indexOf(name) === index);
       state.customMemberAliases = data.customMemberAliases || {};
-      state.customMemberGroups = data.customMemberGroups || {};
-      state.customMemberDeletedAt = data.customMemberDeletedAt || {};
+      state.customMemberGroups = { ...(data.customMemberGroups || {}), ...personal.customMemberGroups };
+      state.customMemberDeletedAt = { ...(data.customMemberDeletedAt || {}), ...personal.customMemberDeletedAt };
     }
     if (record) {
       record = await client.collection(PB_COLLECTION).update(record.id, { code: SETTINGS_CODE, data }, { requestKey: null });
@@ -2906,9 +2972,7 @@ function customMemberNames() {
 }
 
 function customMemberGroup(memberName) {
-  const name = normalizeMemberName(memberName);
-  if (name === "Général") return "general";
-  return state.customMemberGroups?.[name] === "general" ? "general" : "family";
+  return customMemberGroupValue(memberName);
 }
 
 function renderAddCustomMemberForm(group) {
@@ -2946,7 +3010,9 @@ function addCustomMember(name, group = "family") {
     state.customCategoryMembers.push(memberName);
   }
   delete state.customMemberDeletedAt[memberName];
-  if (memberName !== "Général") state.customMemberGroups[memberName] = group === "general" ? "general" : "family";
+  if (memberName !== "Général") {
+    state.customMemberGroups[memberName] = group === "general" || group === "personal" ? group : "family";
+  }
   state.openMembers[`custom-${memberName}`] = true;
   saveLocal();
   saveSharedSettings();
@@ -3016,7 +3082,9 @@ function deleteCustomMember(memberName) {
   Object.entries(state.customMemberAliases).forEach(([source, alias]) => {
     if (normalizeMemberName(alias) === current) delete state.customMemberAliases[source];
   });
-  delete state.customMemberGroups[current];
+  const wasPersonal = isPersonalCustomMember(current);
+  if (wasPersonal) state.customMemberGroups[current] = "personal";
+  else delete state.customMemberGroups[current];
   state.customMemberDeletedAt[current] = timestamp;
   delete state.openMembers[`custom-${current}`];
   saveLocal();
@@ -3403,17 +3471,19 @@ function renderCustomCategories() {
     return { groupName, html };
   });
   const generalCards = memberCards.filter(card => customMemberGroup(card.groupName) === "general").map(card => card.html).join("");
-  const familyCards = memberCards.filter(card => customMemberGroup(card.groupName) !== "general").map(card => card.html).join("");
+  const familyCards = memberCards.filter(card => customMemberGroup(card.groupName) === "family").map(card => card.html).join("");
+  const personalCards = memberCards.filter(card => customMemberGroup(card.groupName) === "personal").map(card => card.html).join("");
   const groups = [
     renderChecklistGroup("G\u00e9n\u00e9ral", `${generalCards || `<div class="notice">Aucune cat\u00e9gorie g\u00e9n\u00e9rale.</div>`}${renderAddCustomMemberForm("general")}`),
-    renderChecklistGroup("Famille", `${familyCards || `<div class="notice">Aucun membre dans la famille.</div>`}${renderAddCustomMemberForm("family")}`)
+    renderChecklistGroup("Famille", `${familyCards || `<div class="notice">Aucun membre dans la famille.</div>`}${renderAddCustomMemberForm("family")}`),
+    renderChecklistGroup("Personnel", `${personalCards || `<div class="notice">Aucun membre personnel sur cet appareil.</div>`}${renderAddCustomMemberForm("personal")}`)
   ].join("");
 
   content.innerHTML = `
     <section class="toolbar">
       <div class="toolbar-title">
         <h2>Catégories personnalisées</h2>
-        <p>Ces modèles sont partagés via PocketBase et proposés ensuite dans chaque voyage.</p>
+        <p>Général et Famille sont partagés via PocketBase. Personnel reste uniquement sur cet appareil.</p>
       </div>
     </section>
     <section class="grid">
