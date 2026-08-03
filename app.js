@@ -1,4 +1,4 @@
-﻿const VERSION = "1.86";
+﻿const VERSION = "1.93";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -412,7 +412,7 @@ function cloneTemplateCategory(template) {
     items: visibleCustomItems(template.items || []).map(item => ({
       id: uid("item"),
       name: customItemName(item),
-      qty: 1,
+      qty: normalizeQty(item.qty || 1),
       status: "todo",
       done: false,
       updatedAt: timestamp,
@@ -655,6 +655,7 @@ function normalizeQuickItem(raw) {
     id: item.id || uid("quick-item"),
     name: item.name || "",
     done: item.done === true,
+    qty: normalizeQty(item.qty || 1),
     updatedAt: item.updatedAt || "",
     deletedAt: item.deletedAt || ""
   };
@@ -709,6 +710,7 @@ function normalizeCustomItem(raw) {
   return {
     id: item.id || uid("tpl-item"),
     name: item.name || "",
+    qty: normalizeQty(item.qty || 1),
     updatedAt: item.updatedAt || "",
     deletedAt: item.deletedAt || ""
   };
@@ -1829,7 +1831,7 @@ function addCategoryToMember(memberId, templateId = "") {
       icon: categoryIcon(template),
       updatedAt: timestamp,
       deletedAt: "",
-      items: visibleCustomItems(template.items || []).map(item => ({ id: uid("item"), name: customItemName(item), qty: 1, status: "todo", done: false, updatedAt: timestamp, deletedAt: "" }))
+      items: visibleCustomItems(template.items || []).map(item => ({ id: uid("item"), name: customItemName(item), qty: normalizeQty(item.qty || 1), status: "todo", done: false, updatedAt: timestamp, deletedAt: "" }))
     };
   } else {
     const value = prompt("Nom de la catégorie");
@@ -2164,7 +2166,7 @@ function settingsPayload() {
     items: visibleCustomItems(category.items || []).map(item => ({
       id: item.id,
       name: customItemName(item),
-      qty: 1,
+      qty: normalizeQty(item.qty || 1),
       done: false,
       updatedAt: item.updatedAt || "",
       deletedAt: item.deletedAt || ""
@@ -2543,7 +2545,7 @@ function addQuickItem(event) {
   const name = input.value.trim();
   if (!list || !name) return;
   const timestamp = nowISO();
-  list.items.push({ id: uid("quick-item"), name, done: false, updatedAt: timestamp, deletedAt: "" });
+  list.items.push({ id: uid("quick-item"), name, done: false, qty: 1, updatedAt: timestamp, deletedAt: "" });
   sortQuickItems(list);
   input.value = "";
   list.updatedAt = timestamp;
@@ -2588,6 +2590,38 @@ function toggleQuickItem(itemId) {
   item.done = !item.done;
   touchEntity(item, timestamp);
   sortQuickItems(list);
+  list.updatedAt = timestamp;
+  saveQuickListAndSync(list);
+  render();
+}
+
+function renameQuickItem(itemId) {
+  const list = currentQuickList();
+  const item = list?.items.find(row => row.id === itemId);
+  if (!list || !item) return;
+  const value = prompt("Renommer l'item", item.name);
+  if (value === null) return;
+  const name = value.trim();
+  if (!name) return;
+  const timestamp = nowISO();
+  item.name = name;
+  touchEntity(item, timestamp);
+  sortQuickItems(list);
+  list.updatedAt = timestamp;
+  saveQuickListAndSync(list, { immediate: true });
+  render();
+}
+
+function changeQuickQty(itemId, deltaOrValue) {
+  const list = currentQuickList();
+  const item = list?.items.find(row => row.id === itemId);
+  if (!list || !item) return;
+  if (typeof deltaOrValue === "number") {
+    item.qty = normalizeQty(item.qty + deltaOrValue);
+  } else {
+    item.qty = normalizeQty(deltaOrValue);
+  }
+  const timestamp = touchEntity(item);
   list.updatedAt = timestamp;
   saveQuickListAndSync(list);
   render();
@@ -2841,7 +2875,7 @@ function buildIdealCustomCategories() {
     member: template.member,
     updatedAt: nowISO(),
     deletedAt: "",
-    items: template.items.map(name => ({ id: uid("tpl-item"), name, updatedAt: nowISO(), deletedAt: "" }))
+    items: template.items.map(name => ({ id: uid("tpl-item"), name, qty: 1, updatedAt: nowISO(), deletedAt: "" }))
   }));
   defaultMemberNames.forEach(name => {
     state.openMembers[`custom-${name}`] = false;
@@ -3023,6 +3057,7 @@ function saveCustomCategoryMemberChange(event) {
       items: visibleCustomItems(category.items || []).map(item => ({
         ...item,
         id: uid("tpl-item"),
+        qty: normalizeQty(item.qty || 1),
         updatedAt: timestamp,
         deletedAt: ""
       }))
@@ -3045,7 +3080,7 @@ function addCustomItem(event, categoryId) {
   const name = input.value.trim();
   if (!category || !name) return;
   const timestamp = nowISO();
-  category.items.push({ id: uid("tpl-item"), name, updatedAt: timestamp, deletedAt: "" });
+  category.items.push({ id: uid("tpl-item"), name, qty: 1, updatedAt: timestamp, deletedAt: "" });
   touchEntity(category, timestamp);
   sortCustomCategoryItems(category);
   input.value = "";
@@ -3068,6 +3103,22 @@ function renameCustomItem(categoryId, itemId) {
   touchEntity(item, timestamp);
   touchEntity(category, timestamp);
   sortCustomCategoryItems(category);
+  saveLocal();
+  saveSharedSettings();
+  render();
+}
+
+function changeCustomQty(categoryId, itemId, deltaOrValue) {
+  const category = state.customCategories.find(item => item.id === categoryId);
+  const item = category?.items.find(row => row.id === itemId);
+  if (!category || !item) return;
+  if (typeof deltaOrValue === "number") {
+    item.qty = normalizeQty(item.qty + deltaOrValue);
+  } else {
+    item.qty = normalizeQty(deltaOrValue);
+  }
+  const timestamp = touchEntity(item);
+  touchEntity(category, timestamp);
   saveLocal();
   saveSharedSettings();
   render();
@@ -3213,12 +3264,24 @@ function renderCustomCategories() {
     const open = state.openCats[category.id] === true;
     const visibleItems = visibleCustomItems(category.items || []);
     const items = visibleItems.map(item => `
-      <article class="item template-item">
+      <article class="item template-item ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
         <div class="item-content">
-          <div class="item-label">${escapeHTML(customItemName(item))}</div>
-          <div class="category-actions">
-            <button class="template-delete" type="button" onclick="deleteCustomItem('${category.id}', '${item.id}')" title="Supprimer l'item" aria-label="Supprimer l'item">&times;</button>
+          <div class="item-label" onclick="closeQtyEditorFromLabel('${item.id}')">${escapeHTML(customItemName(item))}</div>
+          <div class="mini-actions" onclick="event.stopPropagation()">
+            ${qtyEditorItemId === item.id ? `
+            <div class="qty" onclick="event.stopPropagation()">
+              <button type="button" onclick="changeCustomQty('${category.id}', '${item.id}', -1)" title="Diminuer">−</button>
+              <input aria-label="Quantité" value="${escapeHTML(item.qty)}" inputmode="numeric" onchange="changeCustomQty('${category.id}', '${item.id}', this.value)" onfocus="this.select()">
+              <button type="button" onclick="changeCustomQty('${category.id}', '${item.id}', 1)" title="Augmenter">+</button>
+            </div>
+            ` : `
+            <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
+            `}
           </div>
+        </div>
+        <div class="item-actions">
+          <button class="item-action edit" type="button" onclick="renameCustomItem('${category.id}', '${item.id}')"><span>✎</span>Modifier</button>
+          <button class="item-action delete" type="button" onclick="deleteCustomItem('${category.id}', '${item.id}')"><span>🗑</span>Suppr.</button>
         </div>
       </article>
     `).join("");
@@ -3363,11 +3426,25 @@ function renderQuickListDetail() {
   const total = visible.length;
   const percent = total ? Math.round((done / total) * 100) : 0;
   const items = visibleQuickItems(list.items || []).map(item => `
-    <article class="item quick-item ${item.done ? "done" : ""}">
+    <article class="item quick-item ${item.done ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
       <div class="item-content">
         <button class="check" type="button" onclick="toggleQuickItem('${item.id}')" title="Valider" aria-label="Valider"></button>
-        <div class="item-label">${escapeHTML(item.name)}</div>
-        <button class="template-delete" type="button" onclick="deleteQuickItem('${item.id}')" title="Supprimer l'item" aria-label="Supprimer l'item">&times;</button>
+        <div class="item-label" onclick="closeQtyEditorFromLabel('${item.id}')">${escapeHTML(item.name)}</div>
+        <div class="mini-actions" onclick="event.stopPropagation()">
+          ${qtyEditorItemId === item.id ? `
+          <div class="qty" onclick="event.stopPropagation()">
+            <button type="button" onclick="changeQuickQty('${item.id}', -1)" title="Diminuer">−</button>
+            <input aria-label="Quantité" value="${escapeHTML(item.qty)}" inputmode="numeric" onchange="changeQuickQty('${item.id}', this.value)" onfocus="this.select()">
+            <button type="button" onclick="changeQuickQty('${item.id}', 1)" title="Augmenter">+</button>
+          </div>
+          ` : `
+          <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
+          `}
+        </div>
+      </div>
+      <div class="item-actions">
+        <button class="item-action edit" type="button" onclick="renameQuickItem('${item.id}')"><span>✎</span>Modifier</button>
+        <button class="item-action delete" type="button" onclick="deleteQuickItem('${item.id}')"><span>🗑</span>Suppr.</button>
       </div>
     </article>
   `).join("");
@@ -3725,4 +3802,5 @@ loadSharedSettings();
 syncAllVoyages();
 syncAllQuickLists();
 subscribeToCurrentVoyage();
+
 
