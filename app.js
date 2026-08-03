@@ -1,4 +1,4 @@
-﻿const VERSION = "1.89";
+﻿const VERSION = "1.90";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -318,7 +318,7 @@ function visibleCustomCategories(categories = []) {
 }
 
 function visibleVoyages(voyages = []) {
-  return voyages.filter(voyage => !isDeleted(voyage));
+  return voyages.filter(voyage => !isDeleted(voyage) && !isMigrationPlaceholderVoyage(voyage));
 }
 
 function visibleQuickLists(lists = []) {
@@ -326,7 +326,7 @@ function visibleQuickLists(lists = []) {
 }
 
 function syncedVoyages() {
-  return state.voyages.filter(voyage => voyage && voyage.personal !== true && voyage.code !== SETTINGS_CODE);
+  return state.voyages.filter(voyage => voyage && voyage.personal !== true && voyage.code !== SETTINGS_CODE && !isMigrationPlaceholderVoyage(voyage));
 }
 
 function syncedQuickLists() {
@@ -342,6 +342,30 @@ function syncedCustomCategoryMembers() {
   return state.customCategoryMembers
     .map(normalizeMemberName)
     .filter(name => categoryMembers.includes(name));
+}
+
+function isMigrationPlaceholderVoyage(voyage) {
+  if (!voyage || isDeleted(voyage)) return false;
+  const name = normalizeText(voyage.name);
+  const hasDate = Boolean(voyage.date || voyage.startDate || voyage.endDate);
+  const hasDestination = Boolean(voyage.destination || voyage.enrichment?.location);
+  const hasItems = allVoyageCategories(voyage).some(category => visibleItems(category.items || []).length);
+  return name === "voyage" && !hasDate && !hasDestination && !hasItems;
+}
+
+function cleanupMigrationPlaceholders() {
+  const timestamp = nowISO();
+  let changed = false;
+  state.voyages.forEach(voyage => {
+    if (!isMigrationPlaceholderVoyage(voyage)) return;
+    voyage.deletedAt = timestamp;
+    touchVoyage(voyage, timestamp);
+    changed = true;
+  });
+  if (changed && isMigrationPlaceholderVoyage(currentVoyage())) {
+    state.currentVoyageId = visibleVoyages(state.voyages).find(voyage => !isMigrationPlaceholderVoyage(voyage))?.id || null;
+  }
+  return changed;
 }
 
 function visibleCategories(categories = []) {
@@ -924,6 +948,7 @@ function mergeSettingsData(localData, remoteData) {
 }
 
 function appStatePayload() {
+  cleanupMigrationPlaceholders();
   const settings = settingsPayload();
   return {
     type: "appState",
@@ -944,11 +969,12 @@ function mergeAppStateData(localData, remoteData) {
   const local = localData || {};
   const remote = remoteData || {};
   const mergedSettings = mergeSettingsData(local.settings || local, remote.settings || remote);
+  const voyages = mergeVoyageList(local.voyages || [], remote.voyages || []).filter(voyage => !isMigrationPlaceholderVoyage(voyage));
   return {
     type: "appState",
     version: VERSION,
     updatedAt: nowISO(),
-    voyages: mergeVoyageList(local.voyages || [], remote.voyages || []),
+    voyages,
     quickLists: mergeQuickListCollection(local.quickLists || [], remote.quickLists || []),
     customCategories: mergedSettings.customCategories,
     customCategoryMembers: mergedSettings.customCategoryMembers,
@@ -2362,7 +2388,8 @@ async function subscribeToAppState() {
 }
 
 function settingsPayload() {
-  const categories = visibleCustomCategories(state.customCategories).map(category => ({
+  const sharedCategories = visibleCustomCategories(syncedCustomCategories());
+  const categories = sharedCategories.map(category => ({
     id: category.id,
     name: category.name,
     icon: categoryIcon(category),
@@ -2380,7 +2407,7 @@ function settingsPayload() {
   }));
   return {
     type: "settings",
-    customCategories: state.customCategories,
+    customCategories: sharedCategories,
     customCategoryMembers: state.customCategoryMembers,
     customMemberAliases: state.customMemberAliases,
     customMemberGroups: state.customMemberGroups,
@@ -4000,16 +4027,16 @@ if ("serviceWorker" in navigator) {
 
 async function startApp() {
   loadLocal();
+  cleanupMigrationPlaceholders();
   render();
-  const loaded = await loadAppStateRemote();
-  if (!loaded) {
-    await loadSharedSettings();
-    await saveAppStateRemote();
-  }
+  await loadAppStateRemote();
+  await loadSharedSettings();
+  await saveAppStateRemote();
   render();
 }
 
 startApp();
+
 
 
 
