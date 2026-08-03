@@ -1,4 +1,4 @@
-﻿const VERSION = "1.90";
+﻿const VERSION = "1.91";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -349,22 +349,32 @@ function isMigrationPlaceholderVoyage(voyage) {
   const name = normalizeText(voyage.name);
   const hasDate = Boolean(voyage.date || voyage.startDate || voyage.endDate);
   const hasDestination = Boolean(voyage.destination || voyage.enrichment?.location);
-  const hasItems = allVoyageCategories(voyage).some(category => visibleItems(category.items || []).length);
-  return name === "voyage" && !hasDate && !hasDestination && !hasItems;
+  return ["voyage", "nouveau voyage"].includes(name) && !hasDate && !hasDestination;
+}
+
+function validSyncedVoyage(raw) {
+  if (!raw || typeof raw !== "object") return false;
+  return !isMigrationPlaceholderVoyage(raw);
 }
 
 function cleanupMigrationPlaceholders() {
-  const timestamp = nowISO();
-  let changed = false;
-  state.voyages.forEach(voyage => {
-    if (!isMigrationPlaceholderVoyage(voyage)) return;
-    voyage.deletedAt = timestamp;
-    touchVoyage(voyage, timestamp);
-    changed = true;
-  });
+  const before = state.voyages.length;
+  state.voyages = state.voyages.filter(voyage => !isMigrationPlaceholderVoyage(voyage));
+  const changed = state.voyages.length !== before;
   if (changed && isMigrationPlaceholderVoyage(currentVoyage())) {
     state.currentVoyageId = visibleVoyages(state.voyages).find(voyage => !isMigrationPlaceholderVoyage(voyage))?.id || null;
   }
+  return changed;
+}
+
+function repairCustomMemberVisibility() {
+  let changed = false;
+  visibleCustomCategories(state.customCategories).forEach(category => {
+    const member = defaultMemberForCategory(category);
+    if (!state.customMemberDeletedAt?.[member]) return;
+    delete state.customMemberDeletedAt[member];
+    changed = true;
+  });
   return changed;
 }
 
@@ -877,7 +887,9 @@ function mergeQuickLists(localList, remoteList) {
 }
 
 function mergeVoyageList(localVoyages = [], remoteVoyages = []) {
-  return mergeByIdentity(localVoyages.map(normalizeVoyage), remoteVoyages.map(normalizeVoyage), mergeVoyages);
+  const local = localVoyages.filter(validSyncedVoyage).map(normalizeVoyage);
+  const remote = remoteVoyages.filter(validSyncedVoyage).map(normalizeVoyage);
+  return mergeByIdentity(local, remote, mergeVoyages).filter(validSyncedVoyage);
 }
 
 function mergeQuickListCollection(localLists = [], remoteLists = []) {
@@ -949,6 +961,7 @@ function mergeSettingsData(localData, remoteData) {
 
 function appStatePayload() {
   cleanupMigrationPlaceholders();
+  repairCustomMemberVisibility();
   const settings = settingsPayload();
   return {
     type: "appState",
@@ -987,7 +1000,7 @@ function mergeAppStateData(localData, remoteData) {
 
 function applyAppStateData(data) {
   const merged = mergeAppStateData(appStatePayload(), data);
-  const personalVoyages = state.voyages.filter(voyage => voyage.personal === true);
+  const personalVoyages = state.voyages.filter(voyage => voyage.personal === true && validSyncedVoyage(voyage));
   const personalQuickLists = state.quickLists.filter(list => list.personal === true);
   const personalCategories = state.customCategories.filter(category => category.personal === true);
   state.voyages = [...personalVoyages, ...merged.voyages.map(normalizeVoyage)];
@@ -3078,7 +3091,7 @@ function customMemberNames() {
     ...visibleCustomCategories(state.customCategories).map(defaultMemberForCategory)
   ]
     .map(normalizeMemberName)
-    .filter(name => !state.customMemberDeletedAt?.[name])
+    .filter(name => !state.customMemberDeletedAt?.[name] || visibleCustomCategories(state.customCategories).some(category => defaultMemberForCategory(category) === name))
     .filter(name => !defaultCustomGroupNames.includes(name) || aliasedDefaults.includes(name))
     .filter((name, index, list) => list.indexOf(name) === index);
 }
@@ -4028,6 +4041,7 @@ if ("serviceWorker" in navigator) {
 async function startApp() {
   loadLocal();
   cleanupMigrationPlaceholders();
+  repairCustomMemberVisibility();
   render();
   await loadAppStateRemote();
   await loadSharedSettings();
@@ -4036,6 +4050,7 @@ async function startApp() {
 }
 
 startApp();
+
 
 
 
