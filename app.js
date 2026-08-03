@@ -1,16 +1,20 @@
-﻿const VERSION = "1.88";
+﻿const VERSION = "1.89";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
 const PB_COLLECTION = "travel_checklists";
 const SETTINGS_CODE = "PARAMS";
+const APP_STATE_CODE = "FAMILY";
 
 let pb = null;
 let unsubscribeCurrent = null;
 let unsubscribeSettings = null;
 let unsubscribeQuickList = null;
+let unsubscribeAppState = null;
 let settingsRecordId = "";
+let appStateRecordId = "";
 let syncTimer = null;
+let appStateSyncTimer = null;
 let pendingRemoteVoyage = null;
 let statusText = "Synchronisé";
 let draftDateRange = { start: "", end: "", next: "start" };
@@ -267,11 +271,13 @@ function getPB() {
 }
 
 function currentVoyage() {
-  return state.voyages.find(voyage => voyage.id === state.currentVoyageId) || state.voyages[0] || null;
+  const voyages = visibleVoyages(state.voyages);
+  return voyages.find(voyage => voyage.id === state.currentVoyageId) || voyages[0] || null;
 }
 
 function currentQuickList() {
-  return state.quickLists.find(list => list.id === state.currentQuickListId) || state.quickLists[0] || null;
+  const lists = visibleQuickLists(state.quickLists);
+  return lists.find(list => list.id === state.currentQuickListId) || lists[0] || null;
 }
 
 function timestampValue(value) {
@@ -309,6 +315,33 @@ function visibleCustomItems(items = []) {
 
 function visibleCustomCategories(categories = []) {
   return categories.filter(category => !isDeleted(category));
+}
+
+function visibleVoyages(voyages = []) {
+  return voyages.filter(voyage => !isDeleted(voyage));
+}
+
+function visibleQuickLists(lists = []) {
+  return lists.filter(list => !isDeleted(list));
+}
+
+function syncedVoyages() {
+  return state.voyages.filter(voyage => voyage && voyage.personal !== true && voyage.code !== SETTINGS_CODE);
+}
+
+function syncedQuickLists() {
+  return state.quickLists.filter(list => list && list.personal !== true);
+}
+
+function syncedCustomCategories() {
+  return state.customCategories.filter(category => category && category.personal !== true);
+}
+
+function syncedCustomCategoryMembers() {
+  const categoryMembers = syncedCustomCategories().map(defaultMemberForCategory);
+  return state.customCategoryMembers
+    .map(normalizeMemberName)
+    .filter(name => categoryMembers.includes(name));
 }
 
 function visibleCategories(categories = []) {
@@ -587,11 +620,13 @@ function makeVoyage(name, date, options = {}) {
     },
     enrichment: options.enrichment || null,
     shared: true,
+    personal: options.personal === true,
     remoteRecordId: "",
     members: createMembersFromParticipants(options.participants || [], options),
     categories: createGeneralCategories(options),
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    deletedAt: ""
   };
   voyage.members.forEach(member => {
     state.openMembers[member.id] = false;
@@ -628,9 +663,11 @@ function normalizeVoyage(raw) {
     presetOptions: voyage.presetOptions || { transport: [], lodging: [], activity: [] },
     enrichment: voyage.enrichment || null,
     shared: Boolean(voyage.shared || voyage.remoteRecordId),
+    personal: voyage.personal === true,
     remoteRecordId: voyage.remoteRecordId || "",
     createdAt: voyage.createdAt || new Date().toISOString(),
     updatedAt: voyage.updatedAt || new Date().toISOString(),
+    deletedAt: voyage.deletedAt || "",
     members,
     categories: generalCategories
   };
@@ -670,9 +707,11 @@ function normalizeQuickList(raw) {
     type: "quickList",
     items: Array.isArray(list.items) ? list.items.map(normalizeQuickItem).filter(item => item.name) : [],
     shared: list.shared === true,
+    personal: list.personal === true,
     remoteRecordId: list.remoteRecordId || "",
     createdAt: list.createdAt || new Date().toISOString(),
-    updatedAt: list.updatedAt || new Date().toISOString()
+    updatedAt: list.updatedAt || new Date().toISOString(),
+    deletedAt: list.deletedAt || ""
   };
 }
 
@@ -697,6 +736,7 @@ function normalizeCustomCategory(raw) {
     name: category.name || "Cat\u00e9gorie personnalis\u00e9e",
     icon: category.icon && categoryIcons.includes(category.icon) ? category.icon : categoryIconForName(category.name || "Cat\u00e9gorie personnalis\u00e9e"),
     member: defaultMemberForCategory(category),
+    personal: category.personal === true,
     updatedAt: category.updatedAt || "",
     deletedAt: category.deletedAt || "",
     items: Array.isArray(category.items)
@@ -746,6 +786,19 @@ function mergeByIdOrName(localItems = [], remoteItems = [], mergeEntity = newerE
   }).filter(Boolean);
 }
 
+function mergeByIdentity(localItems = [], remoteItems = [], mergeEntity = newerEntity) {
+  const keyFor = item => item?.id || item?.code || "";
+  const keys = new Set([
+    ...localItems.map(keyFor).filter(Boolean),
+    ...remoteItems.map(keyFor).filter(Boolean)
+  ]);
+  return [...keys].map(key => {
+    const local = localItems.find(item => keyFor(item) === key);
+    const remote = remoteItems.find(item => keyFor(item) === key);
+    return mergeEntity(local, remote);
+  }).filter(Boolean);
+}
+
 function mergeItems(local, remote) {
   return newerEntity(local, remote);
 }
@@ -771,7 +824,7 @@ function mergeMembers(local, remote) {
 function mergeVoyages(localVoyage, remoteVoyage) {
   const local = normalizeVoyage(localVoyage);
   const remote = normalizeVoyage(remoteVoyage);
-  const base = timestampValue(remote.updatedAt) > timestampValue(local.updatedAt) ? remote : local;
+  const base = entityTimestamp(remote) > entityTimestamp(local) ? remote : local;
   return normalizeVoyage({
     ...base,
     id: local.id || remote.id,
@@ -787,7 +840,7 @@ function mergeVoyages(localVoyage, remoteVoyage) {
 function mergeQuickLists(localList, remoteList) {
   const local = normalizeQuickList(localList);
   const remote = normalizeQuickList(remoteList);
-  const base = timestampValue(remote.updatedAt) > timestampValue(local.updatedAt) ? remote : local;
+  const base = entityTimestamp(remote) > entityTimestamp(local) ? remote : local;
   return normalizeQuickList({
     ...base,
     id: local.id || remote.id,
@@ -797,6 +850,14 @@ function mergeQuickLists(localList, remoteList) {
     items: mergeByIdOrName(local.items || [], remote.items || [], newerEntity),
     updatedAt: nowISO()
   });
+}
+
+function mergeVoyageList(localVoyages = [], remoteVoyages = []) {
+  return mergeByIdentity(localVoyages.map(normalizeVoyage), remoteVoyages.map(normalizeVoyage), mergeVoyages);
+}
+
+function mergeQuickListCollection(localLists = [], remoteLists = []) {
+  return mergeByIdentity(localLists.map(normalizeQuickList), remoteLists.map(normalizeQuickList), mergeQuickLists);
 }
 
 function mergeCustomCategories(localCategory, remoteCategory) {
@@ -862,6 +923,60 @@ function mergeSettingsData(localData, remoteData) {
   };
 }
 
+function appStatePayload() {
+  const settings = settingsPayload();
+  return {
+    type: "appState",
+    version: VERSION,
+    updatedAt: nowISO(),
+    voyages: syncedVoyages(),
+    quickLists: syncedQuickLists(),
+    customCategories: syncedCustomCategories(),
+    customCategoryMembers: syncedCustomCategoryMembers(),
+    customMemberAliases: state.customMemberAliases,
+    customMemberGroups: state.customMemberGroups,
+    customMemberDeletedAt: state.customMemberDeletedAt,
+    settings
+  };
+}
+
+function mergeAppStateData(localData, remoteData) {
+  const local = localData || {};
+  const remote = remoteData || {};
+  const mergedSettings = mergeSettingsData(local.settings || local, remote.settings || remote);
+  return {
+    type: "appState",
+    version: VERSION,
+    updatedAt: nowISO(),
+    voyages: mergeVoyageList(local.voyages || [], remote.voyages || []),
+    quickLists: mergeQuickListCollection(local.quickLists || [], remote.quickLists || []),
+    customCategories: mergedSettings.customCategories,
+    customCategoryMembers: mergedSettings.customCategoryMembers,
+    customMemberAliases: mergedSettings.customMemberAliases,
+    customMemberGroups: mergedSettings.customMemberGroups,
+    customMemberDeletedAt: mergedSettings.customMemberDeletedAt,
+    settings: mergedSettings
+  };
+}
+
+function applyAppStateData(data) {
+  const merged = mergeAppStateData(appStatePayload(), data);
+  const personalVoyages = state.voyages.filter(voyage => voyage.personal === true);
+  const personalQuickLists = state.quickLists.filter(list => list.personal === true);
+  const personalCategories = state.customCategories.filter(category => category.personal === true);
+  state.voyages = [...personalVoyages, ...merged.voyages.map(normalizeVoyage)];
+  state.quickLists = [...personalQuickLists, ...merged.quickLists.map(normalizeQuickList)];
+  state.customCategories = [...personalCategories, ...merged.customCategories.map(normalizeCustomCategory)];
+  state.customCategoryMembers = Array.isArray(merged.customCategoryMembers) ? merged.customCategoryMembers.map(normalizeMemberName) : [];
+  state.customMemberAliases = merged.customMemberAliases || {};
+  state.customMemberGroups = merged.customMemberGroups || {};
+  state.customMemberDeletedAt = merged.customMemberDeletedAt || {};
+  state.currentVoyageId = currentVoyage()?.id || null;
+  state.currentQuickListId = currentQuickList()?.id || null;
+  saveLocal();
+  if (!isUserEditing()) render();
+}
+
 function saveLocal() {
   const payload = {
     version: VERSION,
@@ -876,7 +991,8 @@ function saveLocal() {
     customMemberAliases: state.customMemberAliases,
     customMemberGroups: state.customMemberGroups,
     customMemberDeletedAt: state.customMemberDeletedAt,
-    settingsRecordId
+    settingsRecordId,
+    appStateRecordId
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -899,7 +1015,8 @@ function backupPayload() {
       customMemberAliases: state.customMemberAliases,
       customMemberGroups: state.customMemberGroups,
       customMemberDeletedAt: state.customMemberDeletedAt,
-      settingsRecordId
+      settingsRecordId,
+      appStateRecordId
     }
   };
 }
@@ -959,16 +1076,13 @@ async function importBackupFile(event) {
     state.customMemberGroups = data.customMemberGroups && typeof data.customMemberGroups === "object" ? data.customMemberGroups : {};
     state.customMemberDeletedAt = data.customMemberDeletedAt && typeof data.customMemberDeletedAt === "object" ? data.customMemberDeletedAt : {};
     settingsRecordId = data.settingsRecordId || settingsRecordId || "";
+    appStateRecordId = data.appStateRecordId || appStateRecordId || "";
 
     saveLocal();
     render();
     showToast("Sauvegarde import\u00e9e");
     setStatus("Synchronisation...");
-    await saveSharedSettings();
-    syncAllVoyages({ immediate: true });
-    syncAllQuickLists({ immediate: true });
-    subscribeToCurrentVoyage();
-    subscribeToCurrentQuickList();
+    await saveAppStateRemote();
   } catch (error) {
     console.warn("Import de sauvegarde impossible", error);
     alert("Cette sauvegarde ne peut pas \u00eatre import\u00e9e. V\u00e9rifie que c'est bien un fichier JSON export\u00e9 depuis l'application.");
@@ -994,6 +1108,7 @@ function loadLocal() {
       state.customMemberGroups = parsed.customMemberGroups && typeof parsed.customMemberGroups === "object" ? parsed.customMemberGroups : {};
       state.customMemberDeletedAt = parsed.customMemberDeletedAt && typeof parsed.customMemberDeletedAt === "object" ? parsed.customMemberDeletedAt : {};
       settingsRecordId = parsed.settingsRecordId || "";
+      appStateRecordId = parsed.appStateRecordId || "";
       return;
     } catch (error) {
       console.warn("Impossible de charger le stockage v2", error);
@@ -1076,7 +1191,7 @@ function setStatus(text) {
   const voyage = currentVoyage();
   if (status) {
     if (state.tab === "voyages") {
-      const count = state.voyages.length;
+      const count = visibleVoyages(state.voyages).length;
       status.textContent = count ? `${count} voyage${count > 1 ? "s" : ""} enregistré${count > 1 ? "s" : ""}` : "Ajoutez votre premier voyage";
     } else {
       status.textContent = voyage ? `${voyage.name} · ${text}` : "Préparez vos sacs sans prise de tête";
@@ -1156,8 +1271,11 @@ function openVoyageSheet(voyageId = null) {
   document.querySelectorAll("#voyageSheet input[type='checkbox']").forEach(input => {
     input.checked = false;
   });
+  const personalInput = document.getElementById("voyagePersonal");
+  if (personalInput) personalInput.checked = false;
   if (voyage) {
     document.getElementById("voyageName").value = voyage.name || "";
+    if (personalInput) personalInput.checked = voyage.personal === true;
     selectedDestination = voyage.destination || voyage.enrichment?.location || null;
     document.getElementById("voyageLocation").value = selectedDestination
       ? [selectedDestination.name, selectedDestination.admin1, selectedDestination.country].filter(Boolean).join(", ")
@@ -1211,7 +1329,8 @@ async function saveVoyageSheet(event) {
     startDate: draftDateRange.start,
     endDate: draftDateRange.end,
     destination: selectedDestination,
-    participants: existing ? voyageMembers(existing).map(member => member.name) : [...draftVoyageParticipants]
+    participants: existing ? voyageMembers(existing).map(member => member.name) : [...draftVoyageParticipants],
+    personal: form.elements.personal?.checked === true
   };
   if (!existing && !options.participants.length) {
     alert("Choisis au moins un participant pour créer le voyage.");
@@ -1231,6 +1350,7 @@ async function saveVoyageSheet(event) {
     voyage.startDate = options.startDate;
     voyage.endDate = options.endDate;
     voyage.destination = options.destination;
+    voyage.personal = options.personal;
     voyage.presetOptions = {
       transport: options.transport,
       lodging: options.lodging,
@@ -1750,27 +1870,14 @@ function renameCurrentVoyage() {
 async function deleteVoyage(id) {
   const voyage = state.voyages.find(item => item.id === id);
   if (!voyage) return;
-  if (!confirm(`Supprimer le voyage "${voyage.name}" de l'application et de la base de données ?`)) return;
-  try {
-    const client = getPB();
-    if (client && voyage.code) {
-      let recordId = voyage.remoteRecordId;
-      if (!recordId) {
-        const record = await findRecordByCode(voyage.code);
-        recordId = record?.id;
-      }
-      if (recordId) await client.collection(PB_COLLECTION).delete(recordId, { requestKey: null });
-    }
-  } catch (error) {
-    console.warn("Suppression distante impossible", error);
-    alert("Impossible de supprimer ce voyage dans la base de données pour le moment. Réessaie quand la connexion est disponible.");
-    return;
-  }
-  state.voyages = state.voyages.filter(item => item.id !== id);
-  if (state.currentVoyageId === id) state.currentVoyageId = state.voyages[0]?.id || null;
+  if (!confirm(`Supprimer le voyage "${voyage.name}" ?`)) return;
+  const timestamp = nowISO();
+  voyage.deletedAt = timestamp;
+  touchVoyage(voyage, timestamp);
+  if (state.currentVoyageId === id) state.currentVoyageId = visibleVoyages(state.voyages)[0]?.id || null;
   saveLocal();
+  scheduleAppStateSync({ immediate: true });
   render();
-  subscribeToCurrentVoyage();
 }
 
 function resetVoyageLists(id) {
@@ -2151,9 +2258,8 @@ function endItemSwipe(event, itemId) {
 
 function saveAndSync(voyage, options = {}) {
   saveLocal();
-  if (syncTimer) clearTimeout(syncTimer);
-  const delay = options.immediate ? 0 : 550;
-  syncTimer = setTimeout(() => saveVoyageRemote(voyage), delay);
+  if (voyage?.personal === true) return;
+  scheduleAppStateSync(options);
 }
 
 async function findRecordByCode(code) {
@@ -2162,6 +2268,97 @@ async function findRecordByCode(code) {
   return client.collection(PB_COLLECTION).getFirstListItem(`code = "${cleanCode(code)}"`, {
     requestKey: null
   });
+}
+
+function scheduleAppStateSync(options = {}) {
+  saveLocal();
+  if (appStateSyncTimer) clearTimeout(appStateSyncTimer);
+  const delay = options.immediate ? 0 : 650;
+  appStateSyncTimer = setTimeout(() => saveAppStateRemote(), delay);
+}
+
+async function loadAppStateRemote() {
+  const client = getPB();
+  if (!client) return false;
+  try {
+    const record = await findRecordByCode(APP_STATE_CODE);
+    appStateRecordId = record.id;
+    if (record?.data) applyAppStateData(record.data);
+    await subscribeToAppState();
+    setStatus("Synchronisé");
+    return true;
+  } catch (error) {
+    console.warn("État familial partagé indisponible", error);
+    return false;
+  }
+}
+
+async function saveAppStateRemote() {
+  const client = getPB();
+  if (!client) {
+    setStatus("Hors ligne");
+    return;
+  }
+  try {
+    setStatus("Synchronisation...");
+    let record = null;
+    if (appStateRecordId) {
+      try {
+        record = await client.collection(PB_COLLECTION).getOne(appStateRecordId, { requestKey: null });
+      } catch (error) {
+        record = null;
+      }
+    }
+    if (!record) {
+      try {
+        record = await findRecordByCode(APP_STATE_CODE);
+      } catch (error) {
+        record = null;
+      }
+    }
+    const data = mergeAppStateData(appStatePayload(), record?.data || {});
+    if (record) {
+      record = await client.collection(PB_COLLECTION).update(record.id, { code: APP_STATE_CODE, data }, { requestKey: null });
+    } else {
+      record = await client.collection(PB_COLLECTION).create({ code: APP_STATE_CODE, data }, { requestKey: null });
+    }
+    appStateRecordId = record.id;
+    applyAppStateData(data);
+    setStatus("Synchronisé");
+    await subscribeToAppState();
+  } catch (error) {
+    console.warn("Sauvegarde de l'état familial impossible", error);
+    setStatus("Hors ligne");
+  }
+}
+
+async function subscribeToAppState() {
+  const client = getPB();
+  if (!client) return;
+  if (unsubscribeAppState) {
+    try {
+      unsubscribeAppState();
+    } catch (error) {
+      console.warn("Désabonnement état familial impossible", error);
+    }
+    unsubscribeAppState = null;
+  }
+  try {
+    let record = null;
+    if (appStateRecordId) {
+      record = await client.collection(PB_COLLECTION).getOne(appStateRecordId, { requestKey: null });
+    } else {
+      record = await findRecordByCode(APP_STATE_CODE);
+    }
+    appStateRecordId = record.id;
+    saveLocal();
+    unsubscribeAppState = await client.collection(PB_COLLECTION).subscribe(record.id, event => {
+      if (event.action !== "update" || !event.record?.data) return;
+      applyAppStateData(event.record.data);
+    }, { requestKey: null });
+  } catch (error) {
+    console.warn("Abonnement état familial impossible", error);
+  }
 }
 
 function settingsPayload() {
@@ -2228,6 +2425,8 @@ async function loadSharedSettings() {
 
 async function saveSharedSettings() {
   saveLocal();
+  scheduleAppStateSync();
+  return;
   const client = getPB();
   if (!client) return;
   try {
@@ -2307,6 +2506,12 @@ function remotePayload(voyage) {
 
 async function saveVoyageRemote(voyage) {
   if (!voyage) return;
+  if (voyage.personal === true) {
+    saveLocal();
+    return;
+  }
+  await saveAppStateRemote();
+  return;
   const client = getPB();
   if (!client) {
     setStatus("Hors ligne");
@@ -2363,11 +2568,7 @@ async function saveVoyageRemote(voyage) {
   }
 }
 function syncAllVoyages(options = {}) {
-  state.voyages
-    .filter(voyage => voyage?.code && voyage.code !== SETTINGS_CODE)
-    .forEach((voyage, index) => {
-      setTimeout(() => saveVoyageRemote(voyage), options.immediate ? 0 : index * 250);
-    });
+  scheduleAppStateSync(options);
 }
 
 function quickListPayload(list) {
@@ -2382,6 +2583,12 @@ function quickListPayload(list) {
 
 async function saveQuickListRemote(list) {
   if (!list) return;
+  if (list.personal === true) {
+    saveLocal();
+    return;
+  }
+  await saveAppStateRemote();
+  return;
   const client = getPB();
   if (!client) {
     setStatus("Hors ligne");
@@ -2432,16 +2639,12 @@ async function saveQuickListRemote(list) {
 
 function saveQuickListAndSync(list, options = {}) {
   saveLocal();
-  const delay = options.immediate ? 0 : 550;
-  setTimeout(() => saveQuickListRemote(list), delay);
+  if (list?.personal === true) return;
+  scheduleAppStateSync(options);
 }
 
 function syncAllQuickLists(options = {}) {
-  state.quickLists
-    .filter(list => list?.code)
-    .forEach((list, index) => {
-      setTimeout(() => saveQuickListRemote(list), options.immediate ? 0 : index * 250);
-    });
+  scheduleAppStateSync(options);
 }
 
 function applyRemoteQuickList(incoming) {
@@ -2456,8 +2659,6 @@ function applyRemoteQuickList(incoming) {
 }
 
 async function subscribeToCurrentQuickList() {
-  const list = currentQuickList();
-  const client = getPB();
   if (unsubscribeQuickList) {
     try {
       unsubscribeQuickList();
@@ -2466,6 +2667,9 @@ async function subscribeToCurrentQuickList() {
     }
     unsubscribeQuickList = null;
   }
+  return;
+  const list = currentQuickList();
+  const client = getPB();
   if (!client || !list?.code || state.tab !== "quickListDetail") return;
   try {
     let record = null;
@@ -2499,13 +2703,14 @@ function createQuickList() {
   if (value === null) return;
   const name = value.trim();
   if (!name) return;
-  const list = normalizeQuickList({ name, items: [] });
+  const personal = confirm("Garder cette liste rapide en perso, sans synchronisation familiale ?");
+  const list = normalizeQuickList({ name, personal, items: [] });
   state.quickLists.unshift(list);
   state.currentQuickListId = list.id;
   state.tab = "quickListDetail";
   saveLocal();
   render();
-  saveQuickListRemote(list);
+  saveQuickListAndSync(list, { immediate: true });
 }
 
 async function joinQuickList(event) {
@@ -2653,29 +2858,17 @@ async function deleteQuickList(id) {
   const list = state.quickLists.find(item => item.id === id);
   if (!list) return;
   if (!confirm(`Supprimer la liste rapide "${list.name}" ?`)) return;
-  try {
-    const client = getPB();
-    if (client && list.code) {
-      let recordId = list.remoteRecordId;
-      if (!recordId) {
-        const record = await findRecordByCode(list.code);
-        recordId = record?.id;
-      }
-      if (recordId) await client.collection(PB_COLLECTION).delete(recordId, { requestKey: null });
-    }
-  } catch (error) {
-    console.warn("Suppression liste rapide distante impossible", error);
-  }
-  state.quickLists = state.quickLists.filter(item => item.id !== id);
-  state.currentQuickListId = state.quickLists[0]?.id || null;
+  const timestamp = nowISO();
+  list.deletedAt = timestamp;
+  list.updatedAt = timestamp;
+  state.currentQuickListId = visibleQuickLists(state.quickLists)[0]?.id || null;
   state.tab = "quickLists";
   saveLocal();
+  scheduleAppStateSync({ immediate: true });
   render();
 }
 
 async function subscribeToCurrentVoyage() {
-  const voyage = currentVoyage();
-  const client = getPB();
   if (unsubscribeCurrent) {
     try {
       unsubscribeCurrent();
@@ -2684,6 +2877,9 @@ async function subscribeToCurrentVoyage() {
     }
     unsubscribeCurrent = null;
   }
+  return;
+  const voyage = currentVoyage();
+  const client = getPB();
   if (!client || !voyage?.code) {
     setStatus(voyage?.shared ? "Synchronisé" : "Synchronisation...");
     return;
@@ -2986,7 +3182,8 @@ function addCustomCategoryToMember(memberName) {
   const name = value.trim();
   if (!name) return;
   const timestamp = nowISO();
-  const category = { id: uid("tpl"), name, icon: categoryIconForName(name), member: current, updatedAt: timestamp, deletedAt: "", items: [] };
+  const personal = confirm("Garder cette catégorie personnalisée en perso, sans synchronisation familiale ?");
+  const category = { id: uid("tpl"), name, icon: categoryIconForName(name), member: current, personal, updatedAt: timestamp, deletedAt: "", items: [] };
   state.customCategories.push(category);
   state.openCats[category.id] = true;
   state.openMembers[`custom-${current}`] = true;
@@ -3379,7 +3576,7 @@ function renderCustomCategories() {
 
 function renderQuickLists() {
   const content = document.getElementById("content");
-  const cards = state.quickLists.map(list => {
+  const cards = visibleQuickLists(state.quickLists).map(list => {
     const visible = visibleQuickItems(list.items || []);
     const done = visible.filter(item => item.done).length;
     const total = visible.length;
@@ -3391,7 +3588,7 @@ function renderQuickLists() {
             <h2 class="voyage-name">${escapeHTML(list.name)}</h2>
             <div class="voyage-meta">
               <span class="badge">${done}/${total} prêts</span>
-              <span class="badge blue">${escapeHTML(list.code)}</span>
+              ${list.personal ? `<span class="badge blue">Perso</span>` : ""}
             </div>
           </div>
           <div class="status">${percent}%</div>
@@ -3415,10 +3612,7 @@ function renderQuickLists() {
         <strong>Ajouter une liste rapide</strong>
       </button>
     </section>
-    <form class="add-item section" onsubmit="joinQuickList(event)">
-      <button class="btn green" type="submit">+</button>
-      <input autocomplete="off" inputmode="text" maxlength="8" placeholder="Ajouter via un code">
-    </form>
+    
   `;
 }
 
@@ -3464,7 +3658,7 @@ function renderQuickListDetail() {
         <div class="toolbar-title">
           <div class="title-row">
             <h2>${escapeHTML(list.name)}</h2>
-            <button class="code-button" type="button" onclick="copyCode('${list.code}')" title="Copier le code">${escapeHTML(list.code)}</button>
+            ${list.personal ? `<span class="badge blue">Perso</span>` : ""}
           </div>
           <p>${done}/${total} éléments prêts</p>
         </div>
@@ -3495,14 +3689,14 @@ function renderQuickListDetail() {
 
 function renderVoyages() {
   const content = document.getElementById("content");
-  if (!state.voyages.length) {
+  if (!visibleVoyages(state.voyages).length) {
     content.innerHTML = `
       <section class="home-hero" aria-label="Vacances en famille">
         <img src="./vacances.avif" alt="Famille en vacances">
       </section>
       <section class="panel empty">
         <h2>Aucun voyage pour le moment</h2>
-        <p>Ajoutez un voyage en le créant ou avec un code partagé.</p>
+        <p>Ajoutez un voyage familial ou gardez-le en perso.</p>
       </section>
       <button class="voyage-card add-card full" type="button" onclick="openVoyageSheet()">
         <span class="plus">+</span>
@@ -3512,7 +3706,7 @@ function renderVoyages() {
     return;
   }
 
-  const cards = state.voyages.map(voyage => {
+  const cards = visibleVoyages(state.voyages).map(voyage => {
     const progress = progressForVoyage(voyage);
     const isCurrent = voyage.id === state.currentVoyageId;
     const dateLine = formatTripDateLine(voyage);
@@ -3527,7 +3721,7 @@ function renderVoyages() {
             ${dateLine ? `<p class="muted">${escapeHTML(dateLine)}</p>` : ""}
             <div class="voyage-meta">
               <span class="badge">${progress.done}/${progress.total} éléments prêts</span>
-              <span class="badge blue">${escapeHTML(voyage.code)}</span>
+              ${voyage.personal ? `<span class="badge blue">Perso</span>` : ""}
             </div>
           </div>
           <div class="status">${progress.percent}%</div>
@@ -3589,7 +3783,7 @@ function renderChecklist() {
           <div class="title-row">
             <h2>${escapeHTML(voyage.name)}</h2>
             ${renderDestinationLink(voyage)}
-            <button class="code-button" type="button" onclick="copyCode('${voyage.code}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
+            ${voyage.personal ? `<span class="badge blue">Perso</span>` : ""}
           </div>
           ${dateLine ? `<p>${escapeHTML(dateLine)} ${durationLabel ? `<span class="badge">${escapeHTML(durationLabel)}</span>` : ""}</p>` : ""}
           <p>${progress.done}/${progress.total} éléments prêts</p>
@@ -3793,8 +3987,7 @@ document.addEventListener("click", event => {
 });
 
 window.addEventListener("online", () => {
-  syncAllVoyages({ immediate: true });
-  syncAllQuickLists({ immediate: true });
+  scheduleAppStateSync({ immediate: true });
 });
 
 if ("serviceWorker" in navigator) {
@@ -3805,12 +3998,19 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-loadLocal();
-render();
-loadSharedSettings();
-syncAllVoyages();
-syncAllQuickLists();
-subscribeToCurrentVoyage();
+async function startApp() {
+  loadLocal();
+  render();
+  const loaded = await loadAppStateRemote();
+  if (!loaded) {
+    await loadSharedSettings();
+    await saveAppStateRemote();
+  }
+  render();
+}
+
+startApp();
+
 
 
 
