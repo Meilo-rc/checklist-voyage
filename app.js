@@ -1,4 +1,4 @@
-﻿const VERSION = "1.86";
+﻿const VERSION = "1.87";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -820,9 +820,18 @@ function mergeCustomCategoryList(localCategories = [], remoteCategories = []) {
   }).filter(Boolean);
 }
 
+function settingsCategorySources(data) {
+  const customSource = Array.isArray(data?.customCategories) ? data.customCategories : [];
+  const voyageSource = Array.isArray(data?.voyage?.categories) ? data.voyage.categories : [];
+  return mergeCustomCategoryList(
+    customSource.map(normalizeCustomCategory),
+    voyageSource.map(normalizeCustomCategory)
+  );
+}
+
 function mergeSettingsData(localData, remoteData) {
-  const localSource = localData?.customCategories || localData?.voyage?.categories || [];
-  const remoteSource = remoteData?.customCategories || remoteData?.voyage?.categories || [];
+  const localSource = settingsCategorySources(localData);
+  const remoteSource = settingsCategorySources(remoteData);
   const localMembers = Array.isArray(localData?.customCategoryMembers) ? localData.customCategoryMembers : [];
   const remoteMembers = Array.isArray(remoteData?.customCategoryMembers) ? remoteData.customCategoryMembers : [];
   const members = [...localMembers, ...remoteMembers]
@@ -831,8 +840,8 @@ function mergeSettingsData(localData, remoteData) {
   return {
     type: "settings",
     customCategories: mergeCustomCategoryList(
-      localSource.map(normalizeCustomCategory),
-      remoteSource.map(normalizeCustomCategory)
+      localSource,
+      remoteSource
     ),
     customCategoryMembers: members,
     customMemberAliases: {
@@ -3725,4 +3734,5 @@ loadSharedSettings();
 syncAllVoyages();
 syncAllQuickLists();
 subscribeToCurrentVoyage();
+
 
