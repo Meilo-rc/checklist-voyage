@@ -1,20 +1,16 @@
-﻿const VERSION = "1.92";
+﻿const VERSION = "1.86";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
 const PB_COLLECTION = "travel_checklists";
 const SETTINGS_CODE = "PARAMS";
-const APP_STATE_CODE = "FAMILY";
 
 let pb = null;
 let unsubscribeCurrent = null;
 let unsubscribeSettings = null;
 let unsubscribeQuickList = null;
-let unsubscribeAppState = null;
 let settingsRecordId = "";
-let appStateRecordId = "";
 let syncTimer = null;
-let appStateSyncTimer = null;
 let pendingRemoteVoyage = null;
 let statusText = "Synchronisé";
 let draftDateRange = { start: "", end: "", next: "start" };
@@ -258,18 +254,6 @@ function customItemName(item) {
   return typeof item === "string" ? item : item?.name || "";
 }
 
-function normalizeStateInPlace() {
-  state.voyages = Array.isArray(state.voyages) ? state.voyages.filter(Boolean).map(normalizeVoyage) : [];
-  state.quickLists = Array.isArray(state.quickLists) ? state.quickLists.filter(Boolean).map(normalizeQuickList) : [];
-  state.customCategories = Array.isArray(state.customCategories) ? state.customCategories.filter(Boolean).map(normalizeCustomCategory) : [];
-  state.customCategoryMembers = Array.isArray(state.customCategoryMembers) ? state.customCategoryMembers.map(normalizeMemberName) : [];
-  state.openMembers = state.openMembers && typeof state.openMembers === "object" ? state.openMembers : {};
-  state.openCats = state.openCats && typeof state.openCats === "object" ? state.openCats : {};
-  state.customMemberAliases = state.customMemberAliases && typeof state.customMemberAliases === "object" ? state.customMemberAliases : {};
-  state.customMemberGroups = state.customMemberGroups && typeof state.customMemberGroups === "object" ? state.customMemberGroups : {};
-  state.customMemberDeletedAt = state.customMemberDeletedAt && typeof state.customMemberDeletedAt === "object" ? state.customMemberDeletedAt : {};
-}
-
 function isUserEditing() {
   const el = document.activeElement;
   return el && ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
@@ -283,13 +267,11 @@ function getPB() {
 }
 
 function currentVoyage() {
-  const voyages = visibleVoyages(state.voyages);
-  return voyages.find(voyage => voyage.id === state.currentVoyageId) || voyages[0] || null;
+  return state.voyages.find(voyage => voyage.id === state.currentVoyageId) || state.voyages[0] || null;
 }
 
 function currentQuickList() {
-  const lists = visibleQuickLists(state.quickLists);
-  return lists.find(list => list.id === state.currentQuickListId) || lists[0] || null;
+  return state.quickLists.find(list => list.id === state.currentQuickListId) || state.quickLists[0] || null;
 }
 
 function timestampValue(value) {
@@ -327,67 +309,6 @@ function visibleCustomItems(items = []) {
 
 function visibleCustomCategories(categories = []) {
   return categories.filter(category => !isDeleted(category));
-}
-
-function visibleVoyages(voyages = []) {
-  return voyages.filter(voyage => !isDeleted(voyage) && !isMigrationPlaceholderVoyage(voyage));
-}
-
-function visibleQuickLists(lists = []) {
-  return lists.filter(list => !isDeleted(list));
-}
-
-function syncedVoyages() {
-  return state.voyages.filter(voyage => voyage && voyage.personal !== true && voyage.code !== SETTINGS_CODE && !isMigrationPlaceholderVoyage(voyage));
-}
-
-function syncedQuickLists() {
-  return state.quickLists.filter(list => list && list.personal !== true);
-}
-
-function syncedCustomCategories() {
-  return state.customCategories.filter(category => category && category.personal !== true);
-}
-
-function syncedCustomCategoryMembers() {
-  const categoryMembers = syncedCustomCategories().map(defaultMemberForCategory);
-  return state.customCategoryMembers
-    .map(normalizeMemberName)
-    .filter(name => categoryMembers.includes(name));
-}
-
-function isMigrationPlaceholderVoyage(voyage) {
-  if (!voyage || isDeleted(voyage)) return false;
-  const name = normalizeText(voyage.name);
-  const hasDate = Boolean(voyage.date || voyage.startDate || voyage.endDate);
-  const hasDestination = Boolean(voyage.destination || voyage.enrichment?.location);
-  return ["voyage", "nouveau voyage"].includes(name) && !hasDate && !hasDestination;
-}
-
-function validSyncedVoyage(raw) {
-  if (!raw || typeof raw !== "object") return false;
-  return !isMigrationPlaceholderVoyage(raw);
-}
-
-function cleanupMigrationPlaceholders() {
-  const before = state.voyages.length;
-  state.voyages = state.voyages.filter(voyage => !isMigrationPlaceholderVoyage(voyage));
-  const changed = state.voyages.length !== before;
-  if (changed && isMigrationPlaceholderVoyage(currentVoyage())) {
-    state.currentVoyageId = visibleVoyages(state.voyages).find(voyage => !isMigrationPlaceholderVoyage(voyage))?.id || null;
-  }
-  return changed;
-}
-
-function repairCustomMemberVisibility() {
-  let changed = false;
-  visibleCustomCategories(state.customCategories).forEach(category => {
-    const member = defaultMemberForCategory(category);
-    if (!state.customMemberDeletedAt?.[member]) return;
-    delete state.customMemberDeletedAt[member];
-    changed = true;
-  });
-  return changed;
 }
 
 function visibleCategories(categories = []) {
@@ -491,7 +412,7 @@ function cloneTemplateCategory(template) {
     items: visibleCustomItems(template.items || []).map(item => ({
       id: uid("item"),
       name: customItemName(item),
-      qty: normalizeQty(item.qty || 1),
+      qty: 1,
       status: "todo",
       done: false,
       updatedAt: timestamp,
@@ -666,13 +587,11 @@ function makeVoyage(name, date, options = {}) {
     },
     enrichment: options.enrichment || null,
     shared: true,
-    personal: options.personal === true,
     remoteRecordId: "",
     members: createMembersFromParticipants(options.participants || [], options),
     categories: createGeneralCategories(options),
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    deletedAt: ""
+    updatedAt: new Date().toISOString()
   };
   voyage.members.forEach(member => {
     state.openMembers[member.id] = false;
@@ -709,11 +628,9 @@ function normalizeVoyage(raw) {
     presetOptions: voyage.presetOptions || { transport: [], lodging: [], activity: [] },
     enrichment: voyage.enrichment || null,
     shared: Boolean(voyage.shared || voyage.remoteRecordId),
-    personal: voyage.personal === true,
     remoteRecordId: voyage.remoteRecordId || "",
     createdAt: voyage.createdAt || new Date().toISOString(),
     updatedAt: voyage.updatedAt || new Date().toISOString(),
-    deletedAt: voyage.deletedAt || "",
     members,
     categories: generalCategories
   };
@@ -738,7 +655,6 @@ function normalizeQuickItem(raw) {
     id: item.id || uid("quick-item"),
     name: item.name || "",
     done: item.done === true,
-    qty: normalizeQty(item.qty || 1),
     updatedAt: item.updatedAt || "",
     deletedAt: item.deletedAt || ""
   };
@@ -753,11 +669,9 @@ function normalizeQuickList(raw) {
     type: "quickList",
     items: Array.isArray(list.items) ? list.items.map(normalizeQuickItem).filter(item => item.name) : [],
     shared: list.shared === true,
-    personal: list.personal === true,
     remoteRecordId: list.remoteRecordId || "",
     createdAt: list.createdAt || new Date().toISOString(),
-    updatedAt: list.updatedAt || new Date().toISOString(),
-    deletedAt: list.deletedAt || ""
+    updatedAt: list.updatedAt || new Date().toISOString()
   };
 }
 
@@ -782,7 +696,6 @@ function normalizeCustomCategory(raw) {
     name: category.name || "Cat\u00e9gorie personnalis\u00e9e",
     icon: category.icon && categoryIcons.includes(category.icon) ? category.icon : categoryIconForName(category.name || "Cat\u00e9gorie personnalis\u00e9e"),
     member: defaultMemberForCategory(category),
-    personal: category.personal === true,
     updatedAt: category.updatedAt || "",
     deletedAt: category.deletedAt || "",
     items: Array.isArray(category.items)
@@ -796,7 +709,6 @@ function normalizeCustomItem(raw) {
   return {
     id: item.id || uid("tpl-item"),
     name: item.name || "",
-    qty: normalizeQty(item.qty || 1),
     updatedAt: item.updatedAt || "",
     deletedAt: item.deletedAt || ""
   };
@@ -821,19 +733,6 @@ function mergeById(localItems = [], remoteItems = [], mergeEntity = newerEntity)
 
 function mergeByIdOrName(localItems = [], remoteItems = [], mergeEntity = newerEntity) {
   const keyFor = item => normalizeText(item?.name || item) || item?.id;
-  const keys = new Set([
-    ...localItems.map(keyFor).filter(Boolean),
-    ...remoteItems.map(keyFor).filter(Boolean)
-  ]);
-  return [...keys].map(key => {
-    const local = localItems.find(item => keyFor(item) === key);
-    const remote = remoteItems.find(item => keyFor(item) === key);
-    return mergeEntity(local, remote);
-  }).filter(Boolean);
-}
-
-function mergeByIdentity(localItems = [], remoteItems = [], mergeEntity = newerEntity) {
-  const keyFor = item => item?.id || item?.code || "";
   const keys = new Set([
     ...localItems.map(keyFor).filter(Boolean),
     ...remoteItems.map(keyFor).filter(Boolean)
@@ -870,7 +769,7 @@ function mergeMembers(local, remote) {
 function mergeVoyages(localVoyage, remoteVoyage) {
   const local = normalizeVoyage(localVoyage);
   const remote = normalizeVoyage(remoteVoyage);
-  const base = entityTimestamp(remote) > entityTimestamp(local) ? remote : local;
+  const base = timestampValue(remote.updatedAt) > timestampValue(local.updatedAt) ? remote : local;
   return normalizeVoyage({
     ...base,
     id: local.id || remote.id,
@@ -886,7 +785,7 @@ function mergeVoyages(localVoyage, remoteVoyage) {
 function mergeQuickLists(localList, remoteList) {
   const local = normalizeQuickList(localList);
   const remote = normalizeQuickList(remoteList);
-  const base = entityTimestamp(remote) > entityTimestamp(local) ? remote : local;
+  const base = timestampValue(remote.updatedAt) > timestampValue(local.updatedAt) ? remote : local;
   return normalizeQuickList({
     ...base,
     id: local.id || remote.id,
@@ -896,16 +795,6 @@ function mergeQuickLists(localList, remoteList) {
     items: mergeByIdOrName(local.items || [], remote.items || [], newerEntity),
     updatedAt: nowISO()
   });
-}
-
-function mergeVoyageList(localVoyages = [], remoteVoyages = []) {
-  const local = localVoyages.filter(validSyncedVoyage).map(normalizeVoyage);
-  const remote = remoteVoyages.filter(validSyncedVoyage).map(normalizeVoyage);
-  return mergeByIdentity(local, remote, mergeVoyages).filter(validSyncedVoyage);
-}
-
-function mergeQuickListCollection(localLists = [], remoteLists = []) {
-  return mergeByIdentity(localLists.map(normalizeQuickList), remoteLists.map(normalizeQuickList), mergeQuickLists);
 }
 
 function mergeCustomCategories(localCategory, remoteCategory) {
@@ -931,18 +820,9 @@ function mergeCustomCategoryList(localCategories = [], remoteCategories = []) {
   }).filter(Boolean);
 }
 
-function settingsCategorySources(data) {
-  const customSource = Array.isArray(data?.customCategories) ? data.customCategories : [];
-  const voyageSource = Array.isArray(data?.voyage?.categories) ? data.voyage.categories : [];
-  return mergeCustomCategoryList(
-    customSource.map(normalizeCustomCategory),
-    voyageSource.map(normalizeCustomCategory)
-  );
-}
-
 function mergeSettingsData(localData, remoteData) {
-  const localSource = settingsCategorySources(localData);
-  const remoteSource = settingsCategorySources(remoteData);
+  const localSource = localData?.customCategories || localData?.voyage?.categories || [];
+  const remoteSource = remoteData?.customCategories || remoteData?.voyage?.categories || [];
   const localMembers = Array.isArray(localData?.customCategoryMembers) ? localData.customCategoryMembers : [];
   const remoteMembers = Array.isArray(remoteData?.customCategoryMembers) ? remoteData.customCategoryMembers : [];
   const members = [...localMembers, ...remoteMembers]
@@ -951,8 +831,8 @@ function mergeSettingsData(localData, remoteData) {
   return {
     type: "settings",
     customCategories: mergeCustomCategoryList(
-      localSource,
-      remoteSource
+      localSource.map(normalizeCustomCategory),
+      remoteSource.map(normalizeCustomCategory)
     ),
     customCategoryMembers: members,
     customMemberAliases: {
@@ -971,63 +851,6 @@ function mergeSettingsData(localData, remoteData) {
   };
 }
 
-function appStatePayload() {
-  cleanupMigrationPlaceholders();
-  repairCustomMemberVisibility();
-  const settings = settingsPayload();
-  return {
-    type: "appState",
-    version: VERSION,
-    updatedAt: nowISO(),
-    voyages: syncedVoyages(),
-    quickLists: syncedQuickLists(),
-    customCategories: syncedCustomCategories(),
-    customCategoryMembers: syncedCustomCategoryMembers(),
-    customMemberAliases: state.customMemberAliases,
-    customMemberGroups: state.customMemberGroups,
-    customMemberDeletedAt: state.customMemberDeletedAt,
-    settings
-  };
-}
-
-function mergeAppStateData(localData, remoteData) {
-  const local = localData || {};
-  const remote = remoteData || {};
-  const mergedSettings = mergeSettingsData(local.settings || local, remote.settings || remote);
-  const voyages = mergeVoyageList(local.voyages || [], remote.voyages || []).filter(voyage => !isMigrationPlaceholderVoyage(voyage));
-  return {
-    type: "appState",
-    version: VERSION,
-    updatedAt: nowISO(),
-    voyages,
-    quickLists: mergeQuickListCollection(local.quickLists || [], remote.quickLists || []),
-    customCategories: mergedSettings.customCategories,
-    customCategoryMembers: mergedSettings.customCategoryMembers,
-    customMemberAliases: mergedSettings.customMemberAliases,
-    customMemberGroups: mergedSettings.customMemberGroups,
-    customMemberDeletedAt: mergedSettings.customMemberDeletedAt,
-    settings: mergedSettings
-  };
-}
-
-function applyAppStateData(data) {
-  const merged = mergeAppStateData(appStatePayload(), data);
-  const personalVoyages = state.voyages.filter(voyage => voyage.personal === true && validSyncedVoyage(voyage));
-  const personalQuickLists = state.quickLists.filter(list => list.personal === true);
-  const personalCategories = state.customCategories.filter(category => category.personal === true);
-  state.voyages = [...personalVoyages, ...merged.voyages.map(normalizeVoyage)];
-  state.quickLists = [...personalQuickLists, ...merged.quickLists.map(normalizeQuickList)];
-  state.customCategories = [...personalCategories, ...merged.customCategories.map(normalizeCustomCategory)];
-  state.customCategoryMembers = Array.isArray(merged.customCategoryMembers) ? merged.customCategoryMembers.map(normalizeMemberName) : [];
-  state.customMemberAliases = merged.customMemberAliases || {};
-  state.customMemberGroups = merged.customMemberGroups || {};
-  state.customMemberDeletedAt = merged.customMemberDeletedAt || {};
-  state.currentVoyageId = currentVoyage()?.id || null;
-  state.currentQuickListId = currentQuickList()?.id || null;
-  saveLocal();
-  if (!isUserEditing()) render();
-}
-
 function saveLocal() {
   const payload = {
     version: VERSION,
@@ -1042,8 +865,7 @@ function saveLocal() {
     customMemberAliases: state.customMemberAliases,
     customMemberGroups: state.customMemberGroups,
     customMemberDeletedAt: state.customMemberDeletedAt,
-    settingsRecordId,
-    appStateRecordId
+    settingsRecordId
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -1066,8 +888,7 @@ function backupPayload() {
       customMemberAliases: state.customMemberAliases,
       customMemberGroups: state.customMemberGroups,
       customMemberDeletedAt: state.customMemberDeletedAt,
-      settingsRecordId,
-      appStateRecordId
+      settingsRecordId
     }
   };
 }
@@ -1127,13 +948,16 @@ async function importBackupFile(event) {
     state.customMemberGroups = data.customMemberGroups && typeof data.customMemberGroups === "object" ? data.customMemberGroups : {};
     state.customMemberDeletedAt = data.customMemberDeletedAt && typeof data.customMemberDeletedAt === "object" ? data.customMemberDeletedAt : {};
     settingsRecordId = data.settingsRecordId || settingsRecordId || "";
-    appStateRecordId = data.appStateRecordId || appStateRecordId || "";
 
     saveLocal();
     render();
     showToast("Sauvegarde import\u00e9e");
     setStatus("Synchronisation...");
-    await saveAppStateRemote();
+    await saveSharedSettings();
+    syncAllVoyages({ immediate: true });
+    syncAllQuickLists({ immediate: true });
+    subscribeToCurrentVoyage();
+    subscribeToCurrentQuickList();
   } catch (error) {
     console.warn("Import de sauvegarde impossible", error);
     alert("Cette sauvegarde ne peut pas \u00eatre import\u00e9e. V\u00e9rifie que c'est bien un fichier JSON export\u00e9 depuis l'application.");
@@ -1159,7 +983,6 @@ function loadLocal() {
       state.customMemberGroups = parsed.customMemberGroups && typeof parsed.customMemberGroups === "object" ? parsed.customMemberGroups : {};
       state.customMemberDeletedAt = parsed.customMemberDeletedAt && typeof parsed.customMemberDeletedAt === "object" ? parsed.customMemberDeletedAt : {};
       settingsRecordId = parsed.settingsRecordId || "";
-      appStateRecordId = parsed.appStateRecordId || "";
       return;
     } catch (error) {
       console.warn("Impossible de charger le stockage v2", error);
@@ -1242,7 +1065,7 @@ function setStatus(text) {
   const voyage = currentVoyage();
   if (status) {
     if (state.tab === "voyages") {
-      const count = visibleVoyages(state.voyages).length;
+      const count = state.voyages.length;
       status.textContent = count ? `${count} voyage${count > 1 ? "s" : ""} enregistré${count > 1 ? "s" : ""}` : "Ajoutez votre premier voyage";
     } else {
       status.textContent = voyage ? `${voyage.name} · ${text}` : "Préparez vos sacs sans prise de tête";
@@ -1322,11 +1145,8 @@ function openVoyageSheet(voyageId = null) {
   document.querySelectorAll("#voyageSheet input[type='checkbox']").forEach(input => {
     input.checked = false;
   });
-  const personalInput = document.getElementById("voyagePersonal");
-  if (personalInput) personalInput.checked = false;
   if (voyage) {
     document.getElementById("voyageName").value = voyage.name || "";
-    if (personalInput) personalInput.checked = voyage.personal === true;
     selectedDestination = voyage.destination || voyage.enrichment?.location || null;
     document.getElementById("voyageLocation").value = selectedDestination
       ? [selectedDestination.name, selectedDestination.admin1, selectedDestination.country].filter(Boolean).join(", ")
@@ -1380,8 +1200,7 @@ async function saveVoyageSheet(event) {
     startDate: draftDateRange.start,
     endDate: draftDateRange.end,
     destination: selectedDestination,
-    participants: existing ? voyageMembers(existing).map(member => member.name) : [...draftVoyageParticipants],
-    personal: form.elements.personal?.checked === true
+    participants: existing ? voyageMembers(existing).map(member => member.name) : [...draftVoyageParticipants]
   };
   if (!existing && !options.participants.length) {
     alert("Choisis au moins un participant pour créer le voyage.");
@@ -1401,7 +1220,6 @@ async function saveVoyageSheet(event) {
     voyage.startDate = options.startDate;
     voyage.endDate = options.endDate;
     voyage.destination = options.destination;
-    voyage.personal = options.personal;
     voyage.presetOptions = {
       transport: options.transport,
       lodging: options.lodging,
@@ -1921,14 +1739,27 @@ function renameCurrentVoyage() {
 async function deleteVoyage(id) {
   const voyage = state.voyages.find(item => item.id === id);
   if (!voyage) return;
-  if (!confirm(`Supprimer le voyage "${voyage.name}" ?`)) return;
-  const timestamp = nowISO();
-  voyage.deletedAt = timestamp;
-  touchVoyage(voyage, timestamp);
-  if (state.currentVoyageId === id) state.currentVoyageId = visibleVoyages(state.voyages)[0]?.id || null;
+  if (!confirm(`Supprimer le voyage "${voyage.name}" de l'application et de la base de données ?`)) return;
+  try {
+    const client = getPB();
+    if (client && voyage.code) {
+      let recordId = voyage.remoteRecordId;
+      if (!recordId) {
+        const record = await findRecordByCode(voyage.code);
+        recordId = record?.id;
+      }
+      if (recordId) await client.collection(PB_COLLECTION).delete(recordId, { requestKey: null });
+    }
+  } catch (error) {
+    console.warn("Suppression distante impossible", error);
+    alert("Impossible de supprimer ce voyage dans la base de données pour le moment. Réessaie quand la connexion est disponible.");
+    return;
+  }
+  state.voyages = state.voyages.filter(item => item.id !== id);
+  if (state.currentVoyageId === id) state.currentVoyageId = state.voyages[0]?.id || null;
   saveLocal();
-  scheduleAppStateSync({ immediate: true });
   render();
+  subscribeToCurrentVoyage();
 }
 
 function resetVoyageLists(id) {
@@ -1998,7 +1829,7 @@ function addCategoryToMember(memberId, templateId = "") {
       icon: categoryIcon(template),
       updatedAt: timestamp,
       deletedAt: "",
-      items: visibleCustomItems(template.items || []).map(item => ({ id: uid("item"), name: customItemName(item), qty: normalizeQty(item.qty || 1), status: "todo", done: false, updatedAt: timestamp, deletedAt: "" }))
+      items: visibleCustomItems(template.items || []).map(item => ({ id: uid("item"), name: customItemName(item), qty: 1, status: "todo", done: false, updatedAt: timestamp, deletedAt: "" }))
     };
   } else {
     const value = prompt("Nom de la catégorie");
@@ -2309,8 +2140,9 @@ function endItemSwipe(event, itemId) {
 
 function saveAndSync(voyage, options = {}) {
   saveLocal();
-  if (voyage?.personal === true) return;
-  scheduleAppStateSync(options);
+  if (syncTimer) clearTimeout(syncTimer);
+  const delay = options.immediate ? 0 : 550;
+  syncTimer = setTimeout(() => saveVoyageRemote(voyage), delay);
 }
 
 async function findRecordByCode(code) {
@@ -2321,100 +2153,8 @@ async function findRecordByCode(code) {
   });
 }
 
-function scheduleAppStateSync(options = {}) {
-  saveLocal();
-  if (appStateSyncTimer) clearTimeout(appStateSyncTimer);
-  const delay = options.immediate ? 0 : 650;
-  appStateSyncTimer = setTimeout(() => saveAppStateRemote(), delay);
-}
-
-async function loadAppStateRemote() {
-  const client = getPB();
-  if (!client) return false;
-  try {
-    const record = await findRecordByCode(APP_STATE_CODE);
-    appStateRecordId = record.id;
-    if (record?.data) applyAppStateData(record.data);
-    await subscribeToAppState();
-    setStatus("Synchronisé");
-    return true;
-  } catch (error) {
-    console.warn("État familial partagé indisponible", error);
-    return false;
-  }
-}
-
-async function saveAppStateRemote() {
-  const client = getPB();
-  if (!client) {
-    setStatus("Hors ligne");
-    return;
-  }
-  try {
-    setStatus("Synchronisation...");
-    let record = null;
-    if (appStateRecordId) {
-      try {
-        record = await client.collection(PB_COLLECTION).getOne(appStateRecordId, { requestKey: null });
-      } catch (error) {
-        record = null;
-      }
-    }
-    if (!record) {
-      try {
-        record = await findRecordByCode(APP_STATE_CODE);
-      } catch (error) {
-        record = null;
-      }
-    }
-    const data = mergeAppStateData(appStatePayload(), record?.data || {});
-    if (record) {
-      record = await client.collection(PB_COLLECTION).update(record.id, { code: APP_STATE_CODE, data }, { requestKey: null });
-    } else {
-      record = await client.collection(PB_COLLECTION).create({ code: APP_STATE_CODE, data }, { requestKey: null });
-    }
-    appStateRecordId = record.id;
-    applyAppStateData(data);
-    setStatus("Synchronisé");
-    await subscribeToAppState();
-  } catch (error) {
-    console.warn("Sauvegarde de l'état familial impossible", error);
-    setStatus("Hors ligne");
-  }
-}
-
-async function subscribeToAppState() {
-  const client = getPB();
-  if (!client) return;
-  if (unsubscribeAppState) {
-    try {
-      unsubscribeAppState();
-    } catch (error) {
-      console.warn("Désabonnement état familial impossible", error);
-    }
-    unsubscribeAppState = null;
-  }
-  try {
-    let record = null;
-    if (appStateRecordId) {
-      record = await client.collection(PB_COLLECTION).getOne(appStateRecordId, { requestKey: null });
-    } else {
-      record = await findRecordByCode(APP_STATE_CODE);
-    }
-    appStateRecordId = record.id;
-    saveLocal();
-    unsubscribeAppState = await client.collection(PB_COLLECTION).subscribe(record.id, event => {
-      if (event.action !== "update" || !event.record?.data) return;
-      applyAppStateData(event.record.data);
-    }, { requestKey: null });
-  } catch (error) {
-    console.warn("Abonnement état familial impossible", error);
-  }
-}
-
 function settingsPayload() {
-  const sharedCategories = visibleCustomCategories(syncedCustomCategories());
-  const categories = sharedCategories.map(category => ({
+  const categories = visibleCustomCategories(state.customCategories).map(category => ({
     id: category.id,
     name: category.name,
     icon: categoryIcon(category),
@@ -2424,7 +2164,7 @@ function settingsPayload() {
     items: visibleCustomItems(category.items || []).map(item => ({
       id: item.id,
       name: customItemName(item),
-      qty: normalizeQty(item.qty || 1),
+      qty: 1,
       done: false,
       updatedAt: item.updatedAt || "",
       deletedAt: item.deletedAt || ""
@@ -2432,7 +2172,7 @@ function settingsPayload() {
   }));
   return {
     type: "settings",
-    customCategories: sharedCategories,
+    customCategories: state.customCategories,
     customCategoryMembers: state.customCategoryMembers,
     customMemberAliases: state.customMemberAliases,
     customMemberGroups: state.customMemberGroups,
@@ -2477,8 +2217,6 @@ async function loadSharedSettings() {
 
 async function saveSharedSettings() {
   saveLocal();
-  scheduleAppStateSync();
-  return;
   const client = getPB();
   if (!client) return;
   try {
@@ -2558,12 +2296,6 @@ function remotePayload(voyage) {
 
 async function saveVoyageRemote(voyage) {
   if (!voyage) return;
-  if (voyage.personal === true) {
-    saveLocal();
-    return;
-  }
-  await saveAppStateRemote();
-  return;
   const client = getPB();
   if (!client) {
     setStatus("Hors ligne");
@@ -2620,7 +2352,11 @@ async function saveVoyageRemote(voyage) {
   }
 }
 function syncAllVoyages(options = {}) {
-  scheduleAppStateSync(options);
+  state.voyages
+    .filter(voyage => voyage?.code && voyage.code !== SETTINGS_CODE)
+    .forEach((voyage, index) => {
+      setTimeout(() => saveVoyageRemote(voyage), options.immediate ? 0 : index * 250);
+    });
 }
 
 function quickListPayload(list) {
@@ -2635,12 +2371,6 @@ function quickListPayload(list) {
 
 async function saveQuickListRemote(list) {
   if (!list) return;
-  if (list.personal === true) {
-    saveLocal();
-    return;
-  }
-  await saveAppStateRemote();
-  return;
   const client = getPB();
   if (!client) {
     setStatus("Hors ligne");
@@ -2691,12 +2421,16 @@ async function saveQuickListRemote(list) {
 
 function saveQuickListAndSync(list, options = {}) {
   saveLocal();
-  if (list?.personal === true) return;
-  scheduleAppStateSync(options);
+  const delay = options.immediate ? 0 : 550;
+  setTimeout(() => saveQuickListRemote(list), delay);
 }
 
 function syncAllQuickLists(options = {}) {
-  scheduleAppStateSync(options);
+  state.quickLists
+    .filter(list => list?.code)
+    .forEach((list, index) => {
+      setTimeout(() => saveQuickListRemote(list), options.immediate ? 0 : index * 250);
+    });
 }
 
 function applyRemoteQuickList(incoming) {
@@ -2711,6 +2445,8 @@ function applyRemoteQuickList(incoming) {
 }
 
 async function subscribeToCurrentQuickList() {
+  const list = currentQuickList();
+  const client = getPB();
   if (unsubscribeQuickList) {
     try {
       unsubscribeQuickList();
@@ -2719,9 +2455,6 @@ async function subscribeToCurrentQuickList() {
     }
     unsubscribeQuickList = null;
   }
-  return;
-  const list = currentQuickList();
-  const client = getPB();
   if (!client || !list?.code || state.tab !== "quickListDetail") return;
   try {
     let record = null;
@@ -2755,14 +2488,13 @@ function createQuickList() {
   if (value === null) return;
   const name = value.trim();
   if (!name) return;
-  const personal = confirm("Garder cette liste rapide en perso, sans synchronisation familiale ?");
-  const list = normalizeQuickList({ name, personal, items: [] });
+  const list = normalizeQuickList({ name, items: [] });
   state.quickLists.unshift(list);
   state.currentQuickListId = list.id;
   state.tab = "quickListDetail";
   saveLocal();
   render();
-  saveQuickListAndSync(list, { immediate: true });
+  saveQuickListRemote(list);
 }
 
 async function joinQuickList(event) {
@@ -2811,7 +2543,7 @@ function addQuickItem(event) {
   const name = input.value.trim();
   if (!list || !name) return;
   const timestamp = nowISO();
-  list.items.push({ id: uid("quick-item"), name, done: false, qty: 1, updatedAt: timestamp, deletedAt: "" });
+  list.items.push({ id: uid("quick-item"), name, done: false, updatedAt: timestamp, deletedAt: "" });
   sortQuickItems(list);
   input.value = "";
   list.updatedAt = timestamp;
@@ -2861,38 +2593,6 @@ function toggleQuickItem(itemId) {
   render();
 }
 
-function renameQuickItem(itemId) {
-  const list = currentQuickList();
-  const item = list?.items.find(row => row.id === itemId);
-  if (!list || !item) return;
-  const value = prompt("Renommer l'item", item.name);
-  if (value === null) return;
-  const name = value.trim();
-  if (!name) return;
-  const timestamp = nowISO();
-  item.name = name;
-  touchEntity(item, timestamp);
-  list.updatedAt = timestamp;
-  sortQuickItems(list);
-  saveQuickListAndSync(list, { immediate: true });
-  render();
-}
-
-function changeQuickQty(itemId, deltaOrValue) {
-  const list = currentQuickList();
-  const item = list?.items.find(row => row.id === itemId);
-  if (!list || !item) return;
-  if (typeof deltaOrValue === "number") {
-    item.qty = normalizeQty(item.qty + deltaOrValue);
-  } else {
-    item.qty = normalizeQty(deltaOrValue);
-  }
-  const timestamp = touchEntity(item);
-  list.updatedAt = timestamp;
-  saveQuickListAndSync(list);
-  render();
-}
-
 function deleteQuickItem(itemId) {
   const list = currentQuickList();
   if (!list) return;
@@ -2910,17 +2610,29 @@ async function deleteQuickList(id) {
   const list = state.quickLists.find(item => item.id === id);
   if (!list) return;
   if (!confirm(`Supprimer la liste rapide "${list.name}" ?`)) return;
-  const timestamp = nowISO();
-  list.deletedAt = timestamp;
-  list.updatedAt = timestamp;
-  state.currentQuickListId = visibleQuickLists(state.quickLists)[0]?.id || null;
+  try {
+    const client = getPB();
+    if (client && list.code) {
+      let recordId = list.remoteRecordId;
+      if (!recordId) {
+        const record = await findRecordByCode(list.code);
+        recordId = record?.id;
+      }
+      if (recordId) await client.collection(PB_COLLECTION).delete(recordId, { requestKey: null });
+    }
+  } catch (error) {
+    console.warn("Suppression liste rapide distante impossible", error);
+  }
+  state.quickLists = state.quickLists.filter(item => item.id !== id);
+  state.currentQuickListId = state.quickLists[0]?.id || null;
   state.tab = "quickLists";
   saveLocal();
-  scheduleAppStateSync({ immediate: true });
   render();
 }
 
 async function subscribeToCurrentVoyage() {
+  const voyage = currentVoyage();
+  const client = getPB();
   if (unsubscribeCurrent) {
     try {
       unsubscribeCurrent();
@@ -2929,9 +2641,6 @@ async function subscribeToCurrentVoyage() {
     }
     unsubscribeCurrent = null;
   }
-  return;
-  const voyage = currentVoyage();
-  const client = getPB();
   if (!client || !voyage?.code) {
     setStatus(voyage?.shared ? "Synchronisé" : "Synchronisation...");
     return;
@@ -3103,7 +2812,7 @@ function customMemberNames() {
     ...visibleCustomCategories(state.customCategories).map(defaultMemberForCategory)
   ]
     .map(normalizeMemberName)
-    .filter(name => !state.customMemberDeletedAt?.[name] || visibleCustomCategories(state.customCategories).some(category => defaultMemberForCategory(category) === name))
+    .filter(name => !state.customMemberDeletedAt?.[name])
     .filter(name => !defaultCustomGroupNames.includes(name) || aliasedDefaults.includes(name))
     .filter((name, index, list) => list.indexOf(name) === index);
 }
@@ -3132,7 +2841,7 @@ function buildIdealCustomCategories() {
     member: template.member,
     updatedAt: nowISO(),
     deletedAt: "",
-    items: template.items.map(name => ({ id: uid("tpl-item"), name, qty: 1, updatedAt: nowISO(), deletedAt: "" }))
+    items: template.items.map(name => ({ id: uid("tpl-item"), name, updatedAt: nowISO(), deletedAt: "" }))
   }));
   defaultMemberNames.forEach(name => {
     state.openMembers[`custom-${name}`] = false;
@@ -3234,8 +2943,7 @@ function addCustomCategoryToMember(memberName) {
   const name = value.trim();
   if (!name) return;
   const timestamp = nowISO();
-  const personal = confirm("Garder cette catégorie personnalisée en perso, sans synchronisation familiale ?");
-  const category = { id: uid("tpl"), name, icon: categoryIconForName(name), member: current, personal, updatedAt: timestamp, deletedAt: "", items: [] };
+  const category = { id: uid("tpl"), name, icon: categoryIconForName(name), member: current, updatedAt: timestamp, deletedAt: "", items: [] };
   state.customCategories.push(category);
   state.openCats[category.id] = true;
   state.openMembers[`custom-${current}`] = true;
@@ -3315,7 +3023,6 @@ function saveCustomCategoryMemberChange(event) {
       items: visibleCustomItems(category.items || []).map(item => ({
         ...item,
         id: uid("tpl-item"),
-        qty: normalizeQty(item.qty || 1),
         updatedAt: timestamp,
         deletedAt: ""
       }))
@@ -3338,7 +3045,7 @@ function addCustomItem(event, categoryId) {
   const name = input.value.trim();
   if (!category || !name) return;
   const timestamp = nowISO();
-  category.items.push({ id: uid("tpl-item"), name, qty: 1, updatedAt: timestamp, deletedAt: "" });
+  category.items.push({ id: uid("tpl-item"), name, updatedAt: timestamp, deletedAt: "" });
   touchEntity(category, timestamp);
   sortCustomCategoryItems(category);
   input.value = "";
@@ -3361,22 +3068,6 @@ function renameCustomItem(categoryId, itemId) {
   touchEntity(item, timestamp);
   touchEntity(category, timestamp);
   sortCustomCategoryItems(category);
-  saveLocal();
-  saveSharedSettings();
-  render();
-}
-
-function changeCustomQty(categoryId, itemId, deltaOrValue) {
-  const category = state.customCategories.find(item => item.id === categoryId);
-  const item = category?.items.find(row => row.id === itemId);
-  if (!category || !item) return;
-  if (typeof deltaOrValue === "number") {
-    item.qty = normalizeQty(item.qty + deltaOrValue);
-  } else {
-    item.qty = normalizeQty(deltaOrValue);
-  }
-  const timestamp = touchEntity(item);
-  touchEntity(category, timestamp);
   saveLocal();
   saveSharedSettings();
   render();
@@ -3450,34 +3141,18 @@ function selectCategoryIcon(icon) {
 }
 
 function render() {
-  try {
-    normalizeStateInPlace();
-    const voyage = currentVoyage();
-    setStatus(voyage ? (voyage.shared ? "Synchronisé" : "Synchronisation...") : "Synchronisé");
+  const voyage = currentVoyage();
+  setStatus(voyage ? (voyage.shared ? "Synchronisé" : "Synchronisation...") : "Synchronisé");
 
-    if (!voyage && state.tab === "liste") state.tab = "voyages";
+  if (!voyage && state.tab === "liste") state.tab = "voyages";
 
-    if (state.tab === "liste") renderChecklist();
-    else if (state.tab === "customCategories") renderCustomCategories();
-    else if (state.tab === "installation") renderInstallation();
-    else if (state.tab === "quickLists") renderQuickLists();
-    else if (state.tab === "quickListDetail") renderQuickListDetail();
-    else renderVoyages();
-    renderBottomNav();
-  } catch (error) {
-    console.error("Rendu impossible", error);
-    state.tab = "voyages";
-    const content = document.getElementById("content");
-    if (content) {
-      content.innerHTML = `
-        <section class="panel empty">
-          <h2>Affichage bloqué</h2>
-          <p>Une donnée restaurée empêche l'affichage. Essayez de réimporter une sauvegarde ou de recharger l'application.</p>
-        </section>
-      `;
-    }
-    renderBottomNav();
-  }
+  if (state.tab === "liste") renderChecklist();
+  else if (state.tab === "customCategories") renderCustomCategories();
+  else if (state.tab === "installation") renderInstallation();
+  else if (state.tab === "quickLists") renderQuickLists();
+  else if (state.tab === "quickListDetail") renderQuickListDetail();
+  else renderVoyages();
+  renderBottomNav();
 }
 
 function renderBottomNav() {
@@ -3538,24 +3213,12 @@ function renderCustomCategories() {
     const open = state.openCats[category.id] === true;
     const visibleItems = visibleCustomItems(category.items || []);
     const items = visibleItems.map(item => `
-      <article class="item template-item ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
+      <article class="item template-item">
         <div class="item-content">
-          <div class="item-label" onclick="closeQtyEditorFromLabel('${item.id}')">${escapeHTML(customItemName(item))}</div>
-          <div class="mini-actions" onclick="event.stopPropagation()">
-            ${qtyEditorItemId === item.id ? `
-            <div class="qty" onclick="event.stopPropagation()">
-              <button type="button" onclick="changeCustomQty('${category.id}', '${item.id}', -1)" title="Diminuer">−</button>
-              <input aria-label="Quantité" value="${escapeHTML(item.qty)}" inputmode="numeric" onchange="changeCustomQty('${category.id}', '${item.id}', this.value)" onfocus="this.select()">
-              <button type="button" onclick="changeCustomQty('${category.id}', '${item.id}', 1)" title="Augmenter">+</button>
-            </div>
-            ` : `
-            <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
-            `}
+          <div class="item-label">${escapeHTML(customItemName(item))}</div>
+          <div class="category-actions">
+            <button class="template-delete" type="button" onclick="deleteCustomItem('${category.id}', '${item.id}')" title="Supprimer l'item" aria-label="Supprimer l'item">&times;</button>
           </div>
-        </div>
-        <div class="item-actions">
-          <button class="item-action edit" type="button" onclick="renameCustomItem('${category.id}', '${item.id}')"><span>✎</span>Modifier</button>
-          <button class="item-action delete" type="button" onclick="deleteCustomItem('${category.id}', '${item.id}')"><span>🗑</span>Suppr.</button>
         </div>
       </article>
     `).join("");
@@ -3644,7 +3307,7 @@ function renderCustomCategories() {
 
 function renderQuickLists() {
   const content = document.getElementById("content");
-  const cards = visibleQuickLists(state.quickLists).map(list => {
+  const cards = state.quickLists.map(list => {
     const visible = visibleQuickItems(list.items || []);
     const done = visible.filter(item => item.done).length;
     const total = visible.length;
@@ -3656,7 +3319,7 @@ function renderQuickLists() {
             <h2 class="voyage-name">${escapeHTML(list.name)}</h2>
             <div class="voyage-meta">
               <span class="badge">${done}/${total} prêts</span>
-              ${list.personal ? `<span class="badge blue">Perso</span>` : ""}
+              <span class="badge blue">${escapeHTML(list.code)}</span>
             </div>
           </div>
           <div class="status">${percent}%</div>
@@ -3680,7 +3343,10 @@ function renderQuickLists() {
         <strong>Ajouter une liste rapide</strong>
       </button>
     </section>
-    
+    <form class="add-item section" onsubmit="joinQuickList(event)">
+      <button class="btn green" type="submit">+</button>
+      <input autocomplete="off" inputmode="text" maxlength="8" placeholder="Ajouter via un code">
+    </form>
   `;
 }
 
@@ -3697,25 +3363,11 @@ function renderQuickListDetail() {
   const total = visible.length;
   const percent = total ? Math.round((done / total) * 100) : 0;
   const items = visibleQuickItems(list.items || []).map(item => `
-    <article class="item quick-item ${item.done ? "done" : ""} ${activeSwipeItemId === item.id ? "swiped" : ""}" onpointerdown="startItemSwipe(event, '${item.id}')" onpointerup="endItemSwipe(event, '${item.id}')" onpointercancel="activeSwipeItemId=null">
+    <article class="item quick-item ${item.done ? "done" : ""}">
       <div class="item-content">
         <button class="check" type="button" onclick="toggleQuickItem('${item.id}')" title="Valider" aria-label="Valider"></button>
-        <div class="item-label" onclick="closeQtyEditorFromLabel('${item.id}')">${escapeHTML(item.name)}</div>
-        <div class="mini-actions" onclick="event.stopPropagation()">
-          ${qtyEditorItemId === item.id ? `
-          <div class="qty" onclick="event.stopPropagation()">
-            <button type="button" onclick="changeQuickQty('${item.id}', -1)" title="Diminuer">−</button>
-            <input aria-label="Quantité" value="${escapeHTML(item.qty)}" inputmode="numeric" onchange="changeQuickQty('${item.id}', this.value)" onfocus="this.select()">
-            <button type="button" onclick="changeQuickQty('${item.id}', 1)" title="Augmenter">+</button>
-          </div>
-          ` : `
-          <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
-          `}
-        </div>
-      </div>
-      <div class="item-actions">
-        <button class="item-action edit" type="button" onclick="renameQuickItem('${item.id}')"><span>✎</span>Modifier</button>
-        <button class="item-action delete" type="button" onclick="deleteQuickItem('${item.id}')"><span>🗑</span>Suppr.</button>
+        <div class="item-label">${escapeHTML(item.name)}</div>
+        <button class="template-delete" type="button" onclick="deleteQuickItem('${item.id}')" title="Supprimer l'item" aria-label="Supprimer l'item">&times;</button>
       </div>
     </article>
   `).join("");
@@ -3726,7 +3378,7 @@ function renderQuickListDetail() {
         <div class="toolbar-title">
           <div class="title-row">
             <h2>${escapeHTML(list.name)}</h2>
-            ${list.personal ? `<span class="badge blue">Perso</span>` : ""}
+            <button class="code-button" type="button" onclick="copyCode('${list.code}')" title="Copier le code">${escapeHTML(list.code)}</button>
           </div>
           <p>${done}/${total} éléments prêts</p>
         </div>
@@ -3757,14 +3409,14 @@ function renderQuickListDetail() {
 
 function renderVoyages() {
   const content = document.getElementById("content");
-  if (!visibleVoyages(state.voyages).length) {
+  if (!state.voyages.length) {
     content.innerHTML = `
       <section class="home-hero" aria-label="Vacances en famille">
         <img src="./vacances.avif" alt="Famille en vacances">
       </section>
       <section class="panel empty">
         <h2>Aucun voyage pour le moment</h2>
-        <p>Ajoutez un voyage familial ou gardez-le en perso.</p>
+        <p>Ajoutez un voyage en le créant ou avec un code partagé.</p>
       </section>
       <button class="voyage-card add-card full" type="button" onclick="openVoyageSheet()">
         <span class="plus">+</span>
@@ -3774,7 +3426,7 @@ function renderVoyages() {
     return;
   }
 
-  const cards = visibleVoyages(state.voyages).map(voyage => {
+  const cards = state.voyages.map(voyage => {
     const progress = progressForVoyage(voyage);
     const isCurrent = voyage.id === state.currentVoyageId;
     const dateLine = formatTripDateLine(voyage);
@@ -3789,7 +3441,7 @@ function renderVoyages() {
             ${dateLine ? `<p class="muted">${escapeHTML(dateLine)}</p>` : ""}
             <div class="voyage-meta">
               <span class="badge">${progress.done}/${progress.total} éléments prêts</span>
-              ${voyage.personal ? `<span class="badge blue">Perso</span>` : ""}
+              <span class="badge blue">${escapeHTML(voyage.code)}</span>
             </div>
           </div>
           <div class="status">${progress.percent}%</div>
@@ -3851,7 +3503,7 @@ function renderChecklist() {
           <div class="title-row">
             <h2>${escapeHTML(voyage.name)}</h2>
             ${renderDestinationLink(voyage)}
-            ${voyage.personal ? `<span class="badge blue">Perso</span>` : ""}
+            <button class="code-button" type="button" onclick="copyCode('${voyage.code}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
           </div>
           ${dateLine ? `<p>${escapeHTML(dateLine)} ${durationLabel ? `<span class="badge">${escapeHTML(durationLabel)}</span>` : ""}</p>` : ""}
           <p>${progress.done}/${progress.total} éléments prêts</p>
@@ -4055,7 +3707,8 @@ document.addEventListener("click", event => {
 });
 
 window.addEventListener("online", () => {
-  scheduleAppStateSync({ immediate: true });
+  syncAllVoyages({ immediate: true });
+  syncAllQuickLists({ immediate: true });
 });
 
 if ("serviceWorker" in navigator) {
@@ -4066,29 +3719,10 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-async function startApp() {
-  try {
-    loadLocal();
-    normalizeStateInPlace();
-    cleanupMigrationPlaceholders();
-    repairCustomMemberVisibility();
-    render();
-    await loadAppStateRemote();
-    await loadSharedSettings();
-    await saveAppStateRemote();
-    render();
-  } catch (error) {
-    console.error("Démarrage impossible", error);
-    setStatus("Hors ligne");
-    render();
-  }
-}
-
-startApp();
-
-
-
-
-
-
+loadLocal();
+render();
+loadSharedSettings();
+syncAllVoyages();
+syncAllQuickLists();
+subscribeToCurrentVoyage();
 

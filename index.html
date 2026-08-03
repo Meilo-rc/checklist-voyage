@@ -25,7 +25,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">1.92</span></h1>
+              <h1>Checklist voyage <span class="badge blue">1.86</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -75,7 +75,6 @@
           <select id="voyageParticipantSelect" onchange="addVoyageParticipantFromSelect(this.value)"></select>
           <div class="template-picks" id="voyageParticipantChoices"></div>
         </div>
-        <label class="choice"><input type="checkbox" id="voyagePersonal" name="personal">Perso, ne pas synchroniser ce voyage</label>
         <div class="choice-block">
           <label>Transport</label>
           <div class="choice-grid">
@@ -110,8 +109,8 @@
           <button class="btn blue full" id="voyageSubmitButton" type="submit">Créer</button>
         </div>
       </form>
-      <div class="notice blue section hidden" id="joinDivider">ou</div>
-      <form class="grid hidden" id="joinForm" onsubmit="joinVoyage(event)">
+      <div class="notice blue section" id="joinDivider">ou</div>
+      <form class="grid" id="joinForm" onsubmit="joinVoyage(event)">
         <div class="field">
           <label for="sheetJoinCode">Ajouter un voyage via un code</label>
           <input id="sheetJoinCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Ex. BRET26, ROME26, SKI227">
