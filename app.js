@@ -1,4 +1,4 @@
-const VERSION = "2.28";
+const VERSION = "2.29";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1710,10 +1710,7 @@ function destinationCountry(voyage) {
 
 function tripTitleLine(voyage) {
   const country = destinationCountry(voyage);
-  const suffix = [
-    country ? `, ${escapeHTML(country)}` : "",
-    voyage.code ? ` <span class="trip-code-muted">(${escapeHTML(voyage.code)})</span>` : ""
-  ].join("");
+  const suffix = country ? `, ${escapeHTML(country)}` : "";
   return `${escapeHTML(voyage.name)}${suffix ? `<span class="trip-title-extra">${suffix}</span>` : ""}`;
 }
 
@@ -3119,13 +3116,24 @@ async function joinVoyage(event) {
   }
 }
 
-function copyCode(code) {
+function copyTextToClipboard(text, fallbackLabel = "Texte à copier") {
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(code).then(() => showToast("Code copié"));
+    navigator.clipboard.writeText(text).then(() => showToast("Code copié"));
   } else {
-    window.prompt("Code à copier", code);
+    window.prompt(fallbackLabel, text);
     showToast("Code copié");
   }
+}
+
+function copyCode(code) {
+  copyTextToClipboard(code, "Code à copier");
+}
+
+function copyVoyageShare(voyageId) {
+  const voyage = state.voyages.find(item => item.id === voyageId);
+  if (!voyage?.code) return;
+  const text = `Salut ! J'aimerais partager le voyage "${voyage.name}" avec toi. Voici le code pour me rejoindre : ${voyage.code}.`;
+  copyTextToClipboard(text, "Message à copier");
 }
 
 function showToast(message) {
@@ -3889,6 +3897,7 @@ function renderVoyages() {
           <div>
             <div class="title-row">
               <h2 class="voyage-name">${tripTitleLine(voyage)}</h2>
+              <button class="code-button" type="button" onclick="event.stopPropagation(); copyVoyageShare('${voyage.id}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
             </div>
             ${dateLine ? `<p class="muted">${escapeHTML(dateLine)}</p>` : ""}
           </div>
@@ -3947,6 +3956,7 @@ function renderChecklist() {
         <div class="toolbar-title">
           <div class="title-row">
             <h2>${tripTitleLine(voyage)}</h2>
+            <button class="code-button" type="button" onclick="copyVoyageShare('${voyage.id}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
           </div>
           ${dateLine ? `<p>${escapeHTML(dateLine)}${durationLabel ? ` (${escapeHTML(durationLabel.replace("j", "j / ").replace("n", "n"))})` : ""}</p>` : ""}
         </div>
