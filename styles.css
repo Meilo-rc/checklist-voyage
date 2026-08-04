@@ -1215,6 +1215,12 @@ textarea:focus {
   font-weight: 760;
 }
 
+.template-chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .participant-chip {
   color: var(--muted);
 }

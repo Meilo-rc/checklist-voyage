@@ -1,4 +1,4 @@
-const VERSION = "2.12";
+const VERSION = "2.13";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -2156,10 +2156,17 @@ function renderCategoryTemplateChoices(memberName = "") {
     <div class="muted">Sélectionner les catégories à importer</div>
     <div class="template-picks">
       ${categories.map(category => `
-        <label class="template-chip"><input type="checkbox" name="memberTemplate" value="${category.id}"> ${escapeHTML(category.name)}</label>
+        <label class="template-chip participant-chip">
+          <input type="checkbox" name="memberTemplate" value="${category.id}" onchange="toggleTemplateChip(this)">
+          ${escapeHTML(category.name)}
+        </label>
       `).join("")}
     </div>
   `;
+}
+
+function toggleTemplateChip(input) {
+  input.closest(".template-chip")?.classList.toggle("active", input.checked);
 }
 
 function renameCategory(categoryId) {
