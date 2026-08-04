@@ -383,6 +383,20 @@ h1 {
   color: white;
 }
 
+.choice-icon,
+.nav-svg-icon {
+  display: inline-block;
+  background: currentColor;
+  -webkit-mask: var(--icon-url) center / contain no-repeat;
+  mask: var(--icon-url) center / contain no-repeat;
+}
+
+.choice-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
 .suggestions {
   display: none;
   border: 1px solid var(--line);
@@ -1570,6 +1584,11 @@ textarea:focus {
 .bottom-nav button span {
   font-size: 1.05rem;
   line-height: 1;
+}
+
+.bottom-nav button .nav-svg-icon {
+  width: 19px;
+  height: 19px;
 }
 
 .bottom-nav button.active {

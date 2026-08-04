@@ -1,4 +1,4 @@
-const VERSION = "2.29";
+const VERSION = "2.30";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -31,8 +31,8 @@ let memberSheetGroup = "family";
 let memberSheetMember = "";
 
 const categoryIcons = [
-  "baby", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "clothes",
-  "cocktail", "document", "first-aid", "gamepad", "hiking", "hotel", "meditation", "money",
+  "baby", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "categorie", "clothes",
+  "cocktail", "document", "first-aid", "gamepad", "hiking", "home", "hotel", "key", "liste", "meditation", "money",
   "music", "passport", "pet", "plane", "plug", "restaurant", "shopping", "ski", "snow",
   "sport", "suitcase", "sun", "swimming", "tag", "toiletries", "tools", "train", "video", "water"
 ];
@@ -3579,7 +3579,7 @@ function renderBottomNav() {
   nav.innerHTML = `
     <button class="${active === "voyages" ? "active" : ""}" type="button" onclick="goHome()"><span>⌂</span>Accueil</button>
     <button class="${active === "customCategories" ? "active" : ""}" type="button" onclick="openCustomCategories()"><span>☰</span>Gérer</button>
-    <button class="${active === "quickLists" ? "active" : ""}" type="button" onclick="openQuickLists()"><span>✓</span>Liste rapide</button>
+    <button class="${active === "quickLists" ? "active" : ""}" type="button" onclick="openQuickLists()"><span class="nav-svg-icon" style="--icon-url: url('./category-icons/liste.svg')" aria-hidden="true"></span>Liste rapide</button>
   `;
 }
 
