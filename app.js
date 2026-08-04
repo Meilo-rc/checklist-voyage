@@ -1,4 +1,4 @@
-const VERSION = "2.20";
+const VERSION = "2.21";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1675,7 +1675,7 @@ function weatherUrl(voyage) {
 function renderDestinationLink(voyage) {
   const country = destinationCountry(voyage);
   if (!country) return "";
-  return `<button class="badge blue" type="button" onclick="event.stopPropagation(); refreshTripWeather('${voyage.id}', true)" title="Actualiser la météo">${escapeHTML(country)}</button>`;
+  return `<span class="badge blue">${escapeHTML(country)}</span>`;
 }
 
 function weatherCacheKey(voyage) {
@@ -3894,7 +3894,6 @@ function renderChecklist() {
         <div class="toolbar-title">
           <div class="title-row">
             <h2>${escapeHTML(voyage.name)}</h2>
-            ${renderDestinationLink(voyage)}
             <button class="code-button" type="button" onclick="copyCode('${voyage.code}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
           </div>
           ${dateLine ? `<p>${escapeHTML(dateLine)}${durationLabel ? ` (${escapeHTML(durationLabel.replace("j", "j / ").replace("n", "n"))})` : ""}</p>` : ""}
