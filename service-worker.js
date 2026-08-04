@@ -1,12 +1,12 @@
-const CACHE_NAME = "checklist-voyage-2.27";
+const CACHE_NAME = "checklist-voyage-2.28";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=2.27",
-  "./app.js?v=2.27",
-  "./manifest.json?v=2.27",
-  "./icon.svg?v=2.27",
-  "./icon-192.png?v=2.27",
+  "./styles.css?v=2.28",
+  "./app.js?v=2.28",
+  "./manifest.json?v=2.28",
+  "./icon.svg?v=2.28",
+  "./icon-192.png?v=2.28",
   "./icon-512.png",
   "./vacances-famille.svg",
   "./vacances.avif",

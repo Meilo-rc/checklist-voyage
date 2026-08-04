@@ -1,4 +1,4 @@
-const VERSION = "2.27";
+const VERSION = "2.28";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -705,6 +705,26 @@ function normalizeQuickItem(raw) {
   };
 }
 
+function normalizeQuickItems(items = []) {
+  const byId = new Map();
+  const byName = new Map();
+  items.map(normalizeQuickItem).filter(item => item.name).forEach(item => {
+    if (item.id) {
+      const existing = byId.get(item.id);
+      byId.set(item.id, existing ? newerEntity(existing, item) : item);
+      return;
+    }
+    const key = normalizeText(item.name);
+    const existing = byName.get(key);
+    byName.set(key, existing ? newerEntity(existing, item) : item);
+  });
+  const idNames = new Set([...byId.values()].map(item => normalizeText(item.name)).filter(Boolean));
+  return [
+    ...byId.values(),
+    ...[...byName.values()].filter(item => !idNames.has(normalizeText(item.name)))
+  ];
+}
+
 function normalizeQuickList(raw) {
   const list = raw && typeof raw === "object" ? raw : {};
   return {
@@ -712,7 +732,7 @@ function normalizeQuickList(raw) {
     code: cleanCode(list.code) || generateCode(),
     name: list.name || "Liste rapide",
     type: "quickList",
-    items: Array.isArray(list.items) ? list.items.map(normalizeQuickItem).filter(item => item.name) : [],
+    items: Array.isArray(list.items) ? normalizeQuickItems(list.items) : [],
     shared: list.shared === true,
     remoteRecordId: list.remoteRecordId || "",
     createdAt: list.createdAt || new Date().toISOString(),
@@ -778,16 +798,38 @@ function mergeById(localItems = [], remoteItems = [], mergeEntity = newerEntity)
 }
 
 function mergeByIdOrName(localItems = [], remoteItems = [], mergeEntity = newerEntity) {
-  const keyFor = item => normalizeText(item?.name || item) || item?.id;
-  const keys = new Set([
-    ...localItems.map(keyFor).filter(Boolean),
-    ...remoteItems.map(keyFor).filter(Boolean)
-  ]);
-  return [...keys].map(key => {
-    const local = localItems.find(item => keyFor(item) === key);
-    const remote = remoteItems.find(item => keyFor(item) === key);
-    return mergeEntity(local, remote);
-  }).filter(Boolean);
+  const results = [];
+  const usedLocal = new Set();
+  const usedRemote = new Set();
+
+  remoteItems.forEach((remote, remoteIndex) => {
+    if (!remote?.id) return;
+    const localIndex = localItems.findIndex(local => local?.id === remote.id);
+    if (localIndex === -1) return;
+    results.push(mergeEntity(localItems[localIndex], remote));
+    usedLocal.add(localIndex);
+    usedRemote.add(remoteIndex);
+  });
+
+  localItems.forEach((local, localIndex) => {
+    if (usedLocal.has(localIndex)) return;
+    const localName = normalizeText(local?.name || local);
+    const remoteIndex = remoteItems.findIndex((remote, index) => !usedRemote.has(index) && normalizeText(remote?.name || remote) === localName);
+    if (remoteIndex === -1) {
+      results.push(local);
+      usedLocal.add(localIndex);
+      return;
+    }
+    results.push(mergeEntity(local, remoteItems[remoteIndex]));
+    usedLocal.add(localIndex);
+    usedRemote.add(remoteIndex);
+  });
+
+  remoteItems.forEach((remote, remoteIndex) => {
+    if (!usedRemote.has(remoteIndex)) results.push(remote);
+  });
+
+  return results.filter(Boolean);
 }
 
 function mergeItems(local, remote) {
@@ -854,10 +896,16 @@ function quickListScore(list) {
 
 function dedupeQuickLists() {
   const before = state.quickLists.length;
+  let changed = false;
   const groups = new Map();
   state.quickLists
     .filter(Boolean)
-    .map(normalizeQuickList)
+    .map(list => {
+      const itemCount = Array.isArray(list?.items) ? list.items.length : 0;
+      const normalized = normalizeQuickList(list);
+      if (normalized.items.length !== itemCount) changed = true;
+      return normalized;
+    })
     .forEach(list => {
       const key = quickListKey(list);
       if (!key) return;
@@ -866,6 +914,7 @@ function dedupeQuickLists() {
         groups.set(key, list);
         return;
       }
+      changed = true;
       const base = quickListScore(list) > quickListScore(existing) ? list : existing;
       const other = base === list ? existing : list;
       const merged = mergeQuickLists(base, other);
@@ -878,7 +927,7 @@ function dedupeQuickLists() {
   if (!state.quickLists.some(list => list.id === state.currentQuickListId)) {
     state.currentQuickListId = state.quickLists[0]?.id || null;
   }
-  return state.quickLists.length !== before;
+  return changed || state.quickLists.length !== before;
 }
 
 function mergeCustomCategories(localCategory, remoteCategory) {
