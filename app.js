@@ -1,4 +1,4 @@
-const VERSION = "1.98";
+const VERSION = "1.99";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -2227,7 +2227,7 @@ function changeQty(categoryId, itemId, deltaOrValue) {
     .find(row => row.id === itemId);
   if (!voyage || !item) return;
   if (typeof deltaOrValue === "number") {
-    item.qty = normalizeQty(item.qty + deltaOrValue);
+    item.qty = normalizeQty(normalizeQty(item.qty || 1) + deltaOrValue);
   } else {
     item.qty = normalizeQty(deltaOrValue);
   }
@@ -2760,7 +2760,7 @@ function changeQuickQty(itemId, deltaOrValue) {
   const item = list?.items.find(row => row.id === itemId);
   if (!list || !item) return;
   if (typeof deltaOrValue === "number") {
-    item.qty = normalizeQty(item.qty + deltaOrValue);
+    item.qty = normalizeQty(normalizeQty(item.qty || 1) + deltaOrValue);
   } else {
     item.qty = normalizeQty(deltaOrValue);
   }
@@ -3258,7 +3258,7 @@ function changeCustomQty(categoryId, itemId, deltaOrValue) {
   const item = category?.items.find(row => row.id === itemId);
   if (!category || !item) return;
   if (typeof deltaOrValue === "number") {
-    item.qty = normalizeQty(item.qty + deltaOrValue);
+    item.qty = normalizeQty(normalizeQty(item.qty || 1) + deltaOrValue);
   } else {
     item.qty = normalizeQty(deltaOrValue);
   }
