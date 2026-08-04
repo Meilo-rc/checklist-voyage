@@ -1,4 +1,4 @@
-const VERSION = "2.36";
+const VERSION = "2.37";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -31,7 +31,7 @@ let memberSheetGroup = "family";
 let memberSheetMember = "";
 
 const categoryIcons = [
-  "baby", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "categorie", "clothes",
+  "baby", "bathtub", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "categorie", "clothes",
   "cocktail", "document", "first-aid", "gamepad", "hiking", "home", "hotel", "key", "liste", "meditation", "money",
   "music", "passport", "pet", "plane", "plug", "restaurant", "shopping", "ski", "snow",
   "sport", "suit", "suitcase", "sun", "swimming", "tag", "tent", "toiletries", "tools", "train", "video", "water"
@@ -39,6 +39,7 @@ const categoryIcons = [
 
 const iconLabels = {
   baby: "Bébé",
+  bathtub: "Salle de bain",
   beach: "Plage",
   bed: "Lit",
   boat: "Bateau",
@@ -95,7 +96,8 @@ const iconRules = [
   ["bed", ["logement", "nuit"]],
   ["restaurant", ["repas", "restaurant", "alimentation", "nourriture", "cuisine"]],
   ["first-aid", ["santé", "sante", "pharmacie", "médicament", "medicament", "soin"]],
-  ["toiletries", ["toilette", "hygiène", "hygiene", "trousse"]],
+  ["bathtub", ["salle de bain", "toilette", "hygiène", "hygiene", "trousse de toilette"]],
+  ["toiletries", ["trousse"]],
   ["clothes", ["vêtement", "vetement", "habit", "linge"]],
   ["plug", ["chargeur", "électronique", "electronique", "câble", "cable"]],
   ["hiking", ["randonnée", "randonnee", "marche"]],
