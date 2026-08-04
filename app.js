@@ -1,4 +1,4 @@
-const VERSION = "2.31";
+const VERSION = "2.32";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -115,6 +115,38 @@ const iconRules = [
   ["sport", ["sport", "activité", "activite"]],
   ["suitcase", ["bagage", "valise", "sac"]]
 ];
+
+const exactIconRules = {
+  "trajet avion": "plane",
+  "trajet - avion": "plane",
+  "transport avion": "plane",
+  "transport - avion": "plane",
+  avion: "plane",
+  "trajet train": "train",
+  "trajet - train": "train",
+  "transport train": "train",
+  "transport - train": "train",
+  train: "train",
+  "trajet voiture": "car",
+  "trajet - voiture": "car",
+  "transport voiture": "car",
+  "transport - voiture": "car",
+  voiture: "car",
+  "logement hotel": "hotel",
+  "logement - hotel": "hotel",
+  "logement hotel": "hotel",
+  "logement - hotel": "hotel",
+  hotel: "hotel",
+  "logement famille": "home",
+  "logement - famille": "home",
+  famille: "home",
+  "logement location": "key",
+  "logement - location": "key",
+  location: "key",
+  "logement camping": "tent",
+  "logement - camping": "tent",
+  camping: "tent"
+};
 
 const state = {
   tab: "voyages",
@@ -377,6 +409,7 @@ function normalizeText(value) {
 
 function categoryIconForName(name) {
   const normalized = normalizeText(name);
+  if (exactIconRules[normalized]) return exactIconRules[normalized];
   const match = iconRules.find(([, words]) => words.some(word => normalized.includes(normalizeText(word))));
   return match ? match[0] : "tag";
 }
