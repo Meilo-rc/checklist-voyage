@@ -1,4 +1,4 @@
-const VERSION = "2.19";
+const VERSION = "2.20";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -3914,7 +3914,7 @@ function renderChecklist() {
       </div>
       <div class="trip-progress-row">
         <div class="progress" aria-hidden="true"><span style="${progressStyle(progress.percent)}"></span></div>
-        <span class="trip-progress-count">${progress.done}/${progress.total} prêts</span>
+        <span class="trip-progress-count">${progress.done}/${progress.total}</span>
       </div>
       ${weatherPanel}
     </section>
