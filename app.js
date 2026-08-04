@@ -1,4 +1,4 @@
-const VERSION = "2.30";
+const VERSION = "2.31";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -34,7 +34,7 @@ const categoryIcons = [
   "baby", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "categorie", "clothes",
   "cocktail", "document", "first-aid", "gamepad", "hiking", "home", "hotel", "key", "liste", "meditation", "money",
   "music", "passport", "pet", "plane", "plug", "restaurant", "shopping", "ski", "snow",
-  "sport", "suitcase", "sun", "swimming", "tag", "toiletries", "tools", "train", "video", "water"
+  "sport", "suitcase", "sun", "swimming", "tag", "tent", "toiletries", "tools", "train", "video", "water"
 ];
 
 const iconLabels = {
@@ -78,14 +78,21 @@ const iconLabels = {
 };
 
 const iconRules = [
+  ["plane", ["trajet avion", "trajet - avion", "transport avion", "transport - avion"]],
+  ["train", ["trajet train", "trajet - train", "transport train", "transport - train"]],
+  ["car", ["trajet voiture", "trajet - voiture", "transport voiture", "transport - voiture"]],
+  ["hotel", ["logement hotel", "logement - hotel", "logement hôtel", "logement - hôtel"]],
+  ["home", ["logement famille", "logement - famille"]],
+  ["key", ["logement location", "logement - location"]],
+  ["tent", ["logement camping", "logement - camping"]],
   ["plane", ["avion", "vol", "aéroport", "depart", "départ"]],
   ["train", ["train", "rail"]],
   ["car", ["voiture", "auto", "route"]],
   ["bus", ["bus", "car scolaire"]],
   ["boat", ["bateau", "ferry", "mer"]],
   ["hotel", ["hotel", "hôtel"]],
-  ["camping", ["camping", "tente"]],
-  ["bed", ["logement", "location", "famille", "nuit"]],
+  ["tent", ["camping", "tente"]],
+  ["bed", ["logement", "nuit"]],
   ["restaurant", ["repas", "restaurant", "alimentation", "nourriture", "cuisine"]],
   ["first-aid", ["santé", "sante", "pharmacie", "médicament", "medicament", "soin"]],
   ["toiletries", ["toilette", "hygiène", "hygiene", "trousse"]],
@@ -375,7 +382,9 @@ function categoryIconForName(name) {
 }
 
 function categoryIcon(category) {
-  return category?.icon && categoryIcons.includes(category.icon) ? category.icon : categoryIconForName(category?.name);
+  const nameIcon = categoryIconForName(category?.name);
+  if (nameIcon !== "tag") return nameIcon;
+  return category?.icon && categoryIcons.includes(category.icon) ? category.icon : nameIcon;
 }
 
 function renderCategoryIcon(category) {
