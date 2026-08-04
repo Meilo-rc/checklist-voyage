@@ -691,8 +691,8 @@ textarea:focus {
 
 .page-add-button {
   position: fixed;
-  right: max(26px, calc(env(safe-area-inset-right) + 18px));
-  bottom: calc(88px + env(safe-area-inset-bottom));
+  right: max(calc(env(safe-area-inset-right) + 18px), calc((100vw - 760px) / 2 + 18px));
+  bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 18px);
   z-index: 35;
   width: 58px;
   height: 58px;
@@ -711,8 +711,8 @@ textarea:focus {
 
 .page-add-menu {
   position: fixed;
-  right: max(26px, calc(env(safe-area-inset-right) + 18px));
-  bottom: calc(154px + env(safe-area-inset-bottom));
+  right: max(calc(env(safe-area-inset-right) + 18px), calc((100vw - 760px) / 2 + 18px));
+  bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 84px);
   z-index: 36;
   display: none;
   min-width: 188px;
