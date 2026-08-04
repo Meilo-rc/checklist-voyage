@@ -1,4 +1,4 @@
-const VERSION = "2.33";
+const VERSION = "2.34";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -433,7 +433,10 @@ function renderCategoryIcon(category) {
 }
 
 function memberIcon(memberName) {
-  return memberIconRules[normalizeText(memberName)] || "suitcase";
+  const normalized = normalizeText(memberName);
+  if (memberIconRules[normalized]) return memberIconRules[normalized];
+  const match = Object.entries(memberIconRules).find(([name]) => normalized.includes(name));
+  return match ? match[1] : "suitcase";
 }
 
 function renderMemberIcon(memberName) {
@@ -999,16 +1002,41 @@ function mergeCustomCategories(localCategory, remoteCategory) {
 }
 
 function mergeCustomCategoryList(localCategories = [], remoteCategories = []) {
-  const keyFor = category => `${normalizeText(defaultMemberForCategory(category))}:${normalizeText(category?.name)}` || category?.id;
-  const keys = new Set([
-    ...localCategories.map(keyFor).filter(Boolean),
-    ...remoteCategories.map(keyFor).filter(Boolean)
-  ]);
-  return [...keys].map(key => {
-    const local = localCategories.find(category => keyFor(category) === key);
-    const remote = remoteCategories.find(category => keyFor(category) === key);
-    return mergeCustomCategories(local, remote);
-  }).filter(Boolean);
+  const localList = localCategories.map(normalizeCustomCategory).filter(Boolean);
+  const remoteList = remoteCategories.map(normalizeCustomCategory).filter(Boolean);
+  const results = [];
+  const usedLocal = new Set();
+  const usedRemote = new Set();
+  const nameKey = category => `${normalizeText(defaultMemberForCategory(category))}:${normalizeText(category?.name)}`;
+
+  remoteList.forEach((remote, remoteIndex) => {
+    if (!remote?.id) return;
+    const localIndex = localList.findIndex(local => local?.id === remote.id);
+    if (localIndex === -1) return;
+    results.push(mergeCustomCategories(localList[localIndex], remote));
+    usedLocal.add(localIndex);
+    usedRemote.add(remoteIndex);
+  });
+
+  localList.forEach((local, localIndex) => {
+    if (usedLocal.has(localIndex)) return;
+    const key = nameKey(local);
+    const remoteIndex = remoteList.findIndex((remote, index) => !usedRemote.has(index) && nameKey(remote) === key);
+    if (remoteIndex === -1) {
+      results.push(local);
+      usedLocal.add(localIndex);
+      return;
+    }
+    results.push(mergeCustomCategories(local, remoteList[remoteIndex]));
+    usedLocal.add(localIndex);
+    usedRemote.add(remoteIndex);
+  });
+
+  remoteList.forEach((remote, remoteIndex) => {
+    if (!usedRemote.has(remoteIndex)) results.push(remote);
+  });
+
+  return results.filter(Boolean);
 }
 
 function mergeSettingsData(localData, remoteData) {
@@ -2522,7 +2550,8 @@ async function findRecordByCode(code) {
 
 function settingsPayload() {
   const syncedState = syncedSettingsState();
-  const categories = visibleCustomCategories(syncedState.customCategories).map(category => ({
+  const syncedCategories = mergeCustomCategoryList(syncedState.customCategories, []);
+  const categories = visibleCustomCategories(syncedCategories).map(category => ({
     id: category.id,
     name: category.name,
     icon: categoryIcon(category),
@@ -2540,7 +2569,7 @@ function settingsPayload() {
   }));
   return {
     type: "settings",
-    customCategories: syncedState.customCategories,
+    customCategories: syncedCategories,
     customCategoryMembers: syncedState.customCategoryMembers,
     customMemberAliases: state.customMemberAliases,
     customMemberGroups: syncedState.customMemberGroups,
