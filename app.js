@@ -1,4 +1,4 @@
-const VERSION = "2.16";
+const VERSION = "2.17";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -3271,6 +3271,22 @@ function addCustomCategoryToMember(memberName) {
   render();
 }
 
+function addCustomCategoryFromForm(event, memberName) {
+  event.preventDefault();
+  const current = normalizeMemberName(memberName);
+  const input = event.currentTarget.querySelector("input");
+  const name = input.value.trim();
+  if (!current || !name) return;
+  const timestamp = nowISO();
+  const category = { id: uid("tpl"), name, icon: categoryIconForName(name), member: current, updatedAt: timestamp, deletedAt: "", items: [] };
+  state.customCategories.push(category);
+  state.openCats[category.id] = true;
+  state.openMembers[`custom-${current}`] = true;
+  saveLocal();
+  saveSharedSettings();
+  render();
+}
+
 function renameCustomCategory(categoryId) {
   const category = state.customCategories.find(item => item.id === categoryId);
   if (!category) return;
@@ -3622,7 +3638,6 @@ function renderCustomCategories() {
               <summary class="mini" title="Options du membre">⋮</summary>
               <div class="voyage-menu-panel">
                 <button class="menu-item" type="button" onclick="renameCustomMember('${escapeHTML(groupName)}')">Modifier le nom</button>
-                <button class="menu-item" type="button" onclick="addCustomCategoryToMember('${escapeHTML(groupName)}')">Ajouter une catégorie personnalisée</button>
                 <button class="menu-item red" type="button" onclick="deleteCustomMember('${escapeHTML(groupName)}')">Supprimer le membre</button>
               </div>
             </details>
@@ -3630,6 +3645,10 @@ function renderCustomCategories() {
         </div>
         <div class="category-body">
           ${categories.map(renderCustomCategoryCard).join("") || `<div class="notice">Aucune catégorie dans ce groupe.</div>`}
+          <form class="add-item" onsubmit="addCustomCategoryFromForm(event, decodeURIComponent('${encodeURIComponent(groupName)}'))">
+            <button class="btn blue" type="submit">+</button>
+            <input autocomplete="off" placeholder="Ajouter une catégorie">
+          </form>
         </div>
       </article>
     `;
