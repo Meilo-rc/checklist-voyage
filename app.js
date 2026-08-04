@@ -1,4 +1,4 @@
-const VERSION = "2.11";
+const VERSION = "2.12";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -27,6 +27,8 @@ let iconEditTarget = null;
 let customCategoryMoveTarget = null;
 const weatherFetchIds = new Set();
 let draftVoyageParticipants = [];
+let memberSheetGroup = "family";
+let memberSheetMember = "";
 
 const categoryIcons = [
   "baby", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "clothes",
@@ -394,7 +396,8 @@ function defaultMemberForCategory(category) {
 }
 
 function normalizeMemberGroup(value) {
-  return value === "general" ? "general" : "family";
+  if (value === "general" || value === "personal") return value;
+  return "family";
 }
 
 function createMember(name, categories = [], options = {}) {
@@ -2057,17 +2060,16 @@ function addCategoryToGeneral() {
 }
 
 function openMemberSheet() {
-  const groupSelect = document.getElementById("memberListGroup");
-  if (groupSelect) groupSelect.value = "family";
+  memberSheetGroup = "family";
+  memberSheetMember = "";
   renderMemberTemplateGroups();
   document.getElementById("categorySheet").classList.add("open");
-  setTimeout(() => groupSelect?.focus(), 50);
 }
 
 function saveMemberSheet(event) {
   event.preventDefault();
-  const group = normalizeMemberGroup(document.getElementById("memberListGroup")?.value);
-  const name = normalizeMemberName(document.getElementById("memberTemplateGroup")?.value);
+  const group = normalizeMemberGroup(memberSheetGroup);
+  const name = normalizeMemberName(memberSheetMember);
   if (!name) return;
   const selectedTemplates = [...event.currentTarget.querySelectorAll("input[name='memberTemplate']:checked")]
     .map(item => item.value);
@@ -2077,33 +2079,63 @@ function saveMemberSheet(event) {
 
 function templateMemberNames(group = "family") {
   return customMemberNames()
-    .filter(name => name !== "Général")
+    .filter(name => group === "general" || normalizeMemberName(name) !== "Général")
     .filter(name => customMemberGroup(name) === group)
     .filter(name => visibleCustomCategories(state.customCategories).some(category => defaultMemberForCategory(category) === name))
     .sort(compareItemNames);
 }
 
 function renderMemberTemplateGroups(selectedMember = "") {
-  const select = document.getElementById("memberTemplateGroup");
-  const group = normalizeMemberGroup(document.getElementById("memberListGroup")?.value);
-  const members = customMemberNames()
-    .filter(name => group === "general" || normalizeMemberName(name) !== "Général")
-    .filter(name => visibleCustomCategories(state.customCategories).some(category => defaultMemberForCategory(category) === name));
-  if (!select) return;
+  const listTarget = document.getElementById("memberListChoices");
+  const memberTarget = document.getElementById("memberTemplateChoices");
+  const group = normalizeMemberGroup(memberSheetGroup);
+  const groups = [
+    { value: "general", label: "Général" },
+    { value: "family", label: "Famille" },
+    { value: "personal", label: "Personnel" }
+  ];
+  const members = templateMemberNames(group);
+  if (listTarget) {
+    listTarget.innerHTML = groups.map(item => `
+      <button class="template-chip participant-chip ${group === item.value ? "active" : ""}" type="button" onclick="selectMemberListGroup('${item.value}')" aria-pressed="${group === item.value}">
+        ${escapeHTML(item.label)}
+      </button>
+    `).join("");
+  }
+  if (!memberTarget) return;
   if (!members.length) {
-    select.innerHTML = `<option value="">Aucun membre disponible</option>`;
-    select.disabled = true;
+    memberSheetMember = "";
+    memberTarget.innerHTML = `<div class="notice">Aucun membre disponible dans cette liste.</div>`;
     renderCategoryTemplateChoices("");
     return;
   }
-  select.disabled = false;
   const active = members.includes(selectedMember) ? selectedMember : members[0];
-  select.innerHTML = members.map(member => `<option value="${escapeHTML(member)}" ${member === active ? "selected" : ""}>${escapeHTML(member)}</option>`).join("");
+  memberSheetMember = active;
+  memberTarget.innerHTML = members.map(member => `
+    <button class="template-chip participant-chip ${member === active ? "active" : ""}" type="button" onclick="selectMemberTemplateGroup(decodeURIComponent('${encodeURIComponent(member)}'))" aria-pressed="${member === active}">
+      ${escapeHTML(member)}
+    </button>
+  `).join("");
   selectMemberTemplateGroup(active);
+}
+
+function selectMemberListGroup(group) {
+  memberSheetGroup = normalizeMemberGroup(group);
+  memberSheetMember = "";
+  renderMemberTemplateGroups();
 }
 
 function selectMemberTemplateGroup(memberName) {
   const name = normalizeMemberName(memberName);
+  memberSheetMember = name;
+  const memberTarget = document.getElementById("memberTemplateChoices");
+  if (memberTarget) {
+    [...memberTarget.querySelectorAll(".template-chip")].forEach(button => {
+      const active = normalizeMemberName(button.textContent) === name;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+  }
   renderCategoryTemplateChoices(name);
 }
 
@@ -2426,7 +2458,7 @@ function applySettingsData(data) {
   };
   saveLocal();
   if (state.tab === "customCategories") render();
-  renderMemberTemplateGroups(document.getElementById("memberTemplateGroup")?.value || "");
+  renderMemberTemplateGroups(memberSheetMember);
   renderVoyageParticipantPicker();
 }
 
