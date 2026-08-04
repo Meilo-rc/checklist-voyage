@@ -1,4 +1,4 @@
-const VERSION = "2.26";
+const VERSION = "2.27";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -3588,7 +3588,7 @@ function renderCustomCategories() {
             `}
           </div>
         </div>
-        <div class="item-actions">
+        <div class="item-actions" onpointerdown="event.stopPropagation()" onpointerup="event.stopPropagation()" onclick="event.stopPropagation()">
           <button class="item-action edit" type="button" onclick="renameCustomItem('${category.id}', '${item.id}')"><span>✎</span>Modifier</button>
           <button class="item-action delete" type="button" onclick="deleteCustomItem('${category.id}', '${item.id}')"><span>🗑</span>Suppr.</button>
         </div>
@@ -3752,7 +3752,7 @@ function renderQuickListDetail() {
           `}
         </div>
       </div>
-      <div class="item-actions">
+      <div class="item-actions" onpointerdown="event.stopPropagation()" onpointerup="event.stopPropagation()" onclick="event.stopPropagation()">
         <button class="item-action edit" type="button" onclick="renameQuickItem('${item.id}')"><span>✎</span>Modifier</button>
         <button class="item-action delete" type="button" onclick="deleteQuickItem('${item.id}')"><span>🗑</span>Suppr.</button>
       </div>
@@ -4007,7 +4007,7 @@ function renderCategory(voyage, category) {
           `}
         </div>
       </div>
-      <div class="item-actions">
+      <div class="item-actions" onpointerdown="event.stopPropagation()" onpointerup="event.stopPropagation()" onclick="event.stopPropagation()">
         <button class="item-action edit" type="button" onclick="renameItem('${category.id}', '${item.id}')"><span>✎</span>Modifier</button>
         <button class="item-action delete" type="button" onclick="deleteItem('${category.id}', '${item.id}')"><span>🗑</span>Suppr.</button>
       </div>
