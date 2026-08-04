@@ -1,4 +1,4 @@
-const VERSION = "1.97";
+const VERSION = "1.98";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -2191,6 +2191,29 @@ function toggleQtyEditor(itemId) {
   render();
 }
 
+function openQtyEditorFromPill(type, categoryId, itemId) {
+  const voyage = currentVoyage();
+  const voyageItem = type === "voyage"
+    ? findCategoryInVoyage(voyage, categoryId)?.category?.items.find(row => row.id === itemId)
+    : null;
+  const quickItem = type === "quick"
+    ? currentQuickList()?.items.find(row => row.id === itemId)
+    : null;
+  const customItem = type === "custom"
+    ? state.customCategories.find(category => category.id === categoryId)?.items.find(row => row.id === itemId)
+    : null;
+  const item = voyageItem || quickItem || customItem;
+  if (!item) return;
+  qtyEditorItemId = itemId;
+  if (normalizeQty(item.qty || 1) > 1) {
+    render();
+    return;
+  }
+  if (type === "voyage") changeQty(categoryId, itemId, 1);
+  else if (type === "quick") changeQuickQty(itemId, 1);
+  else if (type === "custom") changeCustomQty(categoryId, itemId, 1);
+}
+
 function closeQtyEditorFromLabel(itemId) {
   if (qtyEditorItemId !== itemId) return;
   qtyEditorItemId = null;
@@ -3397,7 +3420,7 @@ function renderCustomCategories() {
               <button type="button" onclick="changeCustomQty('${category.id}', '${item.id}', 1)" title="Augmenter">+</button>
             </div>
             ` : `
-            <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
+            <button class="qty-pill" type="button" onclick="openQtyEditorFromPill('custom', '${category.id}', '${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
             `}
           </div>
         </div>
@@ -3565,7 +3588,7 @@ function renderQuickListDetail() {
             <button type="button" onclick="changeQuickQty('${item.id}', 1)" title="Augmenter">+</button>
           </div>
           ` : `
-          <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
+          <button class="qty-pill" type="button" onclick="openQtyEditorFromPill('quick', '', '${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
           `}
         </div>
       </div>
@@ -3811,7 +3834,7 @@ function renderCategory(voyage, category) {
             <button type="button" onclick="changeQty('${category.id}', '${item.id}', 1)" title="Augmenter">+</button>
           </div>
           ` : `
-          <button class="qty-pill" type="button" onclick="toggleQtyEditor('${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
+          <button class="qty-pill" type="button" onclick="openQtyEditorFromPill('voyage', '${category.id}', '${item.id}')" title="Modifier la quantité">${item.qty > 1 ? escapeHTML(item.qty) : "+"}</button>
           `}
         </div>
       </div>
