@@ -1,4 +1,4 @@
-const VERSION = "2.38";
+﻿const VERSION = "2.39";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -24,6 +24,8 @@ let swipeStartX = 0;
 let swipeStartY = 0;
 let activeSwipeItemId = null;
 let iconEditTarget = null;
+let editEntityTarget = null;
+let editEntityIcon = "suitcase";
 let customCategoryMoveTarget = null;
 const weatherFetchIds = new Set();
 let draftVoyageParticipants = [];
@@ -31,8 +33,8 @@ let memberSheetGroup = "family";
 let memberSheetMember = "";
 
 const categoryIcons = [
-  "baby", "bathtub", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "categorie", "clothes",
-  "cocktail", "document", "first-aid", "gamepad", "hiking", "home", "hotel", "key", "liste", "meditation", "money",
+  "baby", "bathtub", "beach", "bed", "boat", "boy", "bus", "calendar", "camera", "camping", "car", "categorie", "clothes",
+  "cocktail", "document", "dress", "first-aid", "gamepad", "hiking", "home", "hotel", "key", "liste", "meditation", "money",
   "music", "passport", "pet", "plane", "plug", "restaurant", "shopping", "ski", "snow",
   "sport", "suit", "suitcase", "sun", "swimming", "tag", "tent", "toiletries", "tools", "train", "video", "water"
 ];
@@ -170,6 +172,7 @@ const state = {
   customCategories: [],
   customCategoryMembers: [],
   customMemberAliases: {},
+  customMemberIcons: {},
   customMemberGroups: {},
   customMemberDeletedAt: {}
 };
@@ -426,9 +429,11 @@ function categoryIconForName(name) {
 }
 
 function categoryIcon(category) {
+  const storedIcon = category?.icon && categoryIcons.includes(category.icon) ? category.icon : "";
+  if (storedIcon && !["bed", "suitcase", "toiletries"].includes(storedIcon)) return storedIcon;
   const nameIcon = categoryIconForName(category?.name);
   if (nameIcon !== "tag") return nameIcon;
-  return category?.icon && categoryIcons.includes(category.icon) ? category.icon : nameIcon;
+  return storedIcon || nameIcon;
 }
 
 function renderCategoryIcon(category) {
@@ -437,11 +442,18 @@ function renderCategoryIcon(category) {
 }
 
 function memberIcon(memberName) {
-  const normalized = normalizeText(memberName);
+  const explicitIcon = memberName?.icon;
+  if (explicitIcon && categoryIcons.includes(explicitIcon)) return explicitIcon;
+  const rawName = typeof memberName === "object" ? memberName.name : memberName;
+  const normalized = normalizeText(rawName);
+  const stored = state.customMemberIcons?.[normalized];
+  if (stored && categoryIcons.includes(stored)) return stored;
   if (memberIconRules[normalized]) return memberIconRules[normalized];
   const match = Object.entries(memberIconRules).find(([name]) => normalized.includes(name));
   if (match) return match[1];
-  const icon = categoryIconForName(memberName);
+  const group = customMemberGroupValue(rawName);
+  if (group === "general" || group === "personal") return "suitcase";
+  const icon = categoryIconForName(rawName);
   return icon !== "tag" ? icon : "categorie";
 }
 
@@ -472,6 +484,7 @@ function createMember(name, categories = [], options = {}) {
   return {
     id: uid("member"),
     name: normalizeMemberName(name),
+    icon: options.icon && categoryIcons.includes(options.icon) ? options.icon : "",
     group: normalizeMemberGroup(options.group),
     updatedAt: options.updatedAt || timestamp,
     deletedAt: options.deletedAt || "",
@@ -571,6 +584,7 @@ function normalizeMember(raw) {
   return {
     id: member.id || uid("member"),
     name: normalizeMemberName(member.name || "Membre"),
+    icon: member.icon && categoryIcons.includes(member.icon) ? member.icon : "",
     group: normalizeMemberGroup(member.group),
     updatedAt: member.updatedAt || "",
     deletedAt: member.deletedAt || "",
@@ -1064,6 +1078,10 @@ function mergeSettingsData(localData, remoteData) {
       ...(localData?.customMemberAliases || {}),
       ...(remoteData?.customMemberAliases || {})
     },
+    customMemberIcons: {
+      ...(localData?.customMemberIcons || {}),
+      ...(remoteData?.customMemberIcons || {})
+    },
     customMemberGroups: {
       ...(localData?.customMemberGroups || {}),
       ...(remoteData?.customMemberGroups || {})
@@ -1101,12 +1119,16 @@ function personalSettingsSnapshot() {
   const memberGroups = Object.fromEntries(
     Object.entries(groups).filter(([name, group]) => group === "personal" || personalMembers.has(normalizeMemberName(name)))
   );
+  const memberIcons = Object.fromEntries(
+    Object.entries(state.customMemberIcons || {}).filter(([name]) => personalMembers.has(normalizeMemberName(name)))
+  );
   const memberDeletedAt = Object.fromEntries(
     Object.entries(state.customMemberDeletedAt || {}).filter(([name]) => personalMembers.has(normalizeMemberName(name)))
   );
   return {
     customCategories: categories,
     customCategoryMembers: [...personalMembers],
+    customMemberIcons: memberIcons,
     customMemberGroups: memberGroups,
     customMemberDeletedAt: memberDeletedAt
   };
@@ -1121,10 +1143,13 @@ function syncedSettingsState() {
   const customMemberGroups = Object.fromEntries(
     Object.entries(state.customMemberGroups || {}).filter(([, group]) => group !== "personal")
   );
+  const customMemberIcons = Object.fromEntries(
+    Object.entries(state.customMemberIcons || {}).filter(([name]) => !isPersonalCustomMember(name))
+  );
   const customMemberDeletedAt = Object.fromEntries(
     Object.entries(state.customMemberDeletedAt || {}).filter(([name]) => !isPersonalCustomMember(name))
   );
-  return { customCategories, customCategoryMembers, customMemberGroups, customMemberDeletedAt };
+  return { customCategories, customCategoryMembers, customMemberIcons, customMemberGroups, customMemberDeletedAt };
 }
 
 function saveLocal() {
@@ -1139,6 +1164,7 @@ function saveLocal() {
     customCategories: state.customCategories,
     customCategoryMembers: state.customCategoryMembers,
     customMemberAliases: state.customMemberAliases,
+    customMemberIcons: state.customMemberIcons,
     customMemberGroups: state.customMemberGroups,
     customMemberDeletedAt: state.customMemberDeletedAt,
     settingsRecordId
@@ -1162,6 +1188,7 @@ function backupPayload() {
       customCategories: state.customCategories,
       customCategoryMembers: state.customCategoryMembers,
       customMemberAliases: state.customMemberAliases,
+      customMemberIcons: state.customMemberIcons,
       customMemberGroups: state.customMemberGroups,
       customMemberDeletedAt: state.customMemberDeletedAt,
       settingsRecordId
@@ -1222,6 +1249,7 @@ async function importBackupFile(event) {
     state.customCategories = Array.isArray(data.customCategories) ? data.customCategories.map(normalizeCustomCategory) : [];
     state.customCategoryMembers = Array.isArray(data.customCategoryMembers) ? data.customCategoryMembers.map(normalizeMemberName) : [];
     state.customMemberAliases = data.customMemberAliases && typeof data.customMemberAliases === "object" ? data.customMemberAliases : {};
+    state.customMemberIcons = data.customMemberIcons && typeof data.customMemberIcons === "object" ? data.customMemberIcons : {};
     state.customMemberGroups = data.customMemberGroups && typeof data.customMemberGroups === "object" ? data.customMemberGroups : {};
     state.customMemberDeletedAt = data.customMemberDeletedAt && typeof data.customMemberDeletedAt === "object" ? data.customMemberDeletedAt : {};
     settingsRecordId = data.settingsRecordId || settingsRecordId || "";
@@ -1260,6 +1288,7 @@ function loadLocal() {
       state.customCategories = Array.isArray(parsed.customCategories) ? parsed.customCategories.map(normalizeCustomCategory) : [];
       state.customCategoryMembers = Array.isArray(parsed.customCategoryMembers) ? parsed.customCategoryMembers.map(normalizeMemberName) : [];
       state.customMemberAliases = parsed.customMemberAliases && typeof parsed.customMemberAliases === "object" ? parsed.customMemberAliases : {};
+      state.customMemberIcons = parsed.customMemberIcons && typeof parsed.customMemberIcons === "object" ? parsed.customMemberIcons : {};
       state.customMemberGroups = parsed.customMemberGroups && typeof parsed.customMemberGroups === "object" ? parsed.customMemberGroups : {};
       state.customMemberDeletedAt = parsed.customMemberDeletedAt && typeof parsed.customMemberDeletedAt === "object" ? parsed.customMemberDeletedAt : {};
       settingsRecordId = parsed.settingsRecordId || "";
@@ -1498,6 +1527,10 @@ function closeSheet(id) {
   document.getElementById(id).classList.remove("open");
   if (id === "voyageSheet") editingVoyageId = null;
   if (id === "iconSheet") iconEditTarget = null;
+  if (id === "editEntitySheet") {
+    editEntityTarget = null;
+    editEntityIcon = "suitcase";
+  }
   if (id === "customCategoryMoveSheet") customCategoryMoveTarget = null;
 }
 
@@ -2578,6 +2611,7 @@ function settingsPayload() {
     customCategories: syncedCategories,
     customCategoryMembers: syncedState.customCategoryMembers,
     customMemberAliases: state.customMemberAliases,
+    customMemberIcons: syncedState.customMemberIcons,
     customMemberGroups: syncedState.customMemberGroups,
     customMemberDeletedAt: syncedState.customMemberDeletedAt,
     voyage: {
@@ -2602,6 +2636,10 @@ function applySettingsData(data) {
     .map(normalizeMemberName)
     .filter((name, index, list) => list.indexOf(name) === index);
   state.customMemberAliases = merged.customMemberAliases && typeof merged.customMemberAliases === "object" ? merged.customMemberAliases : state.customMemberAliases;
+  state.customMemberIcons = {
+    ...(merged.customMemberIcons && typeof merged.customMemberIcons === "object" ? merged.customMemberIcons : {}),
+    ...personal.customMemberIcons
+  };
   state.customMemberGroups = {
     ...(merged.customMemberGroups && typeof merged.customMemberGroups === "object" ? merged.customMemberGroups : {}),
     ...personal.customMemberGroups
@@ -2658,6 +2696,7 @@ async function saveSharedSettings() {
         .map(normalizeMemberName)
         .filter((name, index, list) => list.indexOf(name) === index);
       state.customMemberAliases = data.customMemberAliases || {};
+      state.customMemberIcons = { ...(data.customMemberIcons || {}), ...personal.customMemberIcons };
       state.customMemberGroups = { ...(data.customMemberGroups || {}), ...personal.customMemberGroups };
       state.customMemberDeletedAt = { ...(data.customMemberDeletedAt || {}), ...personal.customMemberDeletedAt };
     }
@@ -3345,6 +3384,14 @@ function renameCustomMember(memberName) {
   if (value === null) return;
   const next = normalizeMemberName(value);
   if (!next || next === current) return;
+  updateCustomMember(current, next);
+  render();
+}
+
+function updateCustomMember(currentName, nextName) {
+  const current = normalizeMemberName(currentName);
+  const next = normalizeMemberName(nextName);
+  if (!current || !next) return;
   const aliasEntry = Object.entries(state.customMemberAliases).find(([, alias]) => normalizeMemberName(alias) === current);
   const defaultSource = aliasEntry?.[0] || (defaultCustomGroupNames.includes(current) ? current : "");
   const timestamp = nowISO();
@@ -3380,9 +3427,12 @@ function renameCustomMember(memberName) {
     state.customMemberDeletedAt[next] = state.customMemberDeletedAt[current];
     delete state.customMemberDeletedAt[current];
   }
+  if (state.customMemberIcons[current]) {
+    state.customMemberIcons[next] = state.customMemberIcons[current];
+    delete state.customMemberIcons[current];
+  }
   saveLocal();
   saveSharedSettings();
-  render();
 }
 
 function deleteCustomMember(memberName) {
@@ -3406,6 +3456,7 @@ function deleteCustomMember(memberName) {
   const wasPersonal = isPersonalCustomMember(current);
   if (wasPersonal) state.customMemberGroups[current] = "personal";
   else delete state.customMemberGroups[current];
+  delete state.customMemberIcons[current];
   state.customMemberDeletedAt[current] = timestamp;
   delete state.openMembers[`custom-${current}`];
   saveLocal();
@@ -3603,6 +3654,123 @@ function openIconSheet(type, categoryId) {
   document.getElementById("iconSheet").classList.add("open");
 }
 
+function openEditCategorySheet(type, categoryId) {
+  const target = type === "custom"
+    ? { category: state.customCategories.find(item => item.id === categoryId), voyage: null }
+    : findCategoryInVoyage(currentVoyage(), categoryId);
+  if (!target?.category) return;
+  editEntityTarget = { type, categoryId };
+  editEntityIcon = categoryIcon(target.category);
+  document.getElementById("editEntityTitle").textContent = "Modifier la catégorie";
+  document.getElementById("editEntityName").value = target.category.name || "";
+  document.getElementById("editEntitySubmit").textContent = "Enregistrer";
+  renderEditEntityIconChoices();
+  closeOpenMenus();
+  document.getElementById("editEntitySheet").classList.add("open");
+  setTimeout(() => document.getElementById("editEntityName")?.focus(), 50);
+}
+
+function openEditCustomMemberSheet(memberName) {
+  const current = normalizeMemberName(memberName);
+  if (!current) return;
+  const group = customMemberGroup(current);
+  editEntityTarget = { type: "customMember", memberName: current };
+  editEntityIcon = state.customMemberIcons?.[current] || (group === "family" ? memberIcon(current) : "suitcase");
+  document.getElementById("editEntityTitle").textContent = group === "family" ? "Modifier le membre" : "Modifier la catégorie";
+  document.getElementById("editEntityName").value = current;
+  document.getElementById("editEntitySubmit").textContent = "Enregistrer";
+  renderEditEntityIconChoices();
+  closeOpenMenus();
+  document.getElementById("editEntitySheet").classList.add("open");
+  setTimeout(() => document.getElementById("editEntityName")?.focus(), 50);
+}
+
+function openEditVoyageMemberSheet(memberId) {
+  const voyage = currentVoyage();
+  const member = voyageMembers(voyage).find(item => item.id === memberId);
+  if (!voyage || !member) return;
+  editEntityTarget = { type: "voyageMember", memberId };
+  editEntityIcon = member.icon && categoryIcons.includes(member.icon) ? member.icon : memberIcon(member);
+  document.getElementById("editEntityTitle").textContent = "Modifier le membre";
+  document.getElementById("editEntityName").value = member.name || "";
+  document.getElementById("editEntitySubmit").textContent = "Enregistrer";
+  renderEditEntityIconChoices();
+  closeOpenMenus();
+  document.getElementById("editEntitySheet").classList.add("open");
+  setTimeout(() => document.getElementById("editEntityName")?.focus(), 50);
+}
+
+function renderEditEntityIconChoices() {
+  const target = document.getElementById("editEntityIconChoices");
+  if (!target) return;
+  target.innerHTML = categoryIcons.map(icon => `
+    <button class="icon-choice ${icon === editEntityIcon ? "active" : ""}" type="button" onclick="selectEditEntityIcon('${icon}')">
+      <span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>
+    </button>
+  `).join("");
+}
+
+function selectEditEntityIcon(icon) {
+  if (!categoryIcons.includes(icon)) return;
+  editEntityIcon = icon;
+  renderEditEntityIconChoices();
+}
+
+function saveEditEntitySheet(event) {
+  event.preventDefault();
+  if (!editEntityTarget) return;
+  const name = document.getElementById("editEntityName").value.trim();
+  if (!name) return;
+  const timestamp = nowISO();
+
+  if (editEntityTarget.type === "customMember") {
+    const current = normalizeMemberName(editEntityTarget.memberName);
+    const next = normalizeMemberName(name);
+    if (next !== current) updateCustomMember(current, next);
+    state.customMemberIcons[next] = categoryIcons.includes(editEntityIcon) ? editEntityIcon : "suitcase";
+    saveLocal();
+    saveSharedSettings();
+    closeSheet("editEntitySheet");
+    render();
+    return;
+  }
+
+  if (editEntityTarget.type === "voyageMember") {
+    const voyage = currentVoyage();
+    const member = voyageMembers(voyage).find(item => item.id === editEntityTarget.memberId);
+    if (!voyage || !member) return;
+    member.name = name;
+    member.icon = categoryIcons.includes(editEntityIcon) ? editEntityIcon : "suitcase";
+    touchEntity(member, timestamp);
+    touchVoyage(voyage, timestamp);
+    saveAndSync(voyage);
+    closeSheet("editEntitySheet");
+    render();
+    return;
+  }
+
+  const target = editEntityTarget.type === "custom"
+    ? { category: state.customCategories.find(item => item.id === editEntityTarget.categoryId), voyage: null, member: null }
+    : findCategoryInVoyage(currentVoyage(), editEntityTarget.categoryId);
+  const category = target?.category;
+  if (!category) return;
+  category.name = name;
+  category.icon = categoryIcons.includes(editEntityIcon) ? editEntityIcon : categoryIconForName(name);
+  touchEntity(category, timestamp);
+
+  if (editEntityTarget.type === "custom") {
+    saveLocal();
+    saveSharedSettings();
+  } else {
+    const voyage = target.voyage || currentVoyage();
+    if (target.member) touchEntity(target.member, timestamp);
+    touchVoyage(voyage, timestamp);
+    saveAndSync(voyage);
+  }
+  closeSheet("editEntitySheet");
+  render();
+}
+
 function findIconTarget() {
   if (!iconEditTarget) return null;
   if (iconEditTarget.type === "custom") {
@@ -3757,8 +3925,7 @@ function renderCustomCategories() {
             <details class="voyage-menu" onclick="event.stopPropagation()">
               <summary class="mini" title="Options de la catégorie">⋮</summary>
               <div class="voyage-menu-panel">
-                <button class="menu-item" type="button" onclick="openIconSheet('custom', '${category.id}')">Modifier l'icône</button>
-                <button class="menu-item" type="button" onclick="renameCustomCategory('${category.id}')">Renommer la catégorie</button>
+                <button class="menu-item" type="button" onclick="openEditCategorySheet('custom', '${category.id}')">Modifier la catégorie</button>
                 <button class="menu-item" type="button" onclick="openCustomCategoryMemberSheet('move', '${category.id}')">Déplacer une catégorie</button>
                 <button class="menu-item" type="button" onclick="openCustomCategoryMemberSheet('duplicate', '${category.id}')">Dupliquer une catégorie</button>
                 <button class="menu-item red" type="button" onclick="deleteCustomCategory('${category.id}')">Supprimer la catégorie</button>
@@ -3780,6 +3947,7 @@ function renderCustomCategories() {
   const memberCards = customMemberNames().sort(compareItemNames).map(groupName => {
     const groupId = `custom-${groupName}`;
     const open = state.openMembers[groupId] === true;
+    const editLabel = customMemberGroup(groupName) === "family" ? "Modifier le membre" : "Modifier la catégorie";
     const categories = visibleCustomCategories(state.customCategories)
       .filter(category => defaultMemberForCategory(category) === groupName)
       .sort(compareItemNames);
@@ -3795,7 +3963,7 @@ function renderCustomCategories() {
             <details class="voyage-menu" onclick="event.stopPropagation()">
               <summary class="mini" title="Options du membre">⋮</summary>
               <div class="voyage-menu-panel">
-                <button class="menu-item" type="button" onclick="renameCustomMember('${escapeHTML(groupName)}')">Modifier le nom</button>
+                <button class="menu-item" type="button" onclick="openEditCustomMemberSheet('${escapeHTML(groupName)}')">${editLabel}</button>
                 <button class="menu-item red" type="button" onclick="deleteCustomMember('${escapeHTML(groupName)}')">Supprimer le membre</button>
               </div>
             </details>
@@ -4114,7 +4282,7 @@ function renderMember(voyage, member) {
     <article class="category ${open ? "open" : ""}">
       <div class="category-head">
         <button class="category-title" type="button" onclick="toggleMember('${member.id}')">
-          ${renderMemberIcon(member.name)}
+          ${renderMemberIcon(member)}
           <span class="category-name member-name">${escapeHTML(member.name)}</span>
         </button>
         <div class="category-actions" onclick="event.stopPropagation()">
@@ -4123,7 +4291,7 @@ function renderMember(voyage, member) {
             <summary class="mini" title="Options du membre">⋮</summary>
             <div class="voyage-menu-panel">
               <button class="menu-item" type="button" onclick="addCategoryToMember('${member.id}')">Ajouter une catégorie</button>
-              <button class="menu-item" type="button" onclick="renameMember('${member.id}')">Renommer le membre</button>
+              <button class="menu-item" type="button" onclick="openEditVoyageMemberSheet('${member.id}')">Modifier le membre</button>
               <button class="menu-item red" type="button" onclick="deleteMember('${member.id}')">Supprimer le membre</button>
             </div>
           </details>
@@ -4179,8 +4347,7 @@ function renderCategory(voyage, category) {
           <details class="voyage-menu" onclick="event.stopPropagation()">
             <summary class="mini" title="Options de la catégorie">⋮</summary>
             <div class="voyage-menu-panel">
-              <button class="menu-item" type="button" onclick="openIconSheet('voyage', '${category.id}')">Modifier l'icône</button>
-              <button class="menu-item" type="button" onclick="renameCategory('${category.id}')">Renommer la catégorie</button>
+              <button class="menu-item" type="button" onclick="openEditCategorySheet('voyage', '${category.id}')">Modifier la catégorie</button>
               <button class="menu-item red" type="button" onclick="deleteCategory('${category.id}')">Supprimer la catégorie</button>
             </div>
           </details>
@@ -4276,6 +4443,7 @@ loadSharedSettings();
 syncAllVoyages();
 syncAllQuickLists();
 subscribeToCurrentVoyage();
+
 
 
 

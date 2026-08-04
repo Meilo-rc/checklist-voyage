@@ -9,11 +9,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Checklist voyage">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="manifest" href="./manifest.json?v=2.38">
-  <link rel="icon" href="./icon.svg?v=2.38" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./icon-192.png?v=2.38">
+  <link rel="manifest" href="./manifest.json?v=2.39">
+  <link rel="icon" href="./icon.svg?v=2.39" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon-192.png?v=2.39">
   <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.26.2/dist/pocketbase.umd.js"></script>
-  <link rel="stylesheet" href="./styles.css?v=2.38">
+  <link rel="stylesheet" href="./styles.css?v=2.39">
 </head>
 <body>
   <div class="app">
@@ -25,7 +25,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">2.38</span></h1>
+              <h1>Checklist voyage <span class="badge blue">2.39</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -164,6 +164,23 @@
     </section>
   </div>
 
+  <div class="sheet-backdrop" id="editEntitySheet" onclick="closeSheetOnBackdrop(event, 'editEntitySheet')">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="editEntityTitle">
+      <div class="sheet-head">
+        <h2 id="editEntityTitle">Modifier la catégorie</h2>
+        <button class="icon-btn" type="button" onclick="closeSheet('editEntitySheet')" title="Fermer">&times;</button>
+      </div>
+      <form class="grid section" onsubmit="saveEditEntitySheet(event)">
+        <div class="field">
+          <label for="editEntityName">Nom</label>
+          <input id="editEntityName" autocomplete="off">
+        </div>
+        <div class="icon-picker-grid" id="editEntityIconChoices"></div>
+        <button class="btn blue full" id="editEntitySubmit" type="submit">Enregistrer</button>
+      </form>
+    </section>
+  </div>
+
   <div class="sheet-backdrop" id="customCategoryMoveSheet" onclick="closeSheetOnBackdrop(event, 'customCategoryMoveSheet')">
     <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="customCategoryMoveTitle">
       <div class="sheet-head">
@@ -180,6 +197,6 @@
     </section>
   </div>
 
-  <script src="./app.js?v=2.38"></script>
+  <script src="./app.js?v=2.39"></script>
 </body>
 </html>
