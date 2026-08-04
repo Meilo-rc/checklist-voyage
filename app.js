@@ -1,4 +1,4 @@
-﻿const VERSION = "2.41";
+const VERSION = "2.42";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -852,7 +852,7 @@ function normalizeCustomCategory(raw) {
     updatedAt: category.updatedAt || "",
     deletedAt: category.deletedAt || "",
     items: Array.isArray(category.items)
-      ? category.items.map(normalizeCustomItem).filter(item => item.name)
+      ? normalizeCustomItems(category.items)
       : []
   };
 }
@@ -867,6 +867,12 @@ function normalizeCustomItem(raw) {
     deletedAt: item.deletedAt || ""
   };
 }
+
+function normalizeCustomItems(items = []) {
+  const normalized = items.map(normalizeCustomItem).filter(item => item.name);
+  return mergeByIdOrName(normalized, [], newerEntity);
+}
+
 function newerEntity(a, b) {
   if (!a) return b;
   if (!b) return a;
@@ -1093,7 +1099,20 @@ function mergeCustomCategoryList(localCategories = [], remoteCategories = []) {
     if (!usedRemote.has(remoteIndex)) results.push(remote);
   });
 
-  return results.filter(Boolean);
+  const deduped = [];
+  results.filter(Boolean).forEach(category => {
+    const key = nameKey(category);
+    const byId = category?.id ? deduped.findIndex(existing => existing?.id === category.id) : -1;
+    const byName = deduped.findIndex(existing => nameKey(existing) === key);
+    const index = byId !== -1 ? byId : byName;
+    if (index === -1) {
+      deduped.push(category);
+    } else {
+      deduped[index] = mergeCustomCategories(deduped[index], category);
+    }
+  });
+
+  return deduped;
 }
 
 function mergeSettingsData(localData, remoteData) {
@@ -3678,9 +3697,18 @@ function deleteCustomItem(categoryId, itemId) {
   const item = category.items.find(row => row.id === itemId);
   if (!item) return;
   const timestamp = nowISO();
-  item.deletedAt = timestamp;
-  touchEntity(item, timestamp);
+  const itemName = normalizeText(customItemName(item));
+  const sourceId = item.sourceTemplateItemId || "";
+  category.items.forEach(row => {
+    const sameId = row.id === itemId;
+    const sameSource = sourceId && row.sourceTemplateItemId === sourceId;
+    const sameName = itemName && normalizeText(customItemName(row)) === itemName;
+    if (!sameId && !sameSource && !sameName) return;
+    row.deletedAt = timestamp;
+    touchEntity(row, timestamp);
+  });
   touchEntity(category, timestamp);
+  category.items = normalizeCustomItems(category.items);
   saveLocal();
   saveSharedSettings();
   render();
