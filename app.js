@@ -1,4 +1,4 @@
-const VERSION = "2.37";
+const VERSION = "2.38";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -2290,12 +2290,12 @@ function renderCategoryTemplateChoices(memberName = "") {
   if (!target) return;
   const availableCategories = visibleCustomCategories(state.customCategories);
   if (!availableCategories.length) {
-    target.innerHTML = `<div class="notice">Aucune catégorie personnalisée pour le moment.</div>`;
+    target.innerHTML = "";
     return;
   }
   const categories = availableCategories.filter(category => defaultMemberForCategory(category) === memberName);
   if (!memberName || !categories.length) {
-    target.innerHTML = `<div class="notice">Aucune catégorie personnalisée pour ce membre.</div>`;
+    target.innerHTML = "";
     return;
   }
   target.innerHTML = `
@@ -3767,7 +3767,7 @@ function renderCustomCategories() {
           </div>
         </div>
         <div class="category-body">
-          ${items || `<div class="notice">Aucun item dans ce modèle.</div>`}
+          ${items || ""}
           <form class="add-item" onsubmit="addCustomItem(event, '${category.id}')">
             <button class="btn blue" type="submit">+</button>
             <input autocomplete="off" placeholder="Ajouter un item">
@@ -3802,7 +3802,7 @@ function renderCustomCategories() {
           </div>
         </div>
         <div class="category-body">
-          ${categories.map(renderCustomCategoryCard).join("") || `<div class="notice">Aucune catégorie dans ce groupe.</div>`}
+          ${categories.map(renderCustomCategoryCard).join("") || ""}
           <form class="add-item" onsubmit="addCustomCategoryFromForm(event, decodeURIComponent('${encodeURIComponent(groupName)}'))">
             <button class="btn blue" type="submit">+</button>
             <input autocomplete="off" placeholder="Ajouter une catégorie">
@@ -3816,7 +3816,7 @@ function renderCustomCategories() {
   const familyCards = memberCards.filter(card => customMemberGroup(card.groupName) === "family").map(card => card.html).join("");
   const personalCards = memberCards.filter(card => customMemberGroup(card.groupName) === "personal").map(card => card.html).join("");
   const groups = [
-    renderChecklistGroup("G\u00e9n\u00e9ral", `${generalCards || `<div class="notice">Aucune cat\u00e9gorie g\u00e9n\u00e9rale.</div>`}${renderAddCustomMemberForm("general")}`),
+    renderChecklistGroup("G\u00e9n\u00e9ral", `${generalCards || ""}${renderAddCustomMemberForm("general")}`),
     renderChecklistGroup("Famille", `${familyCards || `<div class="notice">Aucun membre dans la famille.</div>`}${renderAddCustomMemberForm("family")}`),
     renderChecklistGroup("Personnel", `${personalCards || `<div class="notice">Aucun membre personnel sur cet appareil.</div>`}${renderAddCustomMemberForm("personal")}`)
   ].join("");
@@ -3829,7 +3829,7 @@ function renderCustomCategories() {
       </div>
     </section>
     <section class="grid">
-      ${groups || `<div class="panel empty"><h2>Aucun modèle</h2><p>Créez une catégorie personnalisée pour la retrouver lors de l'ajout dans un voyage.</p></div>`}
+      ${groups || ""}
     </section>
   `;
 }
@@ -3934,7 +3934,7 @@ function renderQuickListDetail() {
     </section>
     <section class="panel panel-pad section">
       <div class="quick-items">
-        ${items || `<div class="notice">Aucun item dans cette liste rapide.</div>`}
+        ${items || ""}
       </div>
       <form class="add-item" onsubmit="addQuickItem(event)">
         <button class="btn blue" type="submit">+</button>
@@ -4035,7 +4035,7 @@ function renderChecklist() {
     .map(member => renderMember(voyage, member))
     .join("");
   const groupedLists = [
-    renderChecklistGroup("Général", general + generalMembers, "Aucune information générale."),
+    renderChecklistGroup("Général", general + generalMembers, ""),
     renderChecklistGroup("Famille", familyMembers, "Ajoutez un membre pour commencer.")
   ].join("");
   const daysLeft = daysUntilTrip(voyage);
@@ -4100,7 +4100,7 @@ function renderGeneralSection(voyage) {
         </div>
       </div>
       <div class="category-body">
-        ${categories.map(category => renderCategory(voyage, category)).join("") || `<div class="notice">Aucune catégorie générale.</div>`}
+        ${categories.map(category => renderCategory(voyage, category)).join("") || ""}
       </div>
     </article>
   `;
@@ -4130,7 +4130,7 @@ function renderMember(voyage, member) {
         </div>
       </div>
       <div class="category-body">
-        ${categories || `<div class="notice">Aucune catégorie pour ce membre.</div>`}
+        ${categories || ""}
       </div>
     </article>
   `;
@@ -4187,7 +4187,7 @@ function renderCategory(voyage, category) {
         </div>
       </div>
       <div class="category-body">
-        ${items || `<div class="notice">Aucun élément dans cette catégorie.</div>`}
+        ${items || ""}
         <form class="add-item" onsubmit="addItem(event, '${category.id}')">
           <button class="btn blue" type="submit">+</button>
           <input autocomplete="off" placeholder="Ajouter un élément">
