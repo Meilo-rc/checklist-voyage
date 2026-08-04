@@ -1,4 +1,4 @@
-const VERSION = "1.99";
+const VERSION = "2.00";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -3551,10 +3551,7 @@ function renderQuickLists() {
     </section>
     <section class="grid section">
       ${cards || `<div class="panel empty"><h2>Aucune liste rapide</h2><p>Créez une liste pour un sac de piscine, de foot ou de crèche.</p></div>`}
-      <button class="voyage-card add-card" type="button" onclick="createQuickList()">
-        <span class="plus">+</span>
-        <strong>Ajouter une liste rapide</strong>
-      </button>
+      <button class="page-add-button" type="button" onclick="createQuickList()" title="Ajouter une liste rapide" aria-label="Ajouter une liste rapide">+</button>
     </section>
     <form class="add-item section" onsubmit="joinQuickList(event)">
       <button class="btn green" type="submit">+</button>
@@ -3645,10 +3642,7 @@ function renderVoyages() {
         <h2>Aucun voyage pour le moment</h2>
         <p>Ajoutez un voyage en le créant ou avec un code partagé.</p>
       </section>
-      <button class="voyage-card add-card full" type="button" onclick="openVoyageSheet()">
-        <span class="plus">+</span>
-        <strong>Ajouter un voyage</strong>
-      </button>
+      <button class="page-add-button" type="button" onclick="openVoyageSheet()" title="Ajouter un voyage" aria-label="Ajouter un voyage">+</button>
     `;
     return;
   }
@@ -3689,10 +3683,7 @@ function renderVoyages() {
     </section>
     <section class="grid">
       ${cards}
-      <button class="voyage-card add-card" type="button" onclick="openVoyageSheet()">
-        <span class="plus">+</span>
-        <strong>Ajouter un voyage</strong>
-      </button>
+      <button class="page-add-button" type="button" onclick="openVoyageSheet()" title="Ajouter un voyage" aria-label="Ajouter un voyage">+</button>
     </section>
   `;
 }
