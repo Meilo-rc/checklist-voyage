@@ -1205,6 +1205,9 @@ textarea:focus {
 }
 
 .template-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 30px;
   padding: 0 10px;
   border-radius: 999px;
