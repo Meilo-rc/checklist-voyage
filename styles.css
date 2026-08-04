@@ -383,11 +383,17 @@ h1 {
   color: white;
 }
 
-.nav-svg-icon {
+.nav-svg-icon,
+.header-svg-icon {
   display: inline-block;
   background: currentColor;
   -webkit-mask: var(--icon-url) center / contain no-repeat;
   mask: var(--icon-url) center / contain no-repeat;
+}
+
+.header-svg-icon {
+  width: 19px;
+  height: 19px;
 }
 
 .suggestions {
