@@ -673,20 +673,23 @@ textarea:focus {
 }
 
 .page-add-button {
-  width: 46px;
-  height: 46px;
-  min-height: 46px;
-  justify-self: center;
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  z-index: 35;
+  width: 52px;
+  height: 52px;
+  min-height: 52px;
   display: grid;
   place-items: center;
   border: 0;
   border-radius: 50%;
   background: var(--blue);
   color: white;
-  font-size: 1.8rem;
+  font-size: 2rem;
   font-weight: 700;
   line-height: 1;
-  box-shadow: 0 8px 18px rgba(105, 195, 235, .28);
+  box-shadow: 0 10px 22px rgba(105, 195, 235, .36);
 }
 
 .voyage-main {

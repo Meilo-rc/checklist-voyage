@@ -1,4 +1,4 @@
-const VERSION = "2.00";
+const VERSION = "2.01";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
