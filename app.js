@@ -1,4 +1,4 @@
-const VERSION = "2.22";
+const VERSION = "2.23";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1659,17 +1659,12 @@ function destinationCountry(voyage) {
   return voyage.destination?.country || voyage.enrichment?.location?.country || "";
 }
 
-function destinationCity(voyage) {
-  return voyage.destination?.name || voyage.enrichment?.location?.name || "";
-}
-
-function tripPlaceCodeLine(voyage) {
-  const city = destinationCity(voyage);
+function tripTitleLine(voyage) {
   const country = destinationCountry(voyage);
-  const place = [city, country].filter(Boolean).join(", ");
+  const title = [voyage.name, country].filter(Boolean).join(", ");
   const code = voyage.code ? `<span class="trip-code-muted">(${escapeHTML(voyage.code)})</span>` : "";
-  if (!place) return code;
-  return `${escapeHTML(place)} ${code}`.trim();
+  if (!title) return code;
+  return `${escapeHTML(title)} ${code}`.trim();
 }
 
 function destinationSearchLabel(voyage) {
@@ -3843,13 +3838,9 @@ function renderVoyages() {
         <div class="voyage-main">
           <div>
             <div class="title-row">
-              <h2 class="voyage-name">${escapeHTML(voyage.name)}</h2>
+              <h2 class="voyage-name">${tripTitleLine(voyage)}</h2>
             </div>
-            ${tripPlaceCodeLine(voyage) ? `<p class="muted trip-place-line">${tripPlaceCodeLine(voyage)}</p>` : ""}
             ${dateLine ? `<p class="muted">${escapeHTML(dateLine)}</p>` : ""}
-            <div class="voyage-meta">
-              <span class="badge">${progress.done}/${progress.total} éléments prêts</span>
-            </div>
           </div>
           <div class="status">${progress.percent}%</div>
         </div>
@@ -3905,9 +3896,8 @@ function renderChecklist() {
       <div class="toolbar">
         <div class="toolbar-title">
           <div class="title-row">
-            <h2>${escapeHTML(voyage.name)}</h2>
+            <h2>${tripTitleLine(voyage)}</h2>
           </div>
-          ${tripPlaceCodeLine(voyage) ? `<p class="trip-place-line">${tripPlaceCodeLine(voyage)}</p>` : ""}
           ${dateLine ? `<p>${escapeHTML(dateLine)}${durationLabel ? ` (${escapeHTML(durationLabel.replace("j", "j / ").replace("n", "n"))})` : ""}</p>` : ""}
         </div>
         <div class="category-actions trip-actions">
