@@ -1,4 +1,4 @@
-const VERSION = "2.03";
+const VERSION = "2.04";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -2019,7 +2019,9 @@ function saveMemberSheet(event) {
 function templateMemberNames(group = "family") {
   return customMemberNames()
     .filter(name => name !== "Général")
-    .filter(name => visibleCustomCategories(state.customCategories).some(category => defaultMemberForCategory(category) === name));
+    .filter(name => customMemberGroup(name) === group)
+    .filter(name => visibleCustomCategories(state.customCategories).some(category => defaultMemberForCategory(category) === name))
+    .sort(compareItemNames);
 }
 
 function renderMemberTemplateGroups(selectedMember = "") {
