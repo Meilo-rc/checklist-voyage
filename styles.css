@@ -782,6 +782,35 @@ textarea:focus {
   transition: width .25s ease;
 }
 
+.trip-progress-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.trip-progress-count {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.trip-weather {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .8rem;
+  line-height: 1.35;
+}
+
+.trip-weather-title {
+  color: var(--text);
+  font-weight: 760;
+  margin-right: 4px;
+}
+
 .category {
   position: relative;
   border: 1px solid var(--line);

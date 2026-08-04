@@ -1,4 +1,4 @@
-const VERSION = "2.18";
+const VERSION = "2.19";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1729,18 +1729,17 @@ function renderWeatherPanel(voyage) {
   const weather = voyage.enrichment?.weather;
   if (!weather) {
     return `
-      <section class="info-card weather-card section">
-        <h3>Météo</h3>
-        <p>Chargement des données Open-Meteo...</p>
-      </section>
+      <div class="trip-weather">
+        <span class="trip-weather-title">Météo</span>
+        <span>Chargement des données Open-Meteo...</span>
+      </div>
     `;
   }
   return `
-    <section class="info-card weather-card section">
-      <h3>${escapeHTML(weather.label || "Météo")}</h3>
-      <p>${escapeHTML(weather.summary || "Météo indisponible pour le moment.")}</p>
-      <p class="muted">${weather.type === "climate" ? "Estimation climatique Open-Meteo, utile quand les prévisions ne couvrent pas encore les dates du voyage." : "Prévision Open-Meteo pour les dates du voyage."}</p>
-    </section>
+    <div class="trip-weather">
+      <span class="trip-weather-title">${escapeHTML(weather.label || "Météo")}</span>
+      <span>${escapeHTML(weather.summary || "Météo indisponible pour le moment.")}</span>
+    </div>
   `;
 }
 
@@ -3898,8 +3897,7 @@ function renderChecklist() {
             ${renderDestinationLink(voyage)}
             <button class="code-button" type="button" onclick="copyCode('${voyage.code}')" title="Copier le code">${escapeHTML(voyage.code)}</button>
           </div>
-          ${dateLine ? `<p>${escapeHTML(dateLine)} ${durationLabel ? `<span class="badge">${escapeHTML(durationLabel)}</span>` : ""}</p>` : ""}
-          <p>${progress.done}/${progress.total} éléments prêts</p>
+          ${dateLine ? `<p>${escapeHTML(dateLine)}${durationLabel ? ` (${escapeHTML(durationLabel.replace("j", "j / ").replace("n", "n"))})` : ""}</p>` : ""}
         </div>
         <div class="category-actions trip-actions">
           <details class="voyage-menu">
@@ -3914,9 +3912,12 @@ function renderChecklist() {
           ${daysLeft ? `<span class="days-left">${escapeHTML(daysLeft)}</span>` : ""}
         </div>
       </div>
-      <div class="progress" aria-hidden="true"><span style="${progressStyle(progress.percent)}"></span></div>
+      <div class="trip-progress-row">
+        <div class="progress" aria-hidden="true"><span style="${progressStyle(progress.percent)}"></span></div>
+        <span class="trip-progress-count">${progress.done}/${progress.total} prêts</span>
+      </div>
+      ${weatherPanel}
     </section>
-    ${weatherPanel}
     <section class="grid">
       ${groupedLists}
     </section>
