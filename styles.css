@@ -352,11 +352,7 @@ h1 {
 
 .choice-block {
   display: grid;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-soft);
+  gap: 7px;
 }
 
 .choice-grid {
@@ -366,17 +362,17 @@ h1 {
 }
 
 .choice {
-  min-height: 34px;
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: #eef2f7;
-  color: var(--text);
-  font-size: .86rem;
-  font-weight: 700;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 760;
 }
 
 .choice input {
