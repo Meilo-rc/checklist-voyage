@@ -1,4 +1,4 @@
-const VERSION = "2.32";
+const VERSION = "2.33";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -34,7 +34,7 @@ const categoryIcons = [
   "baby", "beach", "bed", "boat", "bus", "calendar", "camera", "camping", "car", "categorie", "clothes",
   "cocktail", "document", "first-aid", "gamepad", "hiking", "home", "hotel", "key", "liste", "meditation", "money",
   "music", "passport", "pet", "plane", "plug", "restaurant", "shopping", "ski", "snow",
-  "sport", "suitcase", "sun", "swimming", "tag", "tent", "toiletries", "tools", "train", "video", "water"
+  "sport", "suit", "suitcase", "sun", "swimming", "tag", "tent", "toiletries", "tools", "train", "video", "water"
 ];
 
 const iconLabels = {
@@ -146,6 +146,13 @@ const exactIconRules = {
   "logement camping": "tent",
   "logement - camping": "tent",
   camping: "tent"
+};
+
+const memberIconRules = {
+  richard: "suit",
+  jenna: "dress",
+  milo: "boy",
+  malone: "baby"
 };
 
 const state = {
@@ -422,6 +429,15 @@ function categoryIcon(category) {
 
 function renderCategoryIcon(category) {
   const icon = categoryIcon(category);
+  return `<span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>`;
+}
+
+function memberIcon(memberName) {
+  return memberIconRules[normalizeText(memberName)] || "suitcase";
+}
+
+function renderMemberIcon(memberName) {
+  const icon = memberIcon(memberName);
   return `<span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>`;
 }
 
@@ -3736,7 +3752,7 @@ function renderCustomCategories() {
       <article class="category ${open ? "open" : ""}">
         <div class="category-head">
           <button class="category-title" type="button" onclick="toggleMember('${groupId}')">
-            <span class="category-icon" style="--icon-url: url('./category-icons/suitcase.svg')" aria-hidden="true"></span>
+            ${renderMemberIcon(groupName)}
             <span class="category-name member-name">${escapeHTML(groupName)}</span>
           </button>
           <div class="category-actions" onclick="event.stopPropagation()">
@@ -4063,7 +4079,7 @@ function renderMember(voyage, member) {
     <article class="category ${open ? "open" : ""}">
       <div class="category-head">
         <button class="category-title" type="button" onclick="toggleMember('${member.id}')">
-          <span class="category-icon" style="--icon-url: url('./category-icons/suitcase.svg')" aria-hidden="true"></span>
+          ${renderMemberIcon(member.name)}
           <span class="category-name member-name">${escapeHTML(member.name)}</span>
         </button>
         <div class="category-actions" onclick="event.stopPropagation()">
