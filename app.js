@@ -1,4 +1,4 @@
-const VERSION = "2.17";
+const VERSION = "2.18";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -3775,7 +3775,7 @@ function renderQuickListDetail() {
       <div class="progress" aria-hidden="true"><span style="${progressStyle(percent)}"></span></div>
     </section>
     <section class="panel panel-pad section">
-      <div class="grid">
+      <div class="quick-items">
         ${items || `<div class="notice">Aucun item dans cette liste rapide.</div>`}
       </div>
       <form class="add-item" onsubmit="addQuickItem(event)">

@@ -937,6 +937,11 @@ textarea:focus {
   gap: 3px;
 }
 
+.quick-items {
+  display: grid;
+  gap: 3px;
+}
+
 .item {
   position: relative;
   display: block;
