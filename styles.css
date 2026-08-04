@@ -418,10 +418,31 @@ h1 {
 }
 
 .calendar {
+  display: none;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: white;
   overflow: hidden;
+}
+
+.calendar.open {
+  display: block;
+}
+
+.date-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: white;
+  color: var(--muted);
+  text-align: left;
+  font-size: .92rem;
+}
+
+.date-input.filled {
+  color: var(--text);
 }
 
 .calendar-head {

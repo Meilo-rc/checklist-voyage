@@ -1,4 +1,4 @@
-const VERSION = "2.06";
+const VERSION = "2.07";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1296,9 +1296,9 @@ function openVoyageSheet(voyageId = null) {
       next: voyage.startDate && !voyage.endDate ? "end" : "start"
     };
     if (voyage.startDate) draftCalendarMonth = new Date(`${voyage.startDate}T00:00:00`);
+    document.getElementById("rangeCalendar")?.classList.remove("open");
+    updateDraftDateField();
     renderRangeCalendar();
-    const status = document.getElementById("voyageRangeStatus");
-    if (status) status.textContent = voyage.date || "Choisissez la date de départ, puis la date de retour.";
     const presets = voyage.presetOptions || {};
     ["transport", "lodging"].forEach(group => {
       (presets[group] || []).forEach(value => {
@@ -1704,10 +1704,38 @@ function renderWeatherPanel(voyage) {
 
 function resetDraftDateRange() {
   draftDateRange = { start: "", end: "", next: "start" };
-  const status = document.getElementById("voyageRangeStatus");
   draftCalendarMonth = new Date();
   draftCalendarMonth.setDate(1);
-  if (status) status.textContent = "Choisissez la date de départ, puis la date de retour.";
+  document.getElementById("rangeCalendar")?.classList.remove("open");
+  updateDraftDateField();
+  renderRangeCalendar();
+}
+
+function draftDateLabel() {
+  return formatTripDateLine({
+    startDate: draftDateRange.start,
+    endDate: draftDateRange.end,
+    date: formatDateRange(draftDateRange.start, draftDateRange.end)
+  });
+}
+
+function updateDraftDateField() {
+  const button = document.getElementById("voyageDateButton");
+  const status = document.getElementById("voyageRangeStatus");
+  const label = draftDateLabel();
+  if (button) {
+    button.textContent = label || "Choisir les dates";
+    button.classList.toggle("filled", Boolean(label));
+  }
+  if (!status) return;
+  if (!draftDateRange.start) status.textContent = "Choisissez la date de départ, puis la date de retour.";
+  else if (!draftDateRange.end) status.textContent = `${label} - choisissez la date de retour`;
+  else status.textContent = label;
+}
+
+function openDatePicker() {
+  document.getElementById("rangeCalendar")?.classList.add("open");
+  updateDraftDateField();
   renderRangeCalendar();
 }
 
@@ -1728,11 +1756,8 @@ function pickCalendarDate(value) {
     }
     draftDateRange.next = "start";
   }
-  const status = document.getElementById("voyageRangeStatus");
-  if (status) {
-    const label = formatDateRange(draftDateRange.start, draftDateRange.end);
-    status.textContent = draftDateRange.end ? label : `${label} - choisissez la date de retour`;
-  }
+  updateDraftDateField();
+  if (draftDateRange.end) document.getElementById("rangeCalendar")?.classList.remove("open");
   renderRangeCalendar();
 }
 
