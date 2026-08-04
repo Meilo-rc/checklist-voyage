@@ -1,4 +1,4 @@
-const VERSION = "2.02";
+const VERSION = "2.03";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -187,6 +187,22 @@ const presetItems = {
     velo: ["Casques", "Antivols", "Gourdes vélo", "Kit réparation", "Gants vélo", "Charge éclairage"],
     visites: ["Billets visites", "Guide / appli hors-ligne", "Batterie externe", "Chaussures confortables", "Liste restaurants"],
     bebe: ["Couches", "Lingettes", "Doudou", "Poussette / porte-bébé", "Repas bébé", "Trousse médicaments enfant"]
+  }
+};
+
+const presetChoiceLabels = {
+  transport: {
+    avion: "Avion",
+    train: "Train",
+    voiture: "Voiture",
+    bus: "Bus",
+    bateau: "Bateau"
+  },
+  lodging: {
+    hotel: "Hôtel",
+    camping: "Camping",
+    famille: "Famille",
+    location: "Location"
   }
 };
 
@@ -421,6 +437,34 @@ function cloneTemplateCategory(template) {
   };
 }
 
+function templateMatchesChoice(template, group, choice) {
+  const normalizedName = normalizeText(template?.name);
+  const label = presetChoiceLabels[group]?.[choice] || choice;
+  return normalizedName === normalizeText(choice) || normalizedName === normalizeText(label);
+}
+
+function addOrMergeCategoryFromTemplate(categories, template) {
+  const copy = cloneTemplateCategory(template);
+  const existing = categories.find(category => normalizeText(category.name) === normalizeText(copy.name));
+  if (existing) mergeCategoryItems(existing, copy);
+  else categories.push(copy);
+}
+
+function importGeneralChoiceCategories(categories, group, choices = []) {
+  const remaining = [];
+  const templates = visibleCustomCategories(state.customCategories)
+    .filter(category => defaultMemberForCategory(category) === "Général");
+  choices.forEach(choice => {
+    const template = templates.find(category => templateMatchesChoice(category, group, choice));
+    if (template) addOrMergeCategoryFromTemplate(categories, template);
+    else remaining.push(choice);
+  });
+  if (remaining.length) {
+    const categoryName = group === "transport" ? "Transport" : "Logement";
+    enrichCategories(categories, categoryName, remaining, presetItems[group]);
+  }
+}
+
 function createMembersFromParticipants(participants = [], options = {}) {
   const names = participants
     .map(normalizeMemberName)
@@ -431,7 +475,6 @@ function createMembersFromParticipants(participants = [], options = {}) {
     const categories = visibleCustomCategories(state.customCategories)
       .filter(category => defaultMemberForCategory(category) === name)
       .map(cloneTemplateCategory);
-    enrichCategories(categories, "Activités", options.activity || [], presetItems.activity);
     return createMember(name, categories);
   });
 }
@@ -448,8 +491,8 @@ function createGeneralCategories(options = {}) {
       { id: uid("item"), name: "Moyens de paiement", qty: 1, status: "todo", done: false }
     ]
   }];
-  enrichCategories(categories, "Transport", options.transport || [], presetItems.transport);
-  enrichCategories(categories, "Logement", options.lodging || [], presetItems.lodging);
+  importGeneralChoiceCategories(categories, "transport", options.transport || []);
+  importGeneralChoiceCategories(categories, "lodging", options.lodging || []);
   return categories;
 }
 
@@ -534,9 +577,8 @@ function createDefaultCategories(options = {}) {
       done: false
     }))
   }));
-  enrichCategories(categories, "Transport", options.transport || [], presetItems.transport);
-  enrichCategories(categories, "Logement", options.lodging || [], presetItems.lodging);
-  enrichCategories(categories, "Activités", options.activity || [], presetItems.activity);
+  importGeneralChoiceCategories(categories, "transport", options.transport || []);
+  importGeneralChoiceCategories(categories, "lodging", options.lodging || []);
   return categories;
 }
 
@@ -582,7 +624,6 @@ function makeVoyage(name, date, options = {}) {
     presetOptions: options.presetOptions || {
       transport: options.transport || [],
       lodging: options.lodging || [],
-      activity: options.activity || [],
       participants: options.participants || []
     },
     enrichment: options.enrichment || null,
@@ -1182,24 +1223,27 @@ function voyageParticipantNames() {
 }
 
 function renderVoyageParticipantPicker() {
-  const select = document.getElementById("voyageParticipantSelect");
   const target = document.getElementById("voyageParticipantChoices");
-  if (!select || !target) return;
+  if (!target) return;
   const members = voyageParticipantNames();
   const selected = draftVoyageParticipants.map(normalizeMemberName);
-  const available = members.filter(name => !selected.includes(name));
-  select.disabled = !available.length;
-  select.innerHTML = [
-    `<option value="">${available.length ? "Ajouter un participant" : "Tous les participants sont ajoutés"}</option>`,
-    ...available.map(name => `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`)
-  ].join("");
-  target.innerHTML = selected.length
-    ? selected.map(name => `
-      <button class="template-chip" type="button" onclick="removeVoyageParticipant('${escapeHTML(name)}')" title="Retirer ${escapeHTML(name)}">
-        ${escapeHTML(name)} ×
-      </button>
-    `).join("")
-    : `<div class="notice">Choisissez les participants du voyage.</div>`;
+  target.innerHTML = members.length
+    ? members.map(name => {
+      const active = selected.includes(name);
+      return `
+        <button class="template-chip participant-chip ${active ? "active" : ""}" type="button" onclick="toggleVoyageParticipant('${escapeHTML(name)}')" aria-pressed="${active}">
+          ${escapeHTML(name)}
+        </button>
+      `;
+    }).join("")
+    : `<div class="notice">Ajoutez d'abord des membres dans les catégories personnalisées.</div>`;
+}
+
+function toggleVoyageParticipant(memberName) {
+  const name = normalizeMemberName(memberName);
+  if (!name) return;
+  if (draftVoyageParticipants.includes(name)) removeVoyageParticipant(name);
+  else addVoyageParticipantFromSelect(name);
 }
 
 function addVoyageParticipantFromSelect(memberName) {
@@ -1256,7 +1300,7 @@ function openVoyageSheet(voyageId = null) {
     const status = document.getElementById("voyageRangeStatus");
     if (status) status.textContent = voyage.date || "Choisissez la date de départ, puis la date de retour.";
     const presets = voyage.presetOptions || {};
-    ["transport", "lodging", "activity"].forEach(group => {
+    ["transport", "lodging"].forEach(group => {
       (presets[group] || []).forEach(value => {
         const input = document.querySelector(`#voyageSheet input[name='${group}'][value='${value}']`);
         if (input) input.checked = true;
@@ -1318,16 +1362,10 @@ async function saveVoyageSheet(event) {
     voyage.presetOptions = {
       transport: options.transport,
       lodging: options.lodging,
-      activity: options.activity,
       participants: voyageMembers(voyage).map(member => member.name)
     };
-    enrichCategories(voyage.categories, "Général", [...options.transport, ...options.lodging], {
-      ...presetItems.transport,
-      ...presetItems.lodging
-    });
-    voyageMembers(voyage).forEach(member => {
-      enrichCategories(member.categories, "Activités", options.activity, presetItems.activity);
-    });
+    importGeneralChoiceCategories(voyage.categories, "transport", options.transport);
+    importGeneralChoiceCategories(voyage.categories, "lodging", options.lodging);
     touchVoyage(voyage);
   } else {
     voyage = makeVoyage(voyageName, date, options);
@@ -1349,8 +1387,7 @@ async function saveVoyageSheet(event) {
 function getVoyagePresetOptions(form) {
   return {
     transport: Array.from(form.querySelectorAll("input[name='transport']:checked")).map(input => input.value),
-    lodging: Array.from(form.querySelectorAll("input[name='lodging']:checked")).map(input => input.value),
-    activity: Array.from(form.querySelectorAll("input[name='activity']:checked")).map(input => input.value)
+    lodging: Array.from(form.querySelectorAll("input[name='lodging']:checked")).map(input => input.value)
   };
 }
 

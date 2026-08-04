@@ -25,7 +25,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">2.02</span></h1>
+              <h1>Checklist voyage <span class="badge blue">2.03</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -55,6 +55,14 @@
         <h2 id="voyageSheetTitle">Nouveau voyage</h2>
         <button class="icon-btn" type="button" onclick="closeSheet('voyageSheet')" title="Fermer">×</button>
       </div>
+      <form class="grid section" id="joinForm" onsubmit="joinVoyage(event)">
+        <div class="field">
+          <label for="sheetJoinCode">Ajouter un voyage via un code</label>
+          <input id="sheetJoinCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Ex. BRET26, ROME26, SKI227">
+        </div>
+        <button class="btn green full" type="submit">Ajouter ce voyage</button>
+      </form>
+      <div class="notice blue section" id="joinDivider">ou créer un nouveau voyage</div>
       <form class="grid section" id="voyageForm" onsubmit="saveVoyageSheet(event)">
         <div class="field">
           <label for="voyageLocation">Destination</label>
@@ -71,8 +79,7 @@
           <div class="muted" id="voyageRangeStatus">Choisissez la date de départ, puis la date de retour.</div>
         </div>
         <div class="field" id="voyageParticipantsBlock">
-          <label for="voyageParticipantSelect">Participants</label>
-          <select id="voyageParticipantSelect" onchange="addVoyageParticipantFromSelect(this.value)"></select>
+          <label>Participants</label>
           <div class="template-picks" id="voyageParticipantChoices"></div>
         </div>
         <div class="choice-block">
@@ -94,28 +101,9 @@
             <label class="choice"><input type="checkbox" name="lodging" value="location">Location</label>
           </div>
         </div>
-        <div class="choice-block">
-          <label>Activités</label>
-          <div class="choice-grid">
-            <label class="choice"><input type="checkbox" name="activity" value="ski">Ski</label>
-            <label class="choice"><input type="checkbox" name="activity" value="plage">Plage</label>
-            <label class="choice"><input type="checkbox" name="activity" value="randonnee">Randonnée</label>
-            <label class="choice"><input type="checkbox" name="activity" value="velo">Vélo</label>
-            <label class="choice"><input type="checkbox" name="activity" value="visites">Visites</label>
-            <label class="choice"><input type="checkbox" name="activity" value="bebe">Bébé / enfant</label>
-          </div>
-        </div>
         <div class="button-row">
           <button class="btn blue full" id="voyageSubmitButton" type="submit">Créer</button>
         </div>
-      </form>
-      <div class="notice blue section" id="joinDivider">ou</div>
-      <form class="grid" id="joinForm" onsubmit="joinVoyage(event)">
-        <div class="field">
-          <label for="sheetJoinCode">Ajouter un voyage via un code</label>
-          <input id="sheetJoinCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Ex. BRET26, ROME26, SKI227">
-        </div>
-        <button class="btn green full" type="submit">Ajouter ce voyage</button>
       </form>
     </section>
   </div>

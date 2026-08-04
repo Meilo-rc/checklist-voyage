@@ -370,21 +370,25 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 9px;
+  padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: white;
+  background: #eef2f7;
   color: var(--text);
   font-size: .86rem;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .choice input {
-  width: 16px;
-  height: 16px;
-  min-height: 0;
-  padding: 0;
-  accent-color: var(--blue);
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.choice:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: white;
 }
 
 .suggestions {
@@ -1163,6 +1167,13 @@ textarea:focus {
   color: var(--text);
   font-size: .8rem;
   font-weight: 760;
+}
+
+.template-chip.active,
+.participant-chip.active {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: white;
 }
 
 .template-delete {
