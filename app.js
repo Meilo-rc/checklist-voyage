@@ -1,4 +1,4 @@
-const VERSION = "1.95";
+const VERSION = "1.96";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -3440,10 +3440,12 @@ function renderCustomCategories() {
     `;
   };
 
-  const memberCards = customMemberNames().map(groupName => {
+  const memberCards = customMemberNames().sort(compareItemNames).map(groupName => {
     const groupId = `custom-${groupName}`;
     const open = state.openMembers[groupId] === true;
-    const categories = visibleCustomCategories(state.customCategories).filter(category => defaultMemberForCategory(category) === groupName);
+    const categories = visibleCustomCategories(state.customCategories)
+      .filter(category => defaultMemberForCategory(category) === groupName)
+      .sort(compareItemNames);
     const html = `
       <article class="category ${open ? "open" : ""}">
         <div class="category-head">
