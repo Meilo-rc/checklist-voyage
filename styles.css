@@ -765,6 +765,14 @@ textarea:focus {
   gap: 6px;
 }
 
+.trip-place-line {
+  margin-top: 3px;
+}
+
+.trip-code-muted {
+  color: #98a2b3;
+}
+
 .progress {
   height: 8px;
   overflow: hidden;
