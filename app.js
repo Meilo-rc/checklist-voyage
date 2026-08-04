@@ -1,4 +1,4 @@
-const VERSION = "2.42";
+const VERSION = "2.43";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -428,6 +428,10 @@ function categoryIconForName(name) {
   return match ? match[0] : "tag";
 }
 
+function iconUrl(icon) {
+  return `./category-icons/${icon}.svg?v=${VERSION}`;
+}
+
 function categoryIcon(category) {
   const nameIcon = categoryIconForName(category?.name);
   if (nameIcon !== "tag") return nameIcon;
@@ -438,7 +442,7 @@ function categoryIcon(category) {
 
 function renderCategoryIcon(category) {
   const icon = categoryIcon(category);
-  return `<span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>`;
+  return `<span class="category-icon" style="--icon-url: url('${iconUrl(icon)}')" aria-hidden="true"></span>`;
 }
 
 function memberIcon(memberName) {
@@ -459,7 +463,7 @@ function memberIcon(memberName) {
 
 function renderMemberIcon(memberName) {
   const icon = memberIcon(memberName);
-  return `<span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>`;
+  return `<span class="category-icon" style="--icon-url: url('${iconUrl(icon)}')" aria-hidden="true"></span>`;
 }
 
 function normalizeMemberName(value) {
@@ -3771,7 +3775,7 @@ function renderEditEntityIconChoices() {
   if (!target) return;
   target.innerHTML = categoryIcons.map(icon => `
     <button class="icon-choice ${icon === editEntityIcon ? "active" : ""}" type="button" onclick="selectEditEntityIcon('${icon}')">
-      <span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>
+      <span class="category-icon" style="--icon-url: url('${iconUrl(icon)}')" aria-hidden="true"></span>
     </button>
   `).join("");
 }
@@ -3860,7 +3864,7 @@ function renderIconChoices() {
   const active = categoryIcon(category);
   target.innerHTML = categoryIcons.map(icon => `
     <button class="icon-choice ${icon === active ? "active" : ""}" type="button" onclick="selectCategoryIcon('${icon}')">
-      <span class="category-icon" style="--icon-url: url('./category-icons/${icon}.svg')" aria-hidden="true"></span>
+      <span class="category-icon" style="--icon-url: url('${iconUrl(icon)}')" aria-hidden="true"></span>
     </button>
   `).join("");
 }
@@ -3904,12 +3908,11 @@ function renderBottomNav() {
   if (!nav) return;
   const active = state.tab === "customCategories" ? "customCategories" : state.tab === "quickLists" || state.tab === "quickListDetail" ? "quickLists" : "voyages";
   nav.innerHTML = `
-    <button class="${active === "voyages" ? "active" : ""}" type="button" onclick="goHome()"><span class="nav-svg-icon" style="--icon-url: url('./category-icons/home.svg')" aria-hidden="true"></span>Accueil</button>
-    <button class="${active === "customCategories" ? "active" : ""}" type="button" onclick="openCustomCategories()"><span class="nav-svg-icon" style="--icon-url: url('./category-icons/add.svg')" aria-hidden="true"></span>Gérer</button>
-    <button class="${active === "quickLists" ? "active" : ""}" type="button" onclick="openQuickLists()"><span class="nav-svg-icon" style="--icon-url: url('./category-icons/liste.svg')" aria-hidden="true"></span>Liste rapide</button>
+    <button class="${active === "voyages" ? "active" : ""}" type="button" onclick="goHome()"><span class="nav-svg-icon" style="--icon-url: url('${iconUrl("home")}')" aria-hidden="true"></span>Accueil</button>
+    <button class="${active === "customCategories" ? "active" : ""}" type="button" onclick="openCustomCategories()"><span class="nav-svg-icon" style="--icon-url: url('${iconUrl("add")}')" aria-hidden="true"></span>Gérer</button>
+    <button class="${active === "quickLists" ? "active" : ""}" type="button" onclick="openQuickLists()"><span class="nav-svg-icon" style="--icon-url: url('${iconUrl("liste")}')" aria-hidden="true"></span>Liste rapide</button>
   `;
 }
-
 function renderInstallation() {
   const content = document.getElementById("content");
   content.innerHTML = `
@@ -4320,7 +4323,7 @@ function renderGeneralSection(voyage) {
     <article class="category ${open ? "open" : ""}">
       <div class="category-head">
         <button class="category-title" type="button" onclick="toggleMember('general')">
-          <span class="category-icon" style="--icon-url: url('./category-icons/document.svg')" aria-hidden="true"></span>
+          <span class="category-icon" style="--icon-url: url('${iconUrl("document")}')" aria-hidden="true"></span>
           <span class="category-name member-name">Général</span>
         </button>
         <div class="category-actions" onclick="event.stopPropagation()">
