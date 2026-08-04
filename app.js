@@ -1,4 +1,4 @@
-const VERSION = "2.23";
+const VERSION = "2.24";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1661,10 +1661,11 @@ function destinationCountry(voyage) {
 
 function tripTitleLine(voyage) {
   const country = destinationCountry(voyage);
-  const title = [voyage.name, country].filter(Boolean).join(", ");
-  const code = voyage.code ? `<span class="trip-code-muted">(${escapeHTML(voyage.code)})</span>` : "";
-  if (!title) return code;
-  return `${escapeHTML(title)} ${code}`.trim();
+  const suffix = [
+    country ? `, ${escapeHTML(country)}` : "",
+    voyage.code ? ` <span class="trip-code-muted">(${escapeHTML(voyage.code)})</span>` : ""
+  ].join("");
+  return `${escapeHTML(voyage.name)}${suffix ? `<span class="trip-title-extra">${suffix}</span>` : ""}`;
 }
 
 function destinationSearchLabel(voyage) {

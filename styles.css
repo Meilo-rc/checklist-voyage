@@ -769,6 +769,10 @@ textarea:focus {
   color: #98a2b3;
 }
 
+.trip-title-extra {
+  font-weight: 400;
+}
+
 .progress {
   height: 8px;
   overflow: hidden;
