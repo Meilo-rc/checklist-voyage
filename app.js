@@ -1,4 +1,4 @@
-﻿const VERSION = "2.39";
+﻿const VERSION = "2.40";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -588,7 +588,7 @@ function normalizeMember(raw) {
     group: normalizeMemberGroup(member.group),
     updatedAt: member.updatedAt || "",
     deletedAt: member.deletedAt || "",
-    categories: Array.isArray(member.categories) ? member.categories.map(normalizeCategory) : []
+    categories: Array.isArray(member.categories) ? mergeCategoryList(member.categories, []) : []
   };
 }
 
@@ -732,13 +732,13 @@ function makeVoyage(name, date, options = {}) {
 
 function normalizeVoyage(raw) {
   const voyage = raw && typeof raw === "object" ? raw : {};
-  const legacyCategories = Array.isArray(voyage.categories) ? voyage.categories.map(normalizeCategory) : [];
+  const legacyCategories = Array.isArray(voyage.categories) ? mergeCategoryList(voyage.categories, []) : [];
   const members = Array.isArray(voyage.members) && voyage.members.length
     ? voyage.members.map(normalizeMember)
     : defaultMemberNames.map((name, index) => createMember(name, index === 0 ? legacyCategories : []));
   const generalCategories = moveMemberDocumentsToGeneral(
     Array.isArray(voyage.categories) && (Array.isArray(voyage.members) && voyage.members.length)
-      ? voyage.categories.map(normalizeCategory)
+      ? mergeCategoryList(voyage.categories, [])
       : [],
     members
   );
@@ -757,7 +757,7 @@ function normalizeVoyage(raw) {
     createdAt: voyage.createdAt || new Date().toISOString(),
     updatedAt: voyage.updatedAt || new Date().toISOString(),
     members,
-    categories: generalCategories
+    categories: mergeCategoryList(generalCategories, [])
   };
   return normalized;
 }
@@ -922,8 +922,16 @@ function mergeCategories(local, remote) {
   if (!local || !remote) return base;
   return {
     ...base,
-    items: mergeById(local.items || [], remote.items || [], mergeItems)
+    items: mergeByIdOrName(local.items || [], remote.items || [], mergeItems)
   };
+}
+
+function mergeCategoryList(localCategories = [], remoteCategories = []) {
+  return mergeByIdOrName(
+    localCategories.map(normalizeCategory),
+    remoteCategories.map(normalizeCategory),
+    mergeCategories
+  );
 }
 
 function mergeMembers(local, remote) {
@@ -931,7 +939,7 @@ function mergeMembers(local, remote) {
   if (!local || !remote) return base;
   return {
     ...base,
-    categories: mergeById(local.categories || [], remote.categories || [], mergeCategories)
+    categories: mergeCategoryList(local.categories || [], remote.categories || [])
   };
 }
 
@@ -945,7 +953,7 @@ function mergeVoyages(localVoyage, remoteVoyage) {
     code: local.code || remote.code,
     remoteRecordId: remote.remoteRecordId || local.remoteRecordId,
     shared: true,
-    categories: mergeById(local.categories || [], remote.categories || [], mergeCategories),
+    categories: mergeCategoryList(local.categories || [], remote.categories || []),
     members: mergeById(local.members || [], remote.members || [], mergeMembers),
     updatedAt: nowISO()
   });
@@ -4443,6 +4451,7 @@ loadSharedSettings();
 syncAllVoyages();
 syncAllQuickLists();
 subscribeToCurrentVoyage();
+
 
 
 
