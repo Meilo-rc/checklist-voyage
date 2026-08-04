@@ -1,4 +1,4 @@
-const VERSION = "2.25";
+const VERSION = "2.26";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -2766,7 +2766,7 @@ async function subscribeToCurrentQuickList() {
 }
 
 function createQuickList() {
-  const value = prompt("Nom de la liste rapide", "Sac de piscine");
+  const value = prompt("Nom de la liste rapide", "");
   if (value === null) return;
   const name = value.trim();
   if (!name) return;
