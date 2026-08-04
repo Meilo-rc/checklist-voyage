@@ -1,4 +1,4 @@
-﻿const VERSION = "2.40";
+﻿const VERSION = "2.41";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -429,10 +429,10 @@ function categoryIconForName(name) {
 }
 
 function categoryIcon(category) {
-  const storedIcon = category?.icon && categoryIcons.includes(category.icon) ? category.icon : "";
-  if (storedIcon && !["bed", "suitcase", "toiletries"].includes(storedIcon)) return storedIcon;
   const nameIcon = categoryIconForName(category?.name);
   if (nameIcon !== "tag") return nameIcon;
+  const storedIcon = category?.icon && categoryIcons.includes(category.icon) ? category.icon : "";
+  if (storedIcon && !["bed", "suitcase", "toiletries", "categorie", "tag"].includes(storedIcon)) return storedIcon;
   return storedIcon || nameIcon;
 }
 
@@ -504,12 +504,14 @@ function cloneTemplateCategory(template) {
   const timestamp = nowISO();
   return {
     id: uid("cat"),
+    sourceTemplateId: template.id || "",
     name: template.name,
     icon: categoryIcon(template),
     updatedAt: timestamp,
     deletedAt: "",
     items: visibleCustomItems(template.items || []).map(item => ({
       id: uid("item"),
+      sourceTemplateItemId: item.id || "",
       name: customItemName(item),
       qty: normalizeQty(item.qty || 1),
       status: "todo",
@@ -528,7 +530,7 @@ function templateMatchesChoice(template, group, choice) {
 
 function addOrMergeCategoryFromTemplate(categories, template) {
   const copy = cloneTemplateCategory(template);
-  const existing = categories.find(category => normalizeText(category.name) === normalizeText(copy.name));
+  const existing = categories.find(category => (copy.sourceTemplateId && category.sourceTemplateId === copy.sourceTemplateId) || normalizeText(category.name) === normalizeText(copy.name));
   if (existing) mergeCategoryItems(existing, copy);
   else categories.push(copy);
 }
@@ -617,10 +619,13 @@ function findCategoryInVoyage(voyage, categoryId) {
 
 function mergeCategoryItems(target, source) {
   const existing = new Set((target.items || []).map(item => normalizeText(item.name)));
+  const existingSources = new Set((target.items || []).map(item => item.sourceTemplateItemId).filter(Boolean));
   (source.items || []).forEach(item => {
+    if (item.sourceTemplateItemId && existingSources.has(item.sourceTemplateItemId)) return;
     if (existing.has(normalizeText(item.name))) return;
     target.items.push(normalizeItem(item));
     existing.add(normalizeText(item.name));
+    if (item.sourceTemplateItemId) existingSources.add(item.sourceTemplateItemId);
   });
 }
 
@@ -766,6 +771,7 @@ function normalizeCategory(raw) {
   const category = raw && typeof raw === "object" ? raw : {};
   return {
     id: category.id || uid("cat"),
+    sourceTemplateId: category.sourceTemplateId || "",
     name: category.name || "Catégorie",
     icon: category.icon && categoryIcons.includes(category.icon) ? category.icon : categoryIconForName(category.name || "Catégorie"),
     updatedAt: category.updatedAt || "",
@@ -826,6 +832,7 @@ function normalizeItem(raw) {
   const status = normalizeItemStatus(item);
   return {
     id: item.id || uid("item"),
+    sourceTemplateItemId: item.sourceTemplateItemId || "",
     name: item.name || "Élément",
     qty: normalizeQty(item.qty || 1),
     status,
@@ -885,7 +892,7 @@ function mergeByIdOrName(localItems = [], remoteItems = [], mergeEntity = newerE
 
   remoteItems.forEach((remote, remoteIndex) => {
     if (!remote?.id) return;
-    const localIndex = localItems.findIndex(local => local?.id === remote.id);
+    const localIndex = localItems.findIndex(local => local?.id === remote.id || (local?.sourceTemplateId && local.sourceTemplateId === remote.sourceTemplateId) || (local?.sourceTemplateItemId && local.sourceTemplateItemId === remote.sourceTemplateItemId));
     if (localIndex === -1) return;
     results.push(mergeEntity(localItems[localIndex], remote));
     usedLocal.add(localIndex);
@@ -895,7 +902,12 @@ function mergeByIdOrName(localItems = [], remoteItems = [], mergeEntity = newerE
   localItems.forEach((local, localIndex) => {
     if (usedLocal.has(localIndex)) return;
     const localName = normalizeText(local?.name || local);
-    const remoteIndex = remoteItems.findIndex((remote, index) => !usedRemote.has(index) && normalizeText(remote?.name || remote) === localName);
+    const remoteIndex = remoteItems.findIndex((remote, index) => {
+      if (usedRemote.has(index)) return false;
+      if (local?.sourceTemplateId && local.sourceTemplateId === remote?.sourceTemplateId) return true;
+      if (local?.sourceTemplateItemId && local.sourceTemplateItemId === remote?.sourceTemplateItemId) return true;
+      return normalizeText(remote?.name || remote) === localName;
+    });
     if (remoteIndex === -1) {
       results.push(local);
       usedLocal.add(localIndex);
@@ -910,7 +922,24 @@ function mergeByIdOrName(localItems = [], remoteItems = [], mergeEntity = newerE
     if (!usedRemote.has(remoteIndex)) results.push(remote);
   });
 
-  return results.filter(Boolean);
+  const deduped = [];
+  results.filter(Boolean).forEach(item => {
+    const byId = item?.id ? deduped.findIndex(existing => existing?.id === item.id) : -1;
+    const bySource = item?.sourceTemplateId
+      ? deduped.findIndex(existing => existing?.sourceTemplateId === item.sourceTemplateId)
+      : item?.sourceTemplateItemId
+        ? deduped.findIndex(existing => existing?.sourceTemplateItemId === item.sourceTemplateItemId)
+        : -1;
+    const byName = deduped.findIndex(existing => normalizeText(existing?.name || existing) === normalizeText(item?.name || item));
+    const index = byId !== -1 ? byId : bySource !== -1 ? bySource : byName;
+    if (index === -1) {
+      deduped.push(item);
+    } else {
+      deduped[index] = mergeEntity(deduped[index], item);
+    }
+  });
+
+  return deduped;
 }
 
 function mergeItems(local, remote) {
@@ -2206,11 +2235,12 @@ function addCategoryToMember(memberId, templateId = "") {
   if (template) {
     category = {
       id: uid("cat"),
+      sourceTemplateId: template.id || "",
       name: template.name,
       icon: categoryIcon(template),
       updatedAt: timestamp,
       deletedAt: "",
-      items: visibleCustomItems(template.items || []).map(item => ({ id: uid("item"), name: customItemName(item), qty: normalizeQty(item.qty || 1), status: "todo", done: false, updatedAt: timestamp, deletedAt: "" }))
+      items: visibleCustomItems(template.items || []).map(item => ({ id: uid("item"), sourceTemplateItemId: item.id || "", name: customItemName(item), qty: normalizeQty(item.qty || 1), status: "todo", done: false, updatedAt: timestamp, deletedAt: "" }))
     };
   } else {
     const value = prompt("Nom de la catégorie");
@@ -4451,6 +4481,7 @@ loadSharedSettings();
 syncAllVoyages();
 syncAllQuickLists();
 subscribeToCurrentVoyage();
+
 
 
 
