@@ -1,4 +1,4 @@
-const VERSION = "2.08";
+const VERSION = "2.09";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1265,13 +1265,33 @@ function goHome() {
   render();
 }
 
+function closeVoyageAddMenu() {
+  document.getElementById("voyageAddMenu")?.classList.remove("open");
+}
+
+function toggleVoyageAddMenu(event) {
+  event?.stopPropagation();
+  document.getElementById("voyageAddMenu")?.classList.toggle("open");
+}
+
+function openJoinVoyageSheet() {
+  closeVoyageAddMenu();
+  const input = document.getElementById("sheetJoinCode");
+  if (input) input.value = "";
+  document.getElementById("joinVoyageSheet")?.classList.add("open");
+  setTimeout(() => input?.focus(), 50);
+}
+
+function openCreateVoyageSheet() {
+  closeVoyageAddMenu();
+  openVoyageSheet();
+}
+
 function openVoyageSheet(voyageId = null) {
   editingVoyageId = voyageId;
   const voyage = voyageId ? state.voyages.find(item => item.id === voyageId) : null;
   document.getElementById("voyageSheetTitle").textContent = voyage ? "Modifier le voyage" : "Nouveau voyage";
   document.getElementById("voyageSubmitButton").textContent = voyage ? "Enregistrer" : "Créer";
-  document.getElementById("joinDivider").style.display = voyage ? "none" : "";
-  document.getElementById("joinForm").style.display = voyage ? "none" : "";
   document.getElementById("voyageParticipantsBlock").style.display = voyage ? "none" : "";
   document.getElementById("voyageName").value = "";
   document.getElementById("voyageLocation").value = "";
@@ -1280,7 +1300,6 @@ function openVoyageSheet(voyageId = null) {
   selectedDestination = null;
   renderDestinationSuggestions([]);
   resetDraftDateRange();
-  document.getElementById("sheetJoinCode").value = "";
   document.querySelectorAll("#voyageSheet input[type='checkbox']").forEach(input => {
     input.checked = false;
   });
@@ -2947,6 +2966,7 @@ async function joinVoyage(event) {
     await loadSharedSettings();
     input.value = "";
     closeSheet("voyageSheet");
+    closeSheet("joinVoyageSheet");
     openCustomCategories();
     return;
   }
@@ -2972,6 +2992,7 @@ async function joinVoyage(event) {
     saveLocal();
     input.value = "";
     closeSheet("voyageSheet");
+    closeSheet("joinVoyageSheet");
     render();
     subscribeToCurrentVoyage();
   } catch (error) {
@@ -3690,6 +3711,16 @@ function renderQuickListDetail() {
   `;
 }
 
+function renderVoyageAddMenu() {
+  return `
+    <div class="page-add-menu" id="voyageAddMenu" onclick="event.stopPropagation()">
+      <button type="button" onclick="openJoinVoyageSheet()">Ajouter via un code</button>
+      <button type="button" onclick="openCreateVoyageSheet()">Créer un voyage</button>
+    </div>
+    <button class="page-add-button" type="button" onclick="toggleVoyageAddMenu(event)" title="Ajouter un voyage" aria-label="Ajouter un voyage">+</button>
+  `;
+}
+
 function renderVoyages() {
   const content = document.getElementById("content");
   if (!state.voyages.length) {
@@ -3701,7 +3732,7 @@ function renderVoyages() {
         <h2>Aucun voyage pour le moment</h2>
         <p>Ajoutez un voyage en le créant ou avec un code partagé.</p>
       </section>
-      <button class="page-add-button" type="button" onclick="openVoyageSheet()" title="Ajouter un voyage" aria-label="Ajouter un voyage">+</button>
+      ${renderVoyageAddMenu()}
     `;
     return;
   }
@@ -3742,7 +3773,7 @@ function renderVoyages() {
     </section>
     <section class="grid">
       ${cards}
-      <button class="page-add-button" type="button" onclick="openVoyageSheet()" title="Ajouter un voyage" aria-label="Ajouter un voyage">+</button>
+      ${renderVoyageAddMenu()}
     </section>
   `;
 }
@@ -3975,6 +4006,9 @@ document.addEventListener("focusout", () => {
 });
 
 document.addEventListener("click", event => {
+  if (!event.target.closest(".page-add-menu") && !event.target.closest(".page-add-button")) {
+    closeVoyageAddMenu();
+  }
   const menu = event.target.closest(".voyage-menu");
   if (!menu) {
     closeOpenMenus();
