@@ -1,4 +1,4 @@
-const VERSION = "2.34";
+const VERSION = "2.35";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -152,7 +152,9 @@ const memberIconRules = {
   richard: "suit",
   jenna: "dress",
   milo: "boy",
-  malone: "baby"
+  malone: "baby",
+  bebe: "baby",
+  baby: "baby"
 };
 
 const state = {
@@ -436,7 +438,9 @@ function memberIcon(memberName) {
   const normalized = normalizeText(memberName);
   if (memberIconRules[normalized]) return memberIconRules[normalized];
   const match = Object.entries(memberIconRules).find(([name]) => normalized.includes(name));
-  return match ? match[1] : "suitcase";
+  if (match) return match[1];
+  const icon = categoryIconForName(memberName);
+  return icon !== "tag" ? icon : "categorie";
 }
 
 function renderMemberIcon(memberName) {
@@ -3664,8 +3668,8 @@ function renderBottomNav() {
   if (!nav) return;
   const active = state.tab === "customCategories" ? "customCategories" : state.tab === "quickLists" || state.tab === "quickListDetail" ? "quickLists" : "voyages";
   nav.innerHTML = `
-    <button class="${active === "voyages" ? "active" : ""}" type="button" onclick="goHome()"><span>⌂</span>Accueil</button>
-    <button class="${active === "customCategories" ? "active" : ""}" type="button" onclick="openCustomCategories()"><span>☰</span>Gérer</button>
+    <button class="${active === "voyages" ? "active" : ""}" type="button" onclick="goHome()"><span class="nav-svg-icon" style="--icon-url: url('./category-icons/home.svg')" aria-hidden="true"></span>Accueil</button>
+    <button class="${active === "customCategories" ? "active" : ""}" type="button" onclick="openCustomCategories()"><span class="nav-svg-icon" style="--icon-url: url('./category-icons/add.svg')" aria-hidden="true"></span>Gérer</button>
     <button class="${active === "quickLists" ? "active" : ""}" type="button" onclick="openQuickLists()"><span class="nav-svg-icon" style="--icon-url: url('./category-icons/liste.svg')" aria-hidden="true"></span>Liste rapide</button>
   `;
 }
