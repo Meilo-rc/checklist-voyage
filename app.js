@@ -1,4 +1,4 @@
-const VERSION = "2.43";
+const VERSION = "2.44";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -455,9 +455,10 @@ function memberIcon(memberName) {
   if (memberIconRules[normalized]) return memberIconRules[normalized];
   const match = Object.entries(memberIconRules).find(([name]) => normalized.includes(name));
   if (match) return match[1];
+  const icon = categoryIconForName(rawName);
+  if (icon !== "tag") return icon;
   const group = customMemberGroupValue(rawName);
   if (group === "general" || group === "personal") return "suitcase";
-  const icon = categoryIconForName(rawName);
   return icon !== "tag" ? icon : "categorie";
 }
 
