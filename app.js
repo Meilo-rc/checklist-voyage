@@ -1,4 +1,4 @@
-const VERSION = "2.07";
+const VERSION = "2.08";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1721,16 +1721,11 @@ function draftDateLabel() {
 
 function updateDraftDateField() {
   const button = document.getElementById("voyageDateButton");
-  const status = document.getElementById("voyageRangeStatus");
   const label = draftDateLabel();
   if (button) {
     button.textContent = label || "Choisir les dates";
     button.classList.toggle("filled", Boolean(label));
   }
-  if (!status) return;
-  if (!draftDateRange.start) status.textContent = "Choisissez la date de départ, puis la date de retour.";
-  else if (!draftDateRange.end) status.textContent = `${label} - choisissez la date de retour`;
-  else status.textContent = label;
 }
 
 function openDatePicker() {

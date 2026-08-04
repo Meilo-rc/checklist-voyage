@@ -1181,6 +1181,10 @@ textarea:focus {
   font-weight: 760;
 }
 
+.participant-chip {
+  color: var(--muted);
+}
+
 .template-chip.active,
 .participant-chip.active {
   border-color: var(--blue);
