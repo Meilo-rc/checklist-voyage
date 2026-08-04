@@ -1,4 +1,4 @@
-const VERSION = "2.09";
+const VERSION = "2.10";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1266,12 +1266,19 @@ function goHome() {
 }
 
 function closeVoyageAddMenu() {
-  document.getElementById("voyageAddMenu")?.classList.remove("open");
+  document.querySelectorAll(".page-add-menu").forEach(menu => menu.classList.remove("open"));
+}
+
+function togglePageAddMenu(event, menuId) {
+  event?.stopPropagation();
+  const target = document.getElementById(menuId);
+  const wasOpen = target?.classList.contains("open");
+  closeVoyageAddMenu();
+  if (!wasOpen) target?.classList.add("open");
 }
 
 function toggleVoyageAddMenu(event) {
-  event?.stopPropagation();
-  document.getElementById("voyageAddMenu")?.classList.toggle("open");
+  togglePageAddMenu(event, "voyageAddMenu");
 }
 
 function openJoinVoyageSheet() {
@@ -1285,6 +1292,19 @@ function openJoinVoyageSheet() {
 function openCreateVoyageSheet() {
   closeVoyageAddMenu();
   openVoyageSheet();
+}
+
+function openJoinQuickListSheet() {
+  closeVoyageAddMenu();
+  const input = document.getElementById("sheetQuickListCode");
+  if (input) input.value = "";
+  document.getElementById("joinQuickListSheet")?.classList.add("open");
+  setTimeout(() => input?.focus(), 50);
+}
+
+function openCreateQuickList() {
+  closeVoyageAddMenu();
+  createQuickList();
 }
 
 function openVoyageSheet(voyageId = null) {
@@ -2741,6 +2761,7 @@ async function joinQuickList(event) {
     state.currentQuickListId = list.id;
     state.tab = "quickListDetail";
     input.value = "";
+    closeSheet("joinQuickListSheet");
     saveLocal();
     render();
     subscribeToCurrentQuickList();
@@ -3631,12 +3652,8 @@ function renderQuickLists() {
     </section>
     <section class="grid section">
       ${cards || `<div class="panel empty"><h2>Aucune liste rapide</h2><p>Créez une liste pour un sac de piscine, de foot ou de crèche.</p></div>`}
-      <button class="page-add-button" type="button" onclick="createQuickList()" title="Ajouter une liste rapide" aria-label="Ajouter une liste rapide">+</button>
+      ${renderQuickListAddMenu()}
     </section>
-    <form class="add-item section" onsubmit="joinQuickList(event)">
-      <button class="btn green" type="submit">+</button>
-      <input autocomplete="off" inputmode="text" maxlength="8" placeholder="Ajouter via un code">
-    </form>
   `;
 }
 
@@ -3718,6 +3735,16 @@ function renderVoyageAddMenu() {
       <button type="button" onclick="openCreateVoyageSheet()">Créer un voyage</button>
     </div>
     <button class="page-add-button" type="button" onclick="toggleVoyageAddMenu(event)" title="Ajouter un voyage" aria-label="Ajouter un voyage">+</button>
+  `;
+}
+
+function renderQuickListAddMenu() {
+  return `
+    <div class="page-add-menu" id="quickListAddMenu" onclick="event.stopPropagation()">
+      <button type="button" onclick="openJoinQuickListSheet()">Ajouter via un code</button>
+      <button type="button" onclick="openCreateQuickList()">Créer une liste rapide</button>
+    </div>
+    <button class="page-add-button" type="button" onclick="togglePageAddMenu(event, 'quickListAddMenu')" title="Ajouter une liste rapide" aria-label="Ajouter une liste rapide">+</button>
   `;
 }
 

@@ -25,7 +25,7 @@
               <img class="brand-icon" src="./icon.svg" alt="">
             </div>
             <div class="brand-title">
-              <h1>Checklist voyage <span class="badge blue">2.09</span></h1>
+              <h1>Checklist voyage <span class="badge blue">2.10</span></h1>
               <div class="headline-meta" id="headerMeta">Préparez vos sacs sans prise de tête</div>
             </div>
           </button>
@@ -112,6 +112,22 @@
           <input id="sheetJoinCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Ex. BRET26, ROME26, SKI227">
         </div>
         <button class="btn green full" type="submit">Ajouter ce voyage</button>
+      </form>
+    </section>
+  </div>
+
+  <div class="sheet-backdrop" id="joinQuickListSheet" onclick="closeSheetOnBackdrop(event, 'joinQuickListSheet')">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="joinQuickListSheetTitle">
+      <div class="sheet-head">
+        <h2 id="joinQuickListSheetTitle">Ajouter via un code</h2>
+        <button class="icon-btn" type="button" onclick="closeSheet('joinQuickListSheet')" title="Fermer">&times;</button>
+      </div>
+      <form class="grid section" id="joinQuickListForm" onsubmit="joinQuickList(event)">
+        <div class="field">
+          <label for="sheetQuickListCode">Code de la liste rapide</label>
+          <input id="sheetQuickListCode" autocomplete="off" inputmode="text" maxlength="8" placeholder="Code">
+        </div>
+        <button class="btn green full" type="submit">Ajouter cette liste</button>
       </form>
     </section>
   </div>
