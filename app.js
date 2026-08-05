@@ -1,4 +1,4 @@
-const VERSION = "2.44";
+const VERSION = "2.45";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -33,10 +33,65 @@ let memberSheetGroup = "family";
 let memberSheetMember = "";
 
 const categoryIcons = [
-  "baby", "bathtub", "beach", "bed", "boat", "boy", "bus", "calendar", "camera", "camping", "car", "categorie", "clothes",
-  "cocktail", "document", "dress", "first-aid", "gamepad", "hiking", "home", "hotel", "key", "liste", "meditation", "money",
-  "music", "passport", "pet", "plane", "plug", "restaurant", "shopping", "ski", "snow",
-  "sport", "suit", "suitcase", "sun", "swimming", "tag", "tent", "toiletries", "tools", "train", "video", "water"
+  "add",
+  "add-invoice-stroke-rounded",
+  "airpod",
+  "baby",
+  "bathtub",
+  "beach",
+  "bed",
+  "boat",
+  "boy",
+  "bus",
+  "calendar",
+  "camera",
+  "car",
+  "categorie",
+  "child",
+  "clothes",
+  "cocktail",
+  "diaper",
+  "document",
+  "dress",
+  "female",
+  "first-aid",
+  "gamepad",
+  "games",
+  "hiking",
+  "home",
+  "hotel",
+  "key",
+  "liste",
+  "luggage",
+  "male",
+  "manager",
+  "money",
+  "music",
+  "passport",
+  "plane",
+  "plug",
+  "restaurant",
+  "setting",
+  "shopping",
+  "ski",
+  "snow",
+  "sport",
+  "stretching",
+  "suit",
+  "suitcase",
+  "sun",
+  "swimming",
+  "tag",
+  "tent",
+  "toiletries",
+  "tools",
+  "train",
+  "umbrella",
+  "video",
+  "walking",
+  "water",
+  "workout",
+  "writing"
 ];
 
 const iconLabels = {
@@ -423,8 +478,8 @@ function normalizeText(value) {
 
 function categoryIconForName(name) {
   const normalized = normalizeText(name);
-  if (exactIconRules[normalized]) return exactIconRules[normalized];
-  const match = iconRules.find(([, words]) => words.some(word => normalized.includes(normalizeText(word))));
+  if (exactIconRules[normalized] && categoryIcons.includes(exactIconRules[normalized])) return exactIconRules[normalized];
+  const match = iconRules.find(([icon, words]) => categoryIcons.includes(icon) && words.some(word => normalized.includes(normalizeText(word))));
   return match ? match[0] : "tag";
 }
 
