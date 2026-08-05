@@ -1,4 +1,5 @@
-const VERSION = "2.52";
+const VERSION = "2.53";
+const REMOTE_SCHEMA_VERSION = 3;
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -10,7 +11,9 @@ let unsubscribeCurrent = null;
 let unsubscribeSettings = null;
 let unsubscribeQuickList = null;
 let settingsRecordId = "";
-let syncTimer = null;
+const voyageSyncTimers = new Map();
+const quickListSyncTimers = new Map();
+const remoteSyncQueues = new Map();
 let pendingRemoteVoyage = null;
 let statusText = "Synchronisé";
 let draftDateRange = { start: "", end: "", next: "start" };
@@ -2760,9 +2763,7 @@ function endItemSwipe(event, itemId) {
 
 function saveAndSync(voyage, options = {}) {
   saveLocal();
-  if (syncTimer) clearTimeout(syncTimer);
-  const delay = options.immediate ? 0 : 550;
-  syncTimer = setTimeout(() => saveVoyageRemote(voyage), delay);
+  scheduleRemoteSync(voyageSyncTimers, "voyage", voyage, options, () => saveVoyageRemote(voyage));
 }
 
 async function findRecordByCode(code) {
@@ -2771,6 +2772,35 @@ async function findRecordByCode(code) {
   return client.collection(PB_COLLECTION).getFirstListItem(`code = "${cleanCode(code)}"`, {
     requestKey: null
   });
+}
+
+function remoteSyncKey(type, entity) {
+  return `${type}:${entity?.remoteRecordId || cleanCode(entity?.code) || entity?.id || "unknown"}`;
+}
+
+function enqueueRemoteSync(key, task) {
+  const previous = remoteSyncQueues.get(key) || Promise.resolve();
+  const next = previous
+    .catch(() => {})
+    .then(task)
+    .finally(() => {
+      if (remoteSyncQueues.get(key) === next) remoteSyncQueues.delete(key);
+    });
+  remoteSyncQueues.set(key, next);
+  return next;
+}
+
+function scheduleRemoteSync(timerMap, type, entity, options, task) {
+  if (!entity) return;
+  const key = remoteSyncKey(type, entity);
+  const existing = timerMap.get(key);
+  if (existing) clearTimeout(existing);
+  const delay = options?.immediate ? 0 : 550;
+  const timer = setTimeout(() => {
+    timerMap.delete(key);
+    enqueueRemoteSync(key, task);
+  }, delay);
+  timerMap.set(key, timer);
 }
 
 function settingsPayload() {
@@ -2794,6 +2824,8 @@ function settingsPayload() {
   }));
   return {
     type: "settings",
+    schemaVersion: REMOTE_SCHEMA_VERSION,
+    appVersion: VERSION,
     customCategories: syncedCategories,
     customCategoryMembers: syncedState.customCategoryMembers,
     customMemberAliases: state.customMemberAliases,
@@ -2854,6 +2886,10 @@ async function loadSharedSettings() {
 }
 
 async function saveSharedSettings() {
+  return enqueueRemoteSync(`settings:${SETTINGS_CODE}`, saveSharedSettingsNow);
+}
+
+async function saveSharedSettingsNow() {
   saveLocal();
   const client = getPB();
   if (!client) return;
@@ -2920,6 +2956,11 @@ async function subscribeToSharedSettings() {
     settingsRecordId = record.id;
     saveLocal();
     unsubscribeSettings = await client.collection(PB_COLLECTION).subscribe(record.id, event => {
+      if (event.action === "delete") {
+        settingsRecordId = "";
+        saveLocal();
+        return;
+      }
       if (event.action !== "update" || !event.record?.data) return;
       applySettingsData(event.record.data);
     }, { requestKey: null });
@@ -2929,10 +2970,14 @@ async function subscribeToSharedSettings() {
 }
 
 function remotePayload(voyage) {
+  const normalized = normalizeVoyage(voyage);
   return {
-    ...voyage,
+    ...normalized,
+    type: "voyage",
+    schemaVersion: REMOTE_SCHEMA_VERSION,
+    appVersion: VERSION,
     shared: true,
-    updatedAt: voyage.updatedAt || nowISO()
+    updatedAt: normalized.updatedAt || nowISO()
   };
 }
 
@@ -2946,6 +2991,7 @@ async function saveVoyageRemote(voyage) {
   try {
     setStatus("Synchronisation...");
     let record = null;
+    const hadRemoteRecord = Boolean(voyage.remoteRecordId);
     if (voyage.remoteRecordId) {
       try {
         record = await client.collection(PB_COLLECTION).getOne(voyage.remoteRecordId, { requestKey: null });
@@ -2959,6 +3005,10 @@ async function saveVoyageRemote(voyage) {
       } catch (error) {
         record = null;
       }
+    }
+    if (!record && hadRemoteRecord) {
+      setStatus("Supprimé de PocketBase");
+      return;
     }
 
     let data = remotePayload(voyage);
@@ -3002,12 +3052,15 @@ function syncAllVoyages(options = {}) {
 }
 
 function quickListPayload(list) {
+  const normalized = normalizeQuickList(list);
   return {
-    ...list,
+    ...normalized,
     type: "quickList",
+    schemaVersion: REMOTE_SCHEMA_VERSION,
+    appVersion: VERSION,
     shared: true,
-    items: list.items || [],
-    updatedAt: list.updatedAt || new Date().toISOString()
+    items: normalized.items || [],
+    updatedAt: normalized.updatedAt || nowISO()
   };
 }
 
@@ -3021,6 +3074,7 @@ async function saveQuickListRemote(list) {
   try {
     setStatus("Synchronisation...");
     let record = null;
+    const hadRemoteRecord = Boolean(list.remoteRecordId);
     if (list.remoteRecordId) {
       try {
         record = await client.collection(PB_COLLECTION).getOne(list.remoteRecordId, { requestKey: null });
@@ -3034,6 +3088,10 @@ async function saveQuickListRemote(list) {
       } catch (error) {
         record = null;
       }
+    }
+    if (!record && hadRemoteRecord) {
+      setStatus("Supprimé de PocketBase");
+      return;
     }
     let data = quickListPayload(list);
     if (record?.data) {
@@ -3063,8 +3121,7 @@ async function saveQuickListRemote(list) {
 
 function saveQuickListAndSync(list, options = {}) {
   saveLocal();
-  const delay = options.immediate ? 0 : 550;
-  setTimeout(() => saveQuickListRemote(list), delay);
+  scheduleRemoteSync(quickListSyncTimers, "quickList", list, options, () => saveQuickListRemote(list));
 }
 
 function syncAllQuickLists(options = {}) {
@@ -3088,6 +3145,22 @@ function applyRemoteQuickList(incoming) {
   dedupeQuickLists();
   saveLocal();
   if (!isUserEditing()) render();
+}
+
+function removeRemoteQuickList(recordId, code) {
+  const normalizedCode = cleanCode(code);
+  const before = state.quickLists.length;
+  state.quickLists = state.quickLists.filter(list => {
+    if (recordId && list.remoteRecordId === recordId) return false;
+    return !(normalizedCode && cleanCode(list.code) === normalizedCode);
+  });
+  if (state.quickLists.length === before) return;
+  if (!state.quickLists.some(list => list.id === state.currentQuickListId)) {
+    state.currentQuickListId = state.quickLists[0]?.id || null;
+    if (state.tab === "quickListDetail") state.tab = "quickLists";
+  }
+  saveLocal();
+  render();
 }
 
 async function subscribeToCurrentQuickList() {
@@ -3116,6 +3189,10 @@ async function subscribeToCurrentQuickList() {
     list.remoteRecordId = record.id;
     saveLocal();
     unsubscribeQuickList = await client.collection(PB_COLLECTION).subscribe(record.id, event => {
+      if (event.action === "delete") {
+        removeRemoteQuickList(event.record?.id || record.id, list.code);
+        return;
+      }
       if (event.action !== "update" || !event.record?.data) return;
       const incoming = normalizeQuickList({
         ...(event.record.data.quickList || event.record.data),
@@ -3346,6 +3423,10 @@ async function subscribeToCurrentVoyage() {
     voyage.remoteRecordId = record.id;
     saveLocal();
     unsubscribeCurrent = await client.collection(PB_COLLECTION).subscribe(record.id, event => {
+      if (event.action === "delete") {
+        removeRemoteVoyage(event.record?.id || record.id, voyage.code);
+        return;
+      }
       if (event.action !== "update" || !event.record?.data) return;
       receiveRemoteVoyage(event.record.data, event.record.id);
     }, { requestKey: null });
@@ -3353,6 +3434,22 @@ async function subscribeToCurrentVoyage() {
   } catch (error) {
     setStatus(voyage.shared ? "Synchronisé" : "Hors ligne");
   }
+}
+
+function removeRemoteVoyage(recordId, code) {
+  const normalizedCode = cleanCode(code);
+  const before = state.voyages.length;
+  state.voyages = state.voyages.filter(voyage => {
+    if (recordId && voyage.remoteRecordId === recordId) return false;
+    return !(normalizedCode && cleanCode(voyage.code) === normalizedCode);
+  });
+  if (state.voyages.length === before) return;
+  if (!state.voyages.some(voyage => voyage.id === state.currentVoyageId)) {
+    state.currentVoyageId = state.voyages[0]?.id || null;
+    if (state.tab === "liste") state.tab = "home";
+  }
+  saveLocal();
+  render();
 }
 
 function receiveRemoteVoyage(remoteData, recordId) {
@@ -4669,11 +4766,11 @@ if ("serviceWorker" in navigator) {
 }
 
 loadLocal();
+dedupeQuickLists();
+saveLocal();
 render();
 handleJoinLink();
 loadSharedSettings();
-syncAllVoyages();
-syncAllQuickLists();
 subscribeToCurrentVoyage();
 
 
