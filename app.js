@@ -1236,18 +1236,70 @@ function renderChecklistGroup(title, content, emptyLabel = "") {
 function setStatus(text) {
   statusText = text;
   const status = document.getElementById("headerMeta");
-  const voyage = currentVoyage();
-  if (status) {
-    if (state.tab === "voyages") {
-      const count = state.voyages.length;
-      status.textContent = count ? `${count} voyage${count > 1 ? "s" : ""} enregistré${count > 1 ? "s" : ""}` : "Ajoutez votre premier voyage";
-    } else {
-      status.textContent = voyage ? `${voyage.name} · ${text}` : "Préparez vos sacs sans prise de tête";
-    }
-  }
+  if (status) status.textContent = headerMetaText(text);
 }
 
-function setTab(tab) {
+function formatModifiedAt(value) {
+  const date = new Date(value || "");
+  if (!Number.isFinite(date.getTime())) return "";
+  const day = date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  const time = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  return `modifié le ${day} à ${time}`;
+}
+
+function customSectionLabel(group) {
+  if (group === "general") return "Général";
+  if (group === "personal") return "Personnel";
+  return "Famille";
+}
+
+function latestCustomSectionUpdate() {
+  const sections = new Map([
+    ["general", 0],
+    ["family", 0],
+    ["personal", 0]
+  ]);
+  state.customCategories.forEach(category => {
+    const group = customMemberGroup(defaultMemberForCategory(category));
+    const values = [entityTimestamp(category)];
+    (category.items || []).forEach(item => values.push(entityTimestamp(item)));
+    const latest = Math.max(...values);
+    if (latest > (sections.get(group) || 0)) sections.set(group, latest);
+  });
+  Object.entries(state.customMemberDeletedAt || {}).forEach(([memberName, deletedAt]) => {
+    const group = customMemberGroup(memberName);
+    const latest = timestampValue(deletedAt);
+    if (latest > (sections.get(group) || 0)) sections.set(group, latest);
+  });
+  const [group, timestamp] = [...sections.entries()].sort((a, b) => b[1] - a[1])[0] || ["family", 0];
+  return {
+    label: customSectionLabel(group),
+    updatedAt: timestamp ? new Date(timestamp).toISOString() : ""
+  };
+}
+
+function headerMetaText(fallbackText = statusText) {
+  if (state.tab === "voyages") {
+    const count = state.voyages.length;
+    return `${count} voyage${count > 1 ? "s" : ""} enregistré${count > 1 ? "s" : ""}`;
+  }
+  if (state.tab === "liste") {
+    const voyage = currentVoyage();
+    const modified = formatModifiedAt(voyage?.updatedAt);
+    return modified ? `Modifié le ${modified.replace("modifié le ", "")}` : fallbackText;
+  }
+  if (state.tab === "customCategories") {
+    const section = latestCustomSectionUpdate();
+    const modified = formatModifiedAt(section.updatedAt);
+    return modified ? `${section.label} ${modified}` : "Catégories personnalisées";
+  }
+  if (state.tab === "quickListDetail" || state.tab === "quickLists") {
+    const list = currentQuickList();
+    const modified = formatModifiedAt(list?.updatedAt);
+    return list && modified ? `${list.name} ${modified}` : "Listes rapides";
+  }
+  return fallbackText || "Préparez vos sacs sans prise de tête";
+}function setTab(tab) {
   state.tab = tab;
   saveLocal();
   render();
