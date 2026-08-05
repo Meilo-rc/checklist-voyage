@@ -1,4 +1,4 @@
-const VERSION = "2.49";
+const VERSION = "2.50";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -625,11 +625,21 @@ function addOrMergeCategoryFromTemplate(categories, template) {
 }
 
 function importGeneralChoiceCategories(categories, group, choices = []) {
-  const templates = visibleCustomCategories(state.customCategories)
-    .filter(category => normalizeText(defaultMemberForCategory(category)) === "general");
   choices.forEach(choice => {
-    const template = templates.find(category => templateMatchesChoice(category, group, choice));
-    if (template) addOrMergeCategoryFromTemplate(categories, template);
+    const memberName = customMemberNames()
+      .filter(name => customMemberGroup(name) === "general")
+      .find(name => templateMatchesChoice({ name }, group, choice));
+    const memberTemplates = memberName
+      ? visibleCustomCategories(state.customCategories).filter(category => normalizeText(defaultMemberForCategory(category)) === normalizeText(memberName))
+      : [];
+    if (memberTemplates.length) {
+      memberTemplates.forEach(template => addOrMergeCategoryFromTemplate(categories, template));
+      return;
+    }
+    const directTemplate = visibleCustomCategories(state.customCategories)
+      .filter(category => normalizeText(defaultMemberForCategory(category)) === "general")
+      .find(category => templateMatchesChoice(category, group, choice));
+    if (directTemplate) addOrMergeCategoryFromTemplate(categories, directTemplate);
   });
 }
 
