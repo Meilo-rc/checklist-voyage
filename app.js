@@ -1,4 +1,4 @@
-const VERSION = "2.46";
+const VERSION = "2.47";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -1570,10 +1570,10 @@ function toggleVoyageAddMenu(event) {
   togglePageAddMenu(event, "voyageAddMenu");
 }
 
-function openJoinVoyageSheet() {
+function openJoinVoyageSheet(prefillCode = "") {
   closeVoyageAddMenu();
   const input = document.getElementById("sheetJoinCode");
-  if (input) input.value = "";
+  if (input) input.value = cleanCode(prefillCode);
   document.getElementById("joinVoyageSheet")?.classList.add("open");
   setTimeout(() => input?.focus(), 50);
 }
@@ -1583,10 +1583,10 @@ function openCreateVoyageSheet() {
   openVoyageSheet();
 }
 
-function openJoinQuickListSheet() {
+function openJoinQuickListSheet(prefillCode = "") {
   closeVoyageAddMenu();
   const input = document.getElementById("sheetQuickListCode");
-  if (input) input.value = "";
+  if (input) input.value = cleanCode(prefillCode);
   document.getElementById("joinQuickListSheet")?.classList.add("open");
   setTimeout(() => input?.focus(), 50);
 }
@@ -3378,17 +3378,26 @@ function copyCode(code) {
   copyTextToClipboard(code, "Code à copier");
 }
 
+function joinLink(type, code) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("join", type);
+  url.searchParams.set("code", cleanCode(code));
+  return url.toString();
+}
+
 function copyVoyageShare(voyageId) {
   const voyage = state.voyages.find(item => item.id === voyageId);
   if (!voyage?.code) return;
-  const text = `Salut ! J'aimerais partager le voyage "${voyage.name}" avec toi. Voici le code pour me rejoindre : ${voyage.code}.`;
+  const text = `Salut ! J'aimerais partager le voyage "${voyage.name}" avec toi. Voici le code pour me rejoindre : ${voyage.code}.\n${joinLink("voyage", voyage.code)}`;
   copyTextToClipboard(text, "Message à copier");
 }
 
 function copyQuickListShare(listId) {
   const list = state.quickLists.find(item => item.id === listId);
   if (!list?.code) return;
-  const text = `Salut ! J'aimerais partager avec toi la liste rapide "${list.name}". Voici le code pour me rejoindre : ${list.code} !`;
+  const text = `Salut ! J'aimerais partager avec toi la liste rapide "${list.name}". Voici le code pour me rejoindre : ${list.code} !\n${joinLink("quick", list.code)}`;
   copyTextToClipboard(text, "Message à copier");
 }
 function showToast(message) {
@@ -3965,6 +3974,25 @@ function render() {
   renderBottomNav();
 }
 
+function handleJoinLink() {
+  const params = new URLSearchParams(window.location.search);
+  const type = params.get("join");
+  const code = cleanCode(params.get("code") || "");
+  if (!code || !["voyage", "quick"].includes(type)) return;
+  if (type === "quick") {
+    state.tab = "quickLists";
+    render();
+    openJoinQuickListSheet(code);
+  } else {
+    state.tab = "voyages";
+    render();
+    openJoinVoyageSheet(code);
+  }
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete("join");
+  cleanUrl.searchParams.delete("code");
+  window.history.replaceState({}, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+}
 function renderBottomNav() {
   const nav = document.getElementById("bottomNav");
   if (!nav) return;
@@ -4573,6 +4601,7 @@ if ("serviceWorker" in navigator) {
 
 loadLocal();
 render();
+handleJoinLink();
 loadSharedSettings();
 syncAllVoyages();
 syncAllQuickLists();
