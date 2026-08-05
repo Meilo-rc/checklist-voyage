@@ -1,4 +1,4 @@
-const VERSION = "2.47";
+const VERSION = "2.48";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -585,7 +585,16 @@ function cloneTemplateCategory(template) {
 function templateMatchesChoice(template, group, choice) {
   const normalizedName = normalizeText(template?.name);
   const label = presetChoiceLabels[group]?.[choice] || choice;
-  return normalizedName === normalizeText(choice) || normalizedName === normalizeText(label);
+  const prefix = group === "transport" ? "Trajet" : "Logement";
+  const names = [
+    choice,
+    label,
+    `${prefix} ${choice}`,
+    `${prefix} - ${choice}`,
+    `${prefix} ${label}`,
+    `${prefix} - ${label}`
+  ];
+  return names.some(name => normalizedName === normalizeText(name));
 }
 
 function addOrMergeCategoryFromTemplate(categories, template) {
@@ -596,18 +605,29 @@ function addOrMergeCategoryFromTemplate(categories, template) {
 }
 
 function importGeneralChoiceCategories(categories, group, choices = []) {
-  const remaining = [];
   const templates = visibleCustomCategories(state.customCategories)
-    .filter(category => defaultMemberForCategory(category) === "Général");
+    .filter(category => normalizeText(defaultMemberForCategory(category)) === "general");
   choices.forEach(choice => {
     const template = templates.find(category => templateMatchesChoice(category, group, choice));
     if (template) addOrMergeCategoryFromTemplate(categories, template);
-    else remaining.push(choice);
   });
-  if (remaining.length) {
-    const categoryName = group === "transport" ? "Transport" : "Logement";
-    enrichCategories(categories, categoryName, remaining, presetItems[group]);
-  }
+}
+
+function isLegacyGeneratedChoiceCategory(category) {
+  if (!category || category.sourceTemplateId) return false;
+  const normalizedName = normalizeText(category.name);
+  const group = normalizedName === "transport" ? "transport" : normalizedName === "logement" ? "lodging" : "";
+  if (!group) return false;
+  const presetNames = Object.values(presetItems[group] || {})
+    .flat()
+    .map(normalizeText);
+  const allowed = new Set(presetNames);
+  const items = visibleItems(category.items || []);
+  return items.length > 0 && items.every(item => allowed.has(normalizeText(item.name)));
+}
+
+function removeLegacyGeneratedChoiceCategories(categories = []) {
+  return categories.filter(category => !isLegacyGeneratedChoiceCategory(category));
 }
 
 function createMembersFromParticipants(participants = [], options = {}) {
@@ -797,13 +817,13 @@ function makeVoyage(name, date, options = {}) {
 
 function normalizeVoyage(raw) {
   const voyage = raw && typeof raw === "object" ? raw : {};
-  const legacyCategories = Array.isArray(voyage.categories) ? mergeCategoryList(voyage.categories, []) : [];
+  const legacyCategories = Array.isArray(voyage.categories) ? removeLegacyGeneratedChoiceCategories(mergeCategoryList(voyage.categories, [])) : [];
   const members = Array.isArray(voyage.members) && voyage.members.length
     ? voyage.members.map(normalizeMember)
     : defaultMemberNames.map((name, index) => createMember(name, index === 0 ? legacyCategories : []));
   const generalCategories = moveMemberDocumentsToGeneral(
     Array.isArray(voyage.categories) && (Array.isArray(voyage.members) && voyage.members.length)
-      ? mergeCategoryList(voyage.categories, [])
+      ? removeLegacyGeneratedChoiceCategories(mergeCategoryList(voyage.categories, []))
       : [],
     members
   );
