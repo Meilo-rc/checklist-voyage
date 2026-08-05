@@ -1,4 +1,4 @@
-const VERSION = "2.50";
+const VERSION = "2.51";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -624,22 +624,41 @@ function addOrMergeCategoryFromTemplate(categories, template) {
   else categories.push(copy);
 }
 
-function importGeneralChoiceCategories(categories, group, choices = []) {
+function addOrMergeGeneralMemberFromTemplates(members, memberName, templates = []) {
+  if (!memberName || !templates.length) return;
+  let member = members.find(item => normalizeMemberGroup(item.group) === "general" && normalizeText(item.name) === normalizeText(memberName));
+  if (!member) {
+    member = createMember(memberName, [], { group: "general", icon: categoryIconForName(memberName) });
+    members.push(member);
+  }
+  templates.forEach(template => {
+    addOrMergeCategoryFromTemplate(member.categories, template);
+  });
+  touchEntity(member);
+  state.openMembers[member.id] = false;
+  member.categories.forEach(category => {
+    state.openCats[category.id] = false;
+  });
+}
+
+function generalChoiceTemplateGroup(group, choice) {
+  const memberName = customMemberNames()
+    .filter(name => customMemberGroup(name) === "general")
+    .find(name => templateMatchesChoice({ name }, group, choice));
+  const memberTemplates = memberName
+    ? visibleCustomCategories(state.customCategories).filter(category => normalizeText(defaultMemberForCategory(category)) === normalizeText(memberName))
+    : [];
+  if (memberTemplates.length) return { memberName, templates: memberTemplates };
+  const directTemplate = visibleCustomCategories(state.customCategories)
+    .filter(category => normalizeText(defaultMemberForCategory(category)) === "general")
+    .find(category => templateMatchesChoice(category, group, choice));
+  return directTemplate ? { memberName: directTemplate.name, templates: [directTemplate] } : { memberName: "", templates: [] };
+}
+
+function importGeneralChoiceMembers(members, group, choices = []) {
   choices.forEach(choice => {
-    const memberName = customMemberNames()
-      .filter(name => customMemberGroup(name) === "general")
-      .find(name => templateMatchesChoice({ name }, group, choice));
-    const memberTemplates = memberName
-      ? visibleCustomCategories(state.customCategories).filter(category => normalizeText(defaultMemberForCategory(category)) === normalizeText(memberName))
-      : [];
-    if (memberTemplates.length) {
-      memberTemplates.forEach(template => addOrMergeCategoryFromTemplate(categories, template));
-      return;
-    }
-    const directTemplate = visibleCustomCategories(state.customCategories)
-      .filter(category => normalizeText(defaultMemberForCategory(category)) === "general")
-      .find(category => templateMatchesChoice(category, group, choice));
-    if (directTemplate) addOrMergeCategoryFromTemplate(categories, directTemplate);
+    const match = generalChoiceTemplateGroup(group, choice);
+    if (match.templates.length) addOrMergeGeneralMemberFromTemplates(members, match.memberName, match.templates);
   });
 }
 
@@ -686,8 +705,6 @@ function createGeneralCategories(options = {}) {
       { id: uid("item"), name: "Moyens de paiement", qty: 1, status: "todo", done: false }
     ]
   }];
-  importGeneralChoiceCategories(categories, "transport", options.transport || []);
-  importGeneralChoiceCategories(categories, "lodging", options.lodging || []);
   return categories;
 }
 
@@ -776,8 +793,6 @@ function createDefaultCategories(options = {}) {
       done: false
     }))
   }));
-  importGeneralChoiceCategories(categories, "transport", options.transport || []);
-  importGeneralChoiceCategories(categories, "lodging", options.lodging || []);
   return categories;
 }
 
@@ -833,6 +848,8 @@ function makeVoyage(name, date, options = {}) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
+  importGeneralChoiceMembers(voyage.members, "transport", options.transport || []);
+  importGeneralChoiceMembers(voyage.members, "lodging", options.lodging || []);
   voyage.members.forEach(member => {
     state.openMembers[member.id] = false;
     member.categories.forEach(category => {
@@ -1746,8 +1763,9 @@ async function saveVoyageSheet(event) {
       lodging: options.lodging,
       participants: voyageMembers(voyage).map(member => member.name)
     };
-    importGeneralChoiceCategories(voyage.categories, "transport", options.transport);
-    importGeneralChoiceCategories(voyage.categories, "lodging", options.lodging);
+    voyage.members = Array.isArray(voyage.members) ? voyage.members : [];
+    importGeneralChoiceMembers(voyage.members, "transport", options.transport);
+    importGeneralChoiceMembers(voyage.members, "lodging", options.lodging);
     touchVoyage(voyage);
   } else {
     voyage = makeVoyage(voyageName, date, options);
