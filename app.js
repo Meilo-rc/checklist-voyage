@@ -1,4 +1,4 @@
-const VERSION = "2.45";
+const VERSION = "2.46";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -3385,6 +3385,12 @@ function copyVoyageShare(voyageId) {
   copyTextToClipboard(text, "Message à copier");
 }
 
+function copyQuickListShare(listId) {
+  const list = state.quickLists.find(item => item.id === listId);
+  if (!list?.code) return;
+  const text = `Salut ! J'aimerais partager avec toi la liste rapide "${list.name}". Voici le code pour me rejoindre : ${list.code} !`;
+  copyTextToClipboard(text, "Message à copier");
+}
 function showToast(message) {
   const toast = document.getElementById("toast");
   if (!toast) return;
@@ -4139,15 +4145,17 @@ function renderQuickLists() {
       <article class="voyage-card clickable ${list.id === state.currentQuickListId ? "active" : ""}" onclick="selectQuickList('${list.id}')">
         <div class="voyage-main">
           <div>
-            <h2 class="voyage-name">${escapeHTML(list.name)}</h2>
-            <div class="voyage-meta">
-              <span class="badge">${done}/${total} prêts</span>
-              <span class="badge blue">${escapeHTML(list.code)}</span>
+            <div class="title-row">
+              <h2 class="voyage-name">${escapeHTML(list.name)}</h2>
+              <button class="code-button" type="button" onclick="event.stopPropagation(); copyQuickListShare('${list.id}')" title="Copier le code">${escapeHTML(list.code)}</button>
             </div>
           </div>
           <div class="status">${percent}%</div>
         </div>
-        <div class="progress" aria-hidden="true"><span style="${progressStyle(percent)}"></span></div>
+        <div class="trip-progress-row">
+          <div class="progress" aria-hidden="true"><span style="${progressStyle(percent)}"></span></div>
+          <span class="trip-progress-count">${done}/${total}</span>
+        </div>
       </article>
     `;
   }).join("");
@@ -4159,13 +4167,12 @@ function renderQuickLists() {
         <p>Pour les sacs et petites préparations du quotidien.</p>
       </div>
     </section>
-    <section class="grid section">
+    <section class="cards-list">
       ${cards || `<div class="panel empty"><h2>Aucune liste rapide</h2><p>Créez une liste pour un sac de piscine, de foot ou de crèche.</p></div>`}
-      ${renderQuickListAddMenu()}
     </section>
+    ${renderQuickListAddMenu()}
   `;
 }
-
 function renderQuickListDetail() {
   const list = currentQuickList();
   const content = document.getElementById("content");
@@ -4208,9 +4215,8 @@ function renderQuickListDetail() {
         <div class="toolbar-title">
           <div class="title-row">
             <h2>${escapeHTML(list.name)}</h2>
-            <button class="code-button" type="button" onclick="copyCode('${list.code}')" title="Copier le code">${escapeHTML(list.code)}</button>
+            <button class="code-button" type="button" onclick="copyQuickListShare('${list.id}')" title="Copier le code">${escapeHTML(list.code)}</button>
           </div>
-          <p>${done}/${total} éléments prêts</p>
         </div>
         <div class="category-actions trip-actions">
           <details class="voyage-menu">
@@ -4223,7 +4229,10 @@ function renderQuickListDetail() {
           </details>
         </div>
       </div>
-      <div class="progress" aria-hidden="true"><span style="${progressStyle(percent)}"></span></div>
+      <div class="trip-progress-row">
+        <div class="progress" aria-hidden="true"><span style="${progressStyle(percent)}"></span></div>
+        <span class="trip-progress-count">${done}/${total}</span>
+      </div>
     </section>
     <section class="panel panel-pad section">
       <div class="quick-items">
