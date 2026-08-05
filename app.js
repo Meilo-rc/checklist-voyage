@@ -1,4 +1,4 @@
-const VERSION = "2.48";
+const VERSION = "2.49";
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
 const PB_URL = "https://psyco.fly.dev";
@@ -473,7 +473,10 @@ function normalizeText(value) {
   return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s*-\s*/g, " - ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function categoryIconForName(name) {
@@ -584,16 +587,33 @@ function cloneTemplateCategory(template) {
 
 function templateMatchesChoice(template, group, choice) {
   const normalizedName = normalizeText(template?.name);
-  const label = presetChoiceLabels[group]?.[choice] || choice;
-  const prefix = group === "transport" ? "Trajet" : "Logement";
-  const names = [
+  const aliases = {
+    transport: {
+      avion: ["Avion"],
+      train: ["Train"],
+      voiture: ["Voiture"],
+      bus: ["Bus"],
+      bateau: ["Bateau"]
+    },
+    lodging: {
+      hotel: ["Hotel", "Hôtel"],
+      camping: ["Camping"],
+      famille: ["Famille"],
+      location: ["Location"]
+    }
+  };
+  const labels = aliases[group]?.[choice] || [presetChoiceLabels[group]?.[choice] || choice];
+  const prefixes = group === "transport" ? ["Trajet", "Transport"] : ["Logement"];
+  const names = labels.flatMap(label => [
     choice,
     label,
-    `${prefix} ${choice}`,
-    `${prefix} - ${choice}`,
-    `${prefix} ${label}`,
-    `${prefix} - ${label}`
-  ];
+    ...prefixes.flatMap(prefix => [
+      `${prefix} ${choice}`,
+      `${prefix} - ${choice}`,
+      `${prefix} ${label}`,
+      `${prefix} - ${label}`
+    ])
+  ]);
   return names.some(name => normalizedName === normalizeText(name));
 }
 
