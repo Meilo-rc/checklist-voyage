@@ -190,7 +190,8 @@ function memberIcon(memberName) {
   if (explicitIcon && categoryIcons.includes(explicitIcon)) return explicitIcon;
   const rawName = typeof memberName === "object" ? memberName.name : memberName;
   const normalized = normalizeText(rawName);
-  const stored = state.customMemberIcons?.[normalized];
+  const memberKey = normalizeMemberName(rawName);
+  const stored = state.customMemberIcons?.[memberKey] || state.customMemberIcons?.[rawName] || state.customMemberIcons?.[normalized];
   if (stored && categoryIcons.includes(stored)) return stored;
   if (memberIconRules[normalized]) return memberIconRules[normalized];
   const match = Object.entries(memberIconRules).find(([name]) => normalized.includes(name));
@@ -1157,6 +1158,7 @@ function loadLocal() {
       state.customMemberGroups = parsed.customMemberGroups && typeof parsed.customMemberGroups === "object" ? parsed.customMemberGroups : {};
       state.customMemberDeletedAt = parsed.customMemberDeletedAt && typeof parsed.customMemberDeletedAt === "object" ? parsed.customMemberDeletedAt : {};
       settingsRecordId = parsed.settingsRecordId || "";
+      repairCustomMemberState();
       return;
     } catch (error) {
       console.warn("Impossible de charger le stockage v2", error);
@@ -2810,6 +2812,7 @@ function addCustomCategory(event, group = "family") {
 }
 
 function customMemberNames() {
+  repairCustomMemberState();
   const aliasedDefaults = defaultCustomGroupNames.map(name => normalizeMemberName(state.customMemberAliases[name] || name));
   return [
     ...aliasedDefaults,
@@ -2824,6 +2827,48 @@ function customMemberNames() {
 
 function customMemberGroup(memberName) {
   return customMemberGroupValue(memberName);
+}
+
+function defaultCustomMemberGroup(sourceName) {
+  return normalizeMemberName(sourceName) === "Général" ? "general" : "family";
+}
+
+function repairDefaultCustomMemberGroups() {
+  defaultCustomGroupNames.forEach(sourceName => {
+    const alias = normalizeMemberName(state.customMemberAliases[sourceName] || sourceName);
+    if (!alias) return;
+    state.customMemberGroups[alias] = defaultCustomMemberGroup(sourceName);
+  });
+}
+
+function applyCustomMemberAliases() {
+  Object.entries(state.customMemberAliases || {}).forEach(([sourceName, aliasName]) => {
+    const source = normalizeMemberName(sourceName);
+    const alias = normalizeMemberName(aliasName);
+    if (!source || !alias || source === alias) return;
+    state.customCategories.forEach(category => {
+      if (defaultMemberForCategory(category) === source) {
+        category.member = alias;
+      }
+    });
+    state.customCategoryMembers = state.customCategoryMembers.map(name => normalizeMemberName(name) === source ? alias : name);
+    if (state.customMemberGroups[source] && !state.customMemberGroups[alias]) {
+      state.customMemberGroups[alias] = state.customMemberGroups[source];
+    }
+    if (state.customMemberIcons[source] && !state.customMemberIcons[alias]) {
+      state.customMemberIcons[alias] = state.customMemberIcons[source];
+    }
+  });
+}
+
+function repairCustomMemberState() {
+  applyCustomMemberAliases();
+  repairDefaultCustomMemberGroups();
+  const aliasedDefaults = defaultCustomGroupNames.map(name => normalizeMemberName(state.customMemberAliases[name] || name));
+  state.customCategoryMembers = state.customCategoryMembers
+    .map(normalizeMemberName)
+    .filter(name => name && !state.customMemberDeletedAt?.[name])
+    .filter((name, index, list) => list.indexOf(name) === index && !aliasedDefaults.includes(name) && !defaultCustomGroupNames.includes(name));
 }
 
 function renderAddCustomMemberForm(group) {
@@ -2885,6 +2930,7 @@ function updateCustomMember(currentName, nextName) {
   if (!current || !next) return;
   const aliasEntry = Object.entries(state.customMemberAliases).find(([, alias]) => normalizeMemberName(alias) === current);
   const defaultSource = aliasEntry?.[0] || (defaultCustomGroupNames.includes(current) ? current : "");
+  const currentGroup = defaultSource ? defaultCustomMemberGroup(defaultSource) : customMemberGroup(current);
   const timestamp = nowISO();
   state.customCategories.forEach(category => {
     if (defaultMemberForCategory(category) === current) {
@@ -2896,6 +2942,7 @@ function updateCustomMember(currentName, nextName) {
     state.customMemberAliases[defaultSource] = next;
     state.customCategoryMembers = state.customCategoryMembers.filter(name => normalizeMemberName(name) !== next);
   } else {
+    state.customMemberAliases[current] = next;
     let replaced = false;
     state.customCategoryMembers = state.customCategoryMembers.map(name => {
       if (normalizeMemberName(name) !== current) return name;
@@ -2914,14 +2961,19 @@ function updateCustomMember(currentName, nextName) {
     state.customMemberGroups[next] = state.customMemberGroups[current];
     delete state.customMemberGroups[current];
   }
-  if (state.customMemberDeletedAt[current]) {
-    state.customMemberDeletedAt[next] = state.customMemberDeletedAt[current];
-    delete state.customMemberDeletedAt[current];
+  state.customMemberGroups[next] = currentGroup;
+  if (!defaultSource) {
+    state.customMemberDeletedAt[current] = timestamp;
   }
+  if (state.customMemberDeletedAt[current]) {
+    if (defaultSource) delete state.customMemberDeletedAt[current];
+  }
+  delete state.customMemberDeletedAt[next];
   if (state.customMemberIcons[current]) {
     state.customMemberIcons[next] = state.customMemberIcons[current];
     delete state.customMemberIcons[current];
   }
+  repairCustomMemberState();
   saveLocal();
   saveSharedSettings();
 }

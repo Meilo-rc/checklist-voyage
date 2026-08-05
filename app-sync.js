@@ -41,6 +41,7 @@ function scheduleRemoteSync(timerMap, type, entity, options, task) {
 }
 
 function settingsPayload() {
+  repairCustomMemberState();
   const syncedState = syncedSettingsState();
   const syncedCategories = mergeCustomCategoryList(syncedState.customCategories, []);
   const categories = visibleCustomCategories(syncedCategories).map(category => ({
@@ -103,6 +104,7 @@ function applySettingsData(data) {
     ...(merged.customMemberDeletedAt && typeof merged.customMemberDeletedAt === "object" ? merged.customMemberDeletedAt : {}),
     ...personal.customMemberDeletedAt
   };
+  repairCustomMemberState();
   saveLocal();
   if (state.tab === "customCategories") render();
   renderMemberTemplateGroups(memberSheetMember);
@@ -158,6 +160,7 @@ async function saveSharedSettingsNow() {
       state.customMemberIcons = { ...(data.customMemberIcons || {}), ...personal.customMemberIcons };
       state.customMemberGroups = { ...(data.customMemberGroups || {}), ...personal.customMemberGroups };
       state.customMemberDeletedAt = { ...(data.customMemberDeletedAt || {}), ...personal.customMemberDeletedAt };
+      repairCustomMemberState();
     }
     if (record) {
       record = await client.collection(PB_COLLECTION).update(record.id, { code: SETTINGS_CODE, data }, { requestKey: null });

@@ -1,4 +1,4 @@
-const VERSION = "2.55";
+const VERSION = "2.56";
 const REMOTE_SCHEMA_VERSION = 3;
 const STORAGE_KEY = "checklist-voyage-state-v2";
 const OLD_STORAGE_KEY = "travelChecklistState";
