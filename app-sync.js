@@ -151,7 +151,7 @@ async function saveSharedSettingsNow() {
     let data = settingsPayload();
     if (record?.data) {
       const personal = personalSettingsSnapshot();
-      data = mergeSettingsData(data, record.data);
+      data = mergeSettingsData(data, record.data, { preferLocalMeta: true });
       state.customCategories = [...personal.customCategories, ...data.customCategories.map(normalizeCustomCategory)];
       state.customCategoryMembers = [...personal.customCategoryMembers, ...data.customCategoryMembers.map(normalizeMemberName)]
         .map(normalizeMemberName)

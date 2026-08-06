@@ -925,7 +925,10 @@ function mergeCustomCategoryList(localCategories = [], remoteCategories = []) {
   return deduped;
 }
 
-function mergeSettingsData(localData, remoteData) {
+function mergeSettingsData(localData, remoteData, options = {}) {
+  const mergeMeta = (localValue, remoteValue) => options.preferLocalMeta
+    ? { ...(remoteValue || {}), ...(localValue || {}) }
+    : { ...(localValue || {}), ...(remoteValue || {}) };
   const localSource = localData?.customCategories || localData?.voyage?.categories || [];
   const remoteSource = remoteData?.customCategories || remoteData?.voyage?.categories || [];
   const localMembers = Array.isArray(localData?.customCategoryMembers) ? localData.customCategoryMembers : [];
@@ -940,22 +943,10 @@ function mergeSettingsData(localData, remoteData) {
       remoteSource.map(normalizeCustomCategory)
     ),
     customCategoryMembers: members,
-    customMemberAliases: {
-      ...(localData?.customMemberAliases || {}),
-      ...(remoteData?.customMemberAliases || {})
-    },
-    customMemberIcons: {
-      ...(localData?.customMemberIcons || {}),
-      ...(remoteData?.customMemberIcons || {})
-    },
-    customMemberGroups: {
-      ...(localData?.customMemberGroups || {}),
-      ...(remoteData?.customMemberGroups || {})
-    },
-    customMemberDeletedAt: {
-      ...(localData?.customMemberDeletedAt || {}),
-      ...(remoteData?.customMemberDeletedAt || {})
-    },
+    customMemberAliases: mergeMeta(localData?.customMemberAliases, remoteData?.customMemberAliases),
+    customMemberIcons: mergeMeta(localData?.customMemberIcons, remoteData?.customMemberIcons),
+    customMemberGroups: mergeMeta(localData?.customMemberGroups, remoteData?.customMemberGroups),
+    customMemberDeletedAt: mergeMeta(localData?.customMemberDeletedAt, remoteData?.customMemberDeletedAt),
     updatedAt: nowISO()
   };
 }
@@ -3227,7 +3218,7 @@ function openEditCustomMemberSheet(memberName) {
   if (!current) return;
   const group = customMemberGroup(current);
   editEntityTarget = { type: "customMember", memberName: current };
-  editEntityIcon = state.customMemberIcons?.[current] || (group === "family" ? memberIcon(current) : "suitcase");
+  editEntityIcon = state.customMemberIcons?.[current] || memberIcon(current) || (group === "family" ? memberIcon(current) : "suitcase");
   document.getElementById("editEntityTitle").textContent = group === "family" ? "Modifier le membre" : "Modifier la catégorie";
   document.getElementById("editEntityName").value = current;
   document.getElementById("editEntitySubmit").textContent = "Enregistrer";
