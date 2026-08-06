@@ -105,6 +105,7 @@ function applySettingsData(data) {
     ...personal.customMemberDeletedAt
   };
   repairCustomMemberState();
+  stabilizeAllVoyageGeneralMembers();
   saveLocal();
   if (state.tab === "customCategories") render();
   renderMemberTemplateGroups(memberSheetMember);
@@ -161,6 +162,7 @@ async function saveSharedSettingsNow() {
       state.customMemberGroups = { ...(data.customMemberGroups || {}), ...personal.customMemberGroups };
       state.customMemberDeletedAt = { ...(data.customMemberDeletedAt || {}), ...personal.customMemberDeletedAt };
       repairCustomMemberState();
+      stabilizeAllVoyageGeneralMembers();
     }
     if (record) {
       record = await client.collection(PB_COLLECTION).update(record.id, { code: SETTINGS_CODE, data }, { requestKey: null });

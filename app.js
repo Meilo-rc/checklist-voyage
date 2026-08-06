@@ -239,11 +239,7 @@ function createMember(name, categories = [], options = {}) {
 }
 
 function createDefaultMembers(options = {}) {
-  return defaultMemberNames.map(name => createMember(name, createDefaultCategories({
-    ...options,
-    transport: [],
-    lodging: []
-  })));
+  return [];
 }
 
 function cloneTemplateCategory(template) {
@@ -362,12 +358,51 @@ function removeLegacyGeneratedChoiceCategories(categories = []) {
   return categories.filter(category => !isLegacyGeneratedChoiceCategory(category));
 }
 
+function isLegacyDefaultDocumentsCategory(category) {
+  if (!category || category.sourceTemplateId) return false;
+  if (normalizeText(category.name) !== "documents") return false;
+  const legacyNames = new Set([
+    "passeports / cartes d'identite",
+    "billets et reservations",
+    "permis / assurance",
+    "moyens de paiement"
+  ]);
+  const items = visibleItems(category.items || []);
+  return items.length > 0 && items.every(item => legacyNames.has(normalizeText(item.name)));
+}
+
+function removeLegacyDefaultDocumentsCategories(categories = []) {
+  return categories.filter(category => !isLegacyDefaultDocumentsCategory(category));
+}
+
+function defaultGeneralTemplateMemberName() {
+  return normalizeMemberName(state.customMemberAliases?.["Général"] || "Général");
+}
+
+function importDefaultGeneralMember(members) {
+  const memberName = defaultGeneralTemplateMemberName();
+  const templates = visibleCustomCategories(state.customCategories)
+    .filter(category => normalizeText(defaultMemberForCategory(category)) === normalizeText(memberName));
+  if (!templates.length) return;
+  addOrMergeGeneralMemberFromTemplates(members, memberName, templates);
+}
+
+function stabilizeVoyageGeneralMembers(voyage) {
+  if (!voyage) return;
+  voyage.categories = removeLegacyDefaultDocumentsCategories(voyage.categories || []);
+  if (Array.isArray(voyage.members)) importDefaultGeneralMember(voyage.members);
+}
+
+function stabilizeAllVoyageGeneralMembers() {
+  state.voyages.forEach(stabilizeVoyageGeneralMembers);
+}
+
 function createMembersFromParticipants(participants = [], options = {}) {
   const names = participants
     .map(normalizeMemberName)
     .filter(name => name && name !== "Général")
     .filter((name, index, list) => list.indexOf(name) === index);
-  if (!names.length) return createDefaultMembers(options);
+  if (!names.length) return [];
   return names.map(name => {
     const categories = visibleCustomCategories(state.customCategories)
       .filter(category => defaultMemberForCategory(category) === name)
@@ -377,18 +412,7 @@ function createMembersFromParticipants(participants = [], options = {}) {
 }
 
 function createGeneralCategories(options = {}) {
-  const categories = [{
-    id: uid("cat"),
-    name: "Documents",
-    icon: "document",
-    items: [
-      { id: uid("item"), name: "Passeports / cartes d'identité", qty: 1, status: "todo", done: false },
-      { id: uid("item"), name: "Billets et réservations", qty: 1, status: "todo", done: false },
-      { id: uid("item"), name: "Permis / assurance", qty: 1, status: "todo", done: false },
-      { id: uid("item"), name: "Moyens de paiement", qty: 1, status: "todo", done: false }
-    ]
-  }];
-  return categories;
+  return [];
 }
 
 function normalizeMember(raw) {
@@ -442,6 +466,7 @@ function mergeCategoryItems(target, source) {
 function moveMemberDocumentsToGeneral(categories, members) {
   let documents = categories.find(category => normalizeText(category.name) === "documents");
   members.forEach(member => {
+    if (normalizeMemberGroup(member.group) === "general") return;
     const remaining = [];
     (member.categories || []).forEach(category => {
       if (normalizeText(category.name) !== "documents") {
@@ -465,48 +490,11 @@ function moveMemberDocumentsToGeneral(categories, members) {
 }
 
 function createDefaultCategories(options = {}) {
-  const categories = defaultCategories.map(category => ({
-    id: uid("cat"),
-    name: category.name,
-    icon: categoryIconForName(category.name),
-    items: category.items.map(item => ({
-      id: uid("item"),
-      name: item.name,
-      qty: item.qty,
-      done: false
-    }))
-  }));
-  return categories;
+  return [];
 }
 
 function enrichCategories(categories, categoryName, choices, presets) {
-  const names = [];
-  choices.forEach(choice => {
-    (presets[choice] || []).forEach(name => {
-      if (!names.includes(name)) names.push(name);
-    });
-  });
-  if (!names.length) return;
-  let category = categories.find(item => item.name === categoryName);
-  if (!category) {
-    category = {
-      id: uid("cat"),
-      name: categoryName,
-      icon: categoryIconForName(categoryName),
-      items: []
-    };
-    categories.push(category);
-  }
-  const existing = new Set(category.items.map(item => item.name));
-  names.forEach(name => {
-    if (existing.has(name)) return;
-    category.items.push({
-      id: uid("item"),
-      name,
-      qty: 1,
-      done: false
-    });
-  });
+  return;
 }
 
 function makeVoyage(name, date, options = {}) {
@@ -531,6 +519,7 @@ function makeVoyage(name, date, options = {}) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
+  importDefaultGeneralMember(voyage.members);
   importGeneralChoiceMembers(voyage.members, "transport", options.transport || []);
   importGeneralChoiceMembers(voyage.members, "lodging", options.lodging || []);
   voyage.members.forEach(member => {
@@ -547,16 +536,19 @@ function makeVoyage(name, date, options = {}) {
 
 function normalizeVoyage(raw) {
   const voyage = raw && typeof raw === "object" ? raw : {};
-  const legacyCategories = Array.isArray(voyage.categories) ? removeLegacyGeneratedChoiceCategories(mergeCategoryList(voyage.categories, [])) : [];
+  const legacyCategories = Array.isArray(voyage.categories)
+    ? removeLegacyDefaultDocumentsCategories(removeLegacyGeneratedChoiceCategories(mergeCategoryList(voyage.categories, [])))
+    : [];
   const members = Array.isArray(voyage.members) && voyage.members.length
     ? voyage.members.map(normalizeMember)
-    : defaultMemberNames.map((name, index) => createMember(name, index === 0 ? legacyCategories : []));
+    : [];
   const generalCategories = moveMemberDocumentsToGeneral(
     Array.isArray(voyage.categories) && (Array.isArray(voyage.members) && voyage.members.length)
-      ? removeLegacyGeneratedChoiceCategories(mergeCategoryList(voyage.categories, []))
+      ? removeLegacyDefaultDocumentsCategories(removeLegacyGeneratedChoiceCategories(mergeCategoryList(voyage.categories, [])))
       : [],
     members
   );
+  importDefaultGeneralMember(members);
   const normalized = {
     id: voyage.id || uid("voyage"),
     code: cleanCode(voyage.code) || generateCode(),
@@ -1150,6 +1142,7 @@ function loadLocal() {
       state.customMemberDeletedAt = parsed.customMemberDeletedAt && typeof parsed.customMemberDeletedAt === "object" ? parsed.customMemberDeletedAt : {};
       settingsRecordId = parsed.settingsRecordId || "";
       repairCustomMemberState();
+      stabilizeAllVoyageGeneralMembers();
       return;
     } catch (error) {
       console.warn("Impossible de charger le stockage v2", error);
