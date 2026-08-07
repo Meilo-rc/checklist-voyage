@@ -3820,6 +3820,7 @@ function renderChecklist() {
 
 function renderGeneralSection(voyage) {
   const categories = visibleCategories(voyage.categories || []);
+  if (!categories.length) return "";
   const progress = progressForMember({ categories });
   const open = state.openMembers.general === true;
   return `
