@@ -375,8 +375,21 @@ function removeLegacyDefaultDocumentsCategories(categories = []) {
   return categories.filter(category => !isLegacyDefaultDocumentsCategory(category));
 }
 
+function defaultCustomAlias(sourceName) {
+  const normalizedSource = normalizeText(sourceName);
+  const aliases = state.customMemberAliases || {};
+  const direct = aliases[sourceName];
+  if (direct) return normalizeMemberName(direct);
+  const match = Object.entries(aliases).find(([name]) => normalizeText(name) === normalizedSource);
+  return normalizeMemberName(match?.[1] || sourceName);
+}
+
 function defaultGeneralTemplateMemberName() {
-  return normalizeMemberName(state.customMemberAliases?.["Général"] || "Général");
+  const alias = defaultCustomAlias("Général");
+  const directGeneralMember = customMemberNames()
+    .filter(name => customMemberGroup(name) === "general")
+    .find(name => normalizeText(name) === "essentiel" && visibleCustomCategories(state.customCategories).some(category => normalizeText(defaultMemberForCategory(category)) === normalizeText(name)));
+  return directGeneralMember || alias;
 }
 
 function importDefaultGeneralMember(members) {
@@ -2797,7 +2810,7 @@ function addCustomCategory(event, group = "family") {
 
 function customMemberNames() {
   repairCustomMemberState();
-  const aliasedDefaults = defaultCustomGroupNames.map(name => normalizeMemberName(state.customMemberAliases[name] || name));
+  const aliasedDefaults = defaultCustomGroupNames.map(defaultCustomAlias);
   return [
     ...aliasedDefaults,
     ...state.customCategoryMembers,
@@ -2819,7 +2832,7 @@ function defaultCustomMemberGroup(sourceName) {
 
 function repairDefaultCustomMemberGroups() {
   defaultCustomGroupNames.forEach(sourceName => {
-    const alias = normalizeMemberName(state.customMemberAliases[sourceName] || sourceName);
+    const alias = defaultCustomAlias(sourceName);
     if (!alias) return;
     state.customMemberGroups[alias] = defaultCustomMemberGroup(sourceName);
   });
@@ -2848,7 +2861,7 @@ function applyCustomMemberAliases() {
 function repairCustomMemberState() {
   applyCustomMemberAliases();
   repairDefaultCustomMemberGroups();
-  const aliasedDefaults = defaultCustomGroupNames.map(name => normalizeMemberName(state.customMemberAliases[name] || name));
+  const aliasedDefaults = defaultCustomGroupNames.map(defaultCustomAlias);
   state.customCategoryMembers = state.customCategoryMembers
     .map(normalizeMemberName)
     .filter(name => name && !state.customMemberDeletedAt?.[name])
@@ -2935,7 +2948,7 @@ function updateCustomMember(currentName, nextName) {
     });
     if (!replaced) state.customCategoryMembers.push(next);
   }
-  const aliasedDefaults = defaultCustomGroupNames.map(name => normalizeMemberName(state.customMemberAliases[name] || name));
+  const aliasedDefaults = defaultCustomGroupNames.map(defaultCustomAlias);
   state.customCategoryMembers = state.customCategoryMembers
     .map(normalizeMemberName)
     .filter((name, index, list) => list.indexOf(name) === index && !aliasedDefaults.includes(name) && !defaultCustomGroupNames.includes(name));
