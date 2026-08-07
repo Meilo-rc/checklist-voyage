@@ -492,6 +492,7 @@ h1 {
 }
 
 .calendar-day {
+  position: relative;
   aspect-ratio: 1;
   min-height: 34px;
   border-radius: 6px;
@@ -500,8 +501,24 @@ h1 {
   font-weight: 760;
 }
 
+.calendar-day span {
+  position: relative;
+  z-index: 1;
+}
+
 .calendar-day.muted {
   color: #b6bfcc;
+}
+
+.calendar-day.today::before {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(105, 195, 235, .22);
+  transform: translate(-50%, -50%);
 }
 
 .calendar-day.in-range {
@@ -512,6 +529,10 @@ h1 {
 .calendar-day.selected {
   background: var(--blue);
   color: white;
+}
+
+.calendar-day.selected::before {
+  display: none;
 }
 
 label {

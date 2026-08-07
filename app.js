@@ -1904,6 +1904,7 @@ function renderRangeCalendar() {
   const gridStart = new Date(year, month, 1 - startOffset);
   const monthLabel = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(firstDay);
   const weekdays = ["L", "M", "M", "J", "V", "S", "D"];
+  const todayValue = toDateValue(new Date());
   const days = [];
   for (let index = 0; index < 42; index += 1) {
     const day = new Date(gridStart);
@@ -1912,9 +1913,10 @@ function renderRangeCalendar() {
     const inMonth = day.getMonth() === month;
     const selected = value === draftDateRange.start || value === draftDateRange.end;
     const inRange = draftDateRange.start && draftDateRange.end && value > draftDateRange.start && value < draftDateRange.end;
+    const isToday = value === todayValue;
     days.push(`
-      <button class="calendar-day ${inMonth ? "" : "muted"} ${inRange ? "in-range" : ""} ${selected ? "selected" : ""}" type="button" onclick="pickCalendarDate('${value}')">
-        ${day.getDate()}
+      <button class="calendar-day ${inMonth ? "" : "muted"} ${inRange ? "in-range" : ""} ${selected ? "selected" : ""} ${isToday ? "today" : ""}" type="button" onclick="pickCalendarDate('${value}')">
+        <span>${day.getDate()}</span>
       </button>
     `);
   }
