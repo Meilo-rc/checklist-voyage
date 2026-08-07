@@ -186,13 +186,13 @@ function renderCategoryIcon(category) {
 }
 
 function memberIcon(memberName) {
-  const explicitIcon = memberName?.icon;
-  if (explicitIcon && categoryIcons.includes(explicitIcon)) return explicitIcon;
   const rawName = typeof memberName === "object" ? memberName.name : memberName;
   const normalized = normalizeText(rawName);
   const memberKey = normalizeMemberName(rawName);
   const stored = state.customMemberIcons?.[memberKey] || state.customMemberIcons?.[rawName] || state.customMemberIcons?.[normalized];
   if (stored && categoryIcons.includes(stored)) return stored;
+  const explicitIcon = memberName?.icon;
+  if (explicitIcon && categoryIcons.includes(explicitIcon)) return explicitIcon;
   if (memberIconRules[normalized]) return memberIconRules[normalized];
   const match = Object.entries(memberIconRules).find(([name]) => normalized.includes(name));
   if (match) return match[1];
@@ -305,10 +305,13 @@ function addOrMergeCategoryFromTemplate(categories, template) {
 
 function addOrMergeGeneralMemberFromTemplates(members, memberName, templates = []) {
   if (!memberName || !templates.length) return;
+  const icon = memberIcon(memberName);
   let member = members.find(item => normalizeMemberGroup(item.group) === "general" && normalizeText(item.name) === normalizeText(memberName));
   if (!member) {
-    member = createMember(memberName, [], { group: "general", icon: categoryIconForName(memberName) });
+    member = createMember(memberName, [], { group: "general", icon });
     members.push(member);
+  } else if (icon && categoryIcons.includes(icon)) {
+    member.icon = icon;
   }
   templates.forEach(template => {
     addOrMergeCategoryFromTemplate(member.categories, template);
