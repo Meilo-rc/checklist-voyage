@@ -299,8 +299,12 @@ function templateMatchesChoice(template, group, choice) {
 function addOrMergeCategoryFromTemplate(categories, template) {
   const copy = cloneTemplateCategory(template);
   const existing = categories.find(category => (copy.sourceTemplateId && category.sourceTemplateId === copy.sourceTemplateId) || normalizeText(category.name) === normalizeText(copy.name));
-  if (existing) mergeCategoryItems(existing, copy);
-  else categories.push(copy);
+  if (existing) {
+    mergeCategoryItems(existing, copy);
+    return existing;
+  }
+  categories.push(copy);
+  return copy;
 }
 
 function addOrMergeGeneralMemberFromTemplates(members, memberName, templates = []) {
@@ -314,13 +318,15 @@ function addOrMergeGeneralMemberFromTemplates(members, memberName, templates = [
     member.icon = icon;
   }
   templates.forEach(template => {
-    addOrMergeCategoryFromTemplate(member.categories, template);
+    const category = addOrMergeCategoryFromTemplate(member.categories, template);
+    if (!Object.prototype.hasOwnProperty.call(state.openCats, category.id)) {
+      state.openCats[category.id] = false;
+    }
   });
   touchEntity(member);
-  state.openMembers[member.id] = false;
-  member.categories.forEach(category => {
-    state.openCats[category.id] = false;
-  });
+  if (!Object.prototype.hasOwnProperty.call(state.openMembers, member.id)) {
+    state.openMembers[member.id] = false;
+  }
 }
 
 function generalChoiceTemplateGroup(group, choice) {
