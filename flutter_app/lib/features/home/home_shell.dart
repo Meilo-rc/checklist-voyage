@@ -41,13 +41,20 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      TripsScreen(watchTrips: widget.dependencies.watchTrips),
+      TripsScreen(
+        watchTrips: widget.dependencies.watchTrips,
+        useCases: widget.dependencies.trips,
+      ),
       LibraryScreen(
         watchOwners: widget.dependencies.watchLibraryOwners,
         localData: widget.dependencies.localData,
         importViewModel: _importViewModel,
+        useCases: widget.dependencies.library,
       ),
-      QuickListsScreen(watchQuickLists: widget.dependencies.watchQuickLists),
+      QuickListsScreen(
+        watchQuickLists: widget.dependencies.watchQuickLists,
+        useCases: widget.dependencies.quickLists,
+      ),
     ];
     return Scaffold(
       body: SafeArea(

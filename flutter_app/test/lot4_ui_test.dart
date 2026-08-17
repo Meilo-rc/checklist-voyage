@@ -1,0 +1,107 @@
+import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:checklist_voyage_v1/app/app_dependencies.dart';
+import 'package:checklist_voyage_v1/app/checklist_app.dart';
+import 'package:checklist_voyage_v1/data/local/app_database.dart';
+import 'package:checklist_voyage_v1/data/repositories/drift_library_repository.dart';
+
+import 'helpers/seed_reference_library.dart';
+
+void main() {
+  testWidgets(
+    'parcours voyage et liste rapide utilisables sur un écran Android étroit',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final database = AppDatabase(NativeDatabase.memory());
+      final library = DriftLibraryRepository(database);
+      await seedReferenceLibrary(library);
+      final dependencies = await AppDependencies.create(database: database);
+
+      await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('trip-create')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('trip-name')), 'Voyage UI');
+      await tester.enterText(
+        find.byKey(const Key('trip-destination')),
+        'Grenoble',
+      );
+      final choices = <String>[
+        'Alex',
+        'Trajet - Avion',
+        'Trajet - Train',
+        'Logement - Hôtel',
+        'Logement - Camping',
+      ];
+      for (var index = 0; index < choices.length; index++) {
+        if (index > 0) {
+          await tester.drag(
+            find.byType(SingleChildScrollView),
+            const Offset(0, -72),
+          );
+          await tester.pump();
+        }
+        final choice = choices[index];
+        final target = find.widgetWithText(CheckboxListTile, choice);
+        await tester.tap(target);
+        await tester.pump();
+      }
+      await tester.tap(find.byKey(const Key('trip-submit')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Voyage UI'), findsWidgets);
+      expect(find.text('Grenoble'), findsOneWidget);
+      expect(find.text('Essentiel'), findsOneWidget);
+      expect(find.text('Alex'), findsOneWidget);
+      expect(find.text('Trajet - Avion'), findsOneWidget);
+      expect(find.text('Trajet - Train'), findsOneWidget);
+      expect(find.text('Logement - Hôtel'), findsOneWidget);
+      expect(find.text('Logement - Camping'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Listes rapides').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('quick-create')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('quick-name-input')),
+        'Liste UI',
+      );
+      await tester.tap(find.byKey(const Key('quick-name-submit')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('quick-add-item')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('quick-name-input')),
+        'Maillot',
+      );
+      await tester.tap(find.byKey(const Key('quick-name-submit')));
+      await tester.pumpAndSettle();
+      expect(
+        await database.select(database.quickListItems).get(),
+        hasLength(1),
+      );
+      await tester.drag(
+        find.byType(CustomScrollView).last,
+        const Offset(0, -180),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Liste UI'), findsWidgets);
+      expect(find.text('Maillot'), findsOneWidget);
+      expect(find.text('Quantité'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+      await dependencies.close();
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
+}

@@ -419,6 +419,18 @@ class $LibraryOwnersTable extends LibraryOwners
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _generationRoleMeta = const VerificationMeta(
+    'generationRole',
+  );
+  @override
+  late final GeneratedColumn<String> generationRole = GeneratedColumn<String>(
+    'generation_role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('general'),
+  );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -476,6 +488,7 @@ class $LibraryOwnersTable extends LibraryOwners
     id,
     kind,
     syncScope,
+    generationRole,
     name,
     icon,
     createdAt,
@@ -514,6 +527,15 @@ class $LibraryOwnersTable extends LibraryOwners
       );
     } else if (isInserting) {
       context.missing(_syncScopeMeta);
+    }
+    if (data.containsKey('generation_role')) {
+      context.handle(
+        _generationRoleMeta,
+        generationRole.isAcceptableOrUnknown(
+          data['generation_role']!,
+          _generationRoleMeta,
+        ),
+      );
     }
     if (data.containsKey('name')) {
       context.handle(
@@ -575,6 +597,10 @@ class $LibraryOwnersTable extends LibraryOwners
         DriftSqlType.string,
         data['${effectivePrefix}sync_scope'],
       )!,
+      generationRole: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}generation_role'],
+      )!,
       name: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}name'],
@@ -608,6 +634,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
   final String id;
   final String kind;
   final String syncScope;
+  final String generationRole;
   final String name;
   final String? icon;
   final DateTime createdAt;
@@ -617,6 +644,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     required this.id,
     required this.kind,
     required this.syncScope,
+    required this.generationRole,
     required this.name,
     this.icon,
     required this.createdAt,
@@ -629,6 +657,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     map['id'] = Variable<String>(id);
     map['kind'] = Variable<String>(kind);
     map['sync_scope'] = Variable<String>(syncScope);
+    map['generation_role'] = Variable<String>(generationRole);
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || icon != null) {
       map['icon'] = Variable<String>(icon);
@@ -646,6 +675,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
       id: Value(id),
       kind: Value(kind),
       syncScope: Value(syncScope),
+      generationRole: Value(generationRole),
       name: Value(name),
       icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
       createdAt: Value(createdAt),
@@ -665,6 +695,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
       id: serializer.fromJson<String>(json['id']),
       kind: serializer.fromJson<String>(json['kind']),
       syncScope: serializer.fromJson<String>(json['syncScope']),
+      generationRole: serializer.fromJson<String>(json['generationRole']),
       name: serializer.fromJson<String>(json['name']),
       icon: serializer.fromJson<String?>(json['icon']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -679,6 +710,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
       'id': serializer.toJson<String>(id),
       'kind': serializer.toJson<String>(kind),
       'syncScope': serializer.toJson<String>(syncScope),
+      'generationRole': serializer.toJson<String>(generationRole),
       'name': serializer.toJson<String>(name),
       'icon': serializer.toJson<String?>(icon),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -691,6 +723,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     String? id,
     String? kind,
     String? syncScope,
+    String? generationRole,
     String? name,
     Value<String?> icon = const Value.absent(),
     DateTime? createdAt,
@@ -700,6 +733,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     id: id ?? this.id,
     kind: kind ?? this.kind,
     syncScope: syncScope ?? this.syncScope,
+    generationRole: generationRole ?? this.generationRole,
     name: name ?? this.name,
     icon: icon.present ? icon.value : this.icon,
     createdAt: createdAt ?? this.createdAt,
@@ -711,6 +745,9 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
       id: data.id.present ? data.id.value : this.id,
       kind: data.kind.present ? data.kind.value : this.kind,
       syncScope: data.syncScope.present ? data.syncScope.value : this.syncScope,
+      generationRole: data.generationRole.present
+          ? data.generationRole.value
+          : this.generationRole,
       name: data.name.present ? data.name.value : this.name,
       icon: data.icon.present ? data.icon.value : this.icon,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -727,6 +764,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
           ..write('id: $id, ')
           ..write('kind: $kind, ')
           ..write('syncScope: $syncScope, ')
+          ..write('generationRole: $generationRole, ')
           ..write('name: $name, ')
           ..write('icon: $icon, ')
           ..write('createdAt: $createdAt, ')
@@ -741,6 +779,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     id,
     kind,
     syncScope,
+    generationRole,
     name,
     icon,
     createdAt,
@@ -754,6 +793,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
           other.id == this.id &&
           other.kind == this.kind &&
           other.syncScope == this.syncScope &&
+          other.generationRole == this.generationRole &&
           other.name == this.name &&
           other.icon == this.icon &&
           other.createdAt == this.createdAt &&
@@ -765,6 +805,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
   final Value<String> id;
   final Value<String> kind;
   final Value<String> syncScope;
+  final Value<String> generationRole;
   final Value<String> name;
   final Value<String?> icon;
   final Value<DateTime> createdAt;
@@ -775,6 +816,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     this.id = const Value.absent(),
     this.kind = const Value.absent(),
     this.syncScope = const Value.absent(),
+    this.generationRole = const Value.absent(),
     this.name = const Value.absent(),
     this.icon = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -786,6 +828,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     required String id,
     required String kind,
     required String syncScope,
+    this.generationRole = const Value.absent(),
     required String name,
     this.icon = const Value.absent(),
     required DateTime createdAt,
@@ -802,6 +845,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     Expression<String>? id,
     Expression<String>? kind,
     Expression<String>? syncScope,
+    Expression<String>? generationRole,
     Expression<String>? name,
     Expression<String>? icon,
     Expression<DateTime>? createdAt,
@@ -813,6 +857,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
       if (id != null) 'id': id,
       if (kind != null) 'kind': kind,
       if (syncScope != null) 'sync_scope': syncScope,
+      if (generationRole != null) 'generation_role': generationRole,
       if (name != null) 'name': name,
       if (icon != null) 'icon': icon,
       if (createdAt != null) 'created_at': createdAt,
@@ -826,6 +871,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     Value<String>? id,
     Value<String>? kind,
     Value<String>? syncScope,
+    Value<String>? generationRole,
     Value<String>? name,
     Value<String?>? icon,
     Value<DateTime>? createdAt,
@@ -837,6 +883,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
       id: id ?? this.id,
       kind: kind ?? this.kind,
       syncScope: syncScope ?? this.syncScope,
+      generationRole: generationRole ?? this.generationRole,
       name: name ?? this.name,
       icon: icon ?? this.icon,
       createdAt: createdAt ?? this.createdAt,
@@ -857,6 +904,9 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     }
     if (syncScope.present) {
       map['sync_scope'] = Variable<String>(syncScope.value);
+    }
+    if (generationRole.present) {
+      map['generation_role'] = Variable<String>(generationRole.value);
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
@@ -885,6 +935,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
           ..write('id: $id, ')
           ..write('kind: $kind, ')
           ..write('syncScope: $syncScope, ')
+          ..write('generationRole: $generationRole, ')
           ..write('name: $name, ')
           ..write('icon: $icon, ')
           ..write('createdAt: $createdAt, ')
@@ -9692,6 +9743,7 @@ typedef $$LibraryOwnersTableCreateCompanionBuilder =
       required String id,
       required String kind,
       required String syncScope,
+      Value<String> generationRole,
       required String name,
       Value<String?> icon,
       required DateTime createdAt,
@@ -9704,6 +9756,7 @@ typedef $$LibraryOwnersTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> kind,
       Value<String> syncScope,
+      Value<String> generationRole,
       Value<String> name,
       Value<String?> icon,
       Value<DateTime> createdAt,
@@ -9763,6 +9816,11 @@ class $$LibraryOwnersTableFilterComposer
 
   ColumnFilters<String> get syncScope => $composableBuilder(
     column: $table.syncScope,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get generationRole => $composableBuilder(
+    column: $table.generationRole,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9841,6 +9899,11 @@ class $$LibraryOwnersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get generationRole => $composableBuilder(
+    column: $table.generationRole,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get name => $composableBuilder(
     column: $table.name,
     builder: (column) => ColumnOrderings(column),
@@ -9884,6 +9947,11 @@ class $$LibraryOwnersTableAnnotationComposer
 
   GeneratedColumn<String> get syncScope =>
       $composableBuilder(column: $table.syncScope, builder: (column) => column);
+
+  GeneratedColumn<String> get generationRole => $composableBuilder(
+    column: $table.generationRole,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -9960,6 +10028,7 @@ class $$LibraryOwnersTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> kind = const Value.absent(),
                 Value<String> syncScope = const Value.absent(),
+                Value<String> generationRole = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -9970,6 +10039,7 @@ class $$LibraryOwnersTableTableManager
                 id: id,
                 kind: kind,
                 syncScope: syncScope,
+                generationRole: generationRole,
                 name: name,
                 icon: icon,
                 createdAt: createdAt,
@@ -9982,6 +10052,7 @@ class $$LibraryOwnersTableTableManager
                 required String id,
                 required String kind,
                 required String syncScope,
+                Value<String> generationRole = const Value.absent(),
                 required String name,
                 Value<String?> icon = const Value.absent(),
                 required DateTime createdAt,
@@ -9992,6 +10063,7 @@ class $$LibraryOwnersTableTableManager
                 id: id,
                 kind: kind,
                 syncScope: syncScope,
+                generationRole: generationRole,
                 name: name,
                 icon: icon,
                 createdAt: createdAt,

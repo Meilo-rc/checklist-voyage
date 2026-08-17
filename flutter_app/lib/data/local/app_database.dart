@@ -18,6 +18,8 @@ class LibraryOwners extends Table {
   TextColumn get id => text()();
   TextColumn get kind => text()();
   TextColumn get syncScope => text()();
+  TextColumn get generationRole =>
+      text().withDefault(const Constant('general'))();
   TextColumn get name => text()();
   TextColumn get icon => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
@@ -306,7 +308,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -317,6 +319,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await migrator.createTable(installationSettings);
         await migrator.createTable(syncTombstones);
+      }
+      if (from < 3) {
+        await migrator.addColumn(libraryOwners, libraryOwners.generationRole);
       }
     },
     beforeOpen: (details) async {

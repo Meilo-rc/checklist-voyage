@@ -1,10 +1,11 @@
--- Contrat de schéma pour la future base Drift. Non exécuté pendant les lots 0 à 2.
+-- Contrat de schéma V1, mis à jour avec le schéma Drift utilisé au lot 4.
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE library_owners (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL CHECK (kind IN ('general', 'family_member', 'personal')),
   sync_scope TEXT NOT NULL CHECK (sync_scope IN ('shared_library', 'personal_local')),
+  generation_role TEXT NOT NULL DEFAULT 'general' CHECK (generation_role IN ('general', 'essential', 'participant', 'transport', 'lodging')),
   name TEXT NOT NULL,
   icon TEXT,
   created_at TEXT NOT NULL,

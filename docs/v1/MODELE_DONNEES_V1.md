@@ -1,6 +1,6 @@
 # Modèle de données local V1
 
-Statut : modèle cible validable avant création du projet Flutter. Aucune table n'est encore créée sur un appareil ou dans PocketBase.
+Statut : modèle local implémenté dans Flutter/Drift. Les collections PocketBase V1 restent à créer dans un lot ultérieur.
 
 ## 1. Règles invariantes
 
@@ -40,7 +40,7 @@ Statut : modèle cible validable avant création du projet Flutter. Aucune table
 
 ### Bibliothèque
 
-`library_owners` représente un groupe général, un membre familial ou un espace personnel. Une catégorie appartient à un propriétaire, et un item appartient à une catégorie.
+`library_owners` représente un groupe général, un membre familial ou un espace personnel. Une catégorie appartient à un propriétaire, et un item appartient à une catégorie. `generation_role` qualifie explicitement les groupes utilisés comme Essentiels, participant, transport ou logement ; l'identité et la sélection V1 reposent ensuite sur les UUID, jamais sur le libellé.
 
 Les tables préparées sont :
 
@@ -50,7 +50,7 @@ Les tables préparées sont :
 - `contexts` ;
 - `library_item_contexts`.
 
-Les contextes et leur table d'association sont réservés dans le modèle, mais leur comportement n'est pas implémenté dans les lots 0 à 2.
+Les contextes et leur table d'association sont réservés dans le modèle, mais leur comportement n'est pas encore implémenté au lot 4.
 
 ### Voyages
 
@@ -115,4 +115,4 @@ Pour la bibliothèque :
 
 ## 7. Schéma SQL de référence
 
-Le fichier `schema_local_v1.sql` décrit les tables, clés étrangères et index proposés. Il sert de contrat pour la future implémentation Drift ; il n'est pas appliqué dans les lots 0 à 2.
+Le fichier `schema_local_v1.sql` décrit les tables, clés étrangères et index de référence. L'implémentation exécutée est déclarée dans `flutter_app/lib/data/local/app_database.dart` et versionnée par les migrations Drift.

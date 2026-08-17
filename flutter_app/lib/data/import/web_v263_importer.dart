@@ -287,6 +287,7 @@ class WebV263Importer implements WebImportRepository {
               id: ownerId,
               kind: kind,
               syncScope: scope,
+              generationRole: Value(_generationRole(member, kind)),
               name: member,
               icon: Value(_nullableString(icons[member])),
               createdAt: importedAt,
@@ -330,6 +331,7 @@ class WebV263Importer implements WebImportRepository {
                 syncScope: kind == 'personal'
                     ? 'personal_local'
                     : 'shared_library',
+                generationRole: Value(_generationRole(member, kind)),
                 name: member,
                 createdAt: importedAt,
                 updatedAtLocal: importedAt,
@@ -975,6 +977,23 @@ String _ownerKind(String name, Map<String, String> groups) {
     return 'general';
   }
   return 'family_member';
+}
+
+String _generationRole(String name, String kind) {
+  if (kind == 'family_member' || kind == 'personal') return 'participant';
+  final normalized = _normalized(name)
+      .replaceAll('é', 'e')
+      .replaceAll('è', 'e')
+      .replaceAll('ê', 'e')
+      .replaceAll('ô', 'o');
+  if (normalized == 'essentiel' || normalized == 'essentiels') {
+    return 'essential';
+  }
+  if (normalized.startsWith('trajet') || normalized.startsWith('transport')) {
+    return 'transport';
+  }
+  if (normalized.startsWith('logement')) return 'lodging';
+  return 'general';
 }
 
 int _quantity(Object? value) {

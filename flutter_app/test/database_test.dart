@@ -9,7 +9,7 @@ import 'package:checklist_voyage_v1/data/repositories/drift_local_data_repositor
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('une base vierge crée le schéma Drift v2 complet', () async {
+  test('une base vierge crée le schéma Drift v3 complet', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
@@ -20,7 +20,7 @@ void main() {
         .get();
     final names = tables.map((row) => row.read<String>('name')).toSet();
 
-    expect(database.schemaVersion, 2);
+    expect(database.schemaVersion, 3);
     expect(
       names,
       containsAll(<String>{
@@ -38,7 +38,52 @@ void main() {
     );
   });
 
-  test('la migration Drift v1 vers v2 ajoute identité et tombstones', () async {
+  test(
+    'la migration Drift v1 vers v3 ajoute identité, tombstones et rôle',
+    () async {
+      final executor = NativeDatabase.memory(
+        setup: (raw) {
+          raw.execute('''
+          CREATE TABLE library_owners (
+            id TEXT PRIMARY KEY NOT NULL,
+            kind TEXT NOT NULL,
+            sync_scope TEXT NOT NULL,
+            name TEXT NOT NULL,
+            icon TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at_local INTEGER NOT NULL,
+            deleted_at INTEGER
+          )
+        ''');
+          raw.execute('PRAGMA user_version = 1');
+        },
+      );
+      final database = AppDatabase(executor);
+      addTearDown(database.close);
+
+      final version = await database
+          .customSelect('PRAGMA user_version')
+          .getSingle();
+      final tables = await database
+          .customSelect("SELECT name FROM sqlite_master WHERE type = 'table'")
+          .get();
+      final names = tables.map((row) => row.read<String>('name')).toSet();
+
+      expect(version.read<int>('user_version'), 3);
+      expect(names, contains('installation_settings'));
+      expect(names, contains('sync_tombstones'));
+      expect(names, contains('library_owners'));
+      final columns = await database
+          .customSelect('PRAGMA table_info(library_owners)')
+          .get();
+      expect(
+        columns.map((row) => row.read<String>('name')),
+        contains('generation_role'),
+      );
+    },
+  );
+
+  test('la migration Drift v2 vers v3 conserve les propriétaires', () async {
     final executor = NativeDatabase.memory(
       setup: (raw) {
         raw.execute('''
@@ -53,24 +98,25 @@ void main() {
             deleted_at INTEGER
           )
         ''');
-        raw.execute('PRAGMA user_version = 1');
+        raw.execute('''
+          INSERT INTO library_owners (
+            id, kind, sync_scope, name, created_at, updated_at_local
+          ) VALUES ('owner-1', 'general', 'shared_library', 'Général', 0, 0)
+        ''');
+        raw.execute('PRAGMA user_version = 2');
       },
     );
     final database = AppDatabase(executor);
     addTearDown(database.close);
 
+    final owner = await database.select(database.libraryOwners).getSingle();
+
+    expect(owner.name, 'Général');
+    expect(owner.generationRole, 'general');
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    final tables = await database
-        .customSelect("SELECT name FROM sqlite_master WHERE type = 'table'")
-        .get();
-    final names = tables.map((row) => row.read<String>('name')).toSet();
-
-    expect(version.read<int>('user_version'), 2);
-    expect(names, contains('installation_settings'));
-    expect(names, contains('sync_tombstones'));
-    expect(names, contains('library_owners'));
+    expect(version.read<int>('user_version'), 3);
   });
 
   test('l UUID installation reste stable dans une base persistante', () async {
