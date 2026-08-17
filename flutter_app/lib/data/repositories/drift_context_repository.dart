@@ -4,12 +4,18 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/repositories/context_repository.dart';
 import '../local/app_database.dart';
+import '../../sync/library_sync_store.dart';
 
 class DriftContextRepository implements ContextRepository {
-  DriftContextRepository(this._database, {this._uuid = const Uuid()});
+  DriftContextRepository(
+    this._database, {
+    this._uuid = const Uuid(),
+    LibrarySyncStore? syncStore,
+  }) : _sync = syncStore ?? LibrarySyncStore(_database, enabled: false);
 
   final AppDatabase _database;
   final Uuid _uuid;
+  final LibrarySyncStore _sync;
 
   @override
   Stream<List<ContextModel>> watchContexts() {
@@ -45,33 +51,46 @@ class DriftContextRepository implements ContextRepository {
   Future<String> createContext(String name) async {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
-    await _database
-        .into(_database.contexts)
-        .insert(
-          ContextsCompanion.insert(
-            id: id,
-            name: _requiredName(name),
-            syncScope: 'shared_library',
-            createdAt: now,
-            updatedAtLocal: now,
-          ),
-        );
+    await _database.transaction(() async {
+      await _database
+          .into(_database.contexts)
+          .insert(
+            ContextsCompanion.insert(
+              id: id,
+              name: _requiredName(name),
+              syncScope: 'shared_library',
+              createdAt: now,
+              updatedAtLocal: now,
+            ),
+          );
+      await _sync.recordUpsert('context', id, {
+        'name': _requiredName(name),
+        'sync_scope': 'shared_library',
+      });
+    });
     return id;
   }
 
   @override
   Future<void> renameContext(String contextId, String name) async {
-    final changed =
-        await (_database.update(_database.contexts)..where(
-              (row) => row.id.equals(contextId) & row.deletedAt.isNull(),
-            ))
-            .write(
-              ContextsCompanion(
-                name: Value(_requiredName(name)),
-                updatedAtLocal: Value(DateTime.now().toUtc()),
-              ),
-            );
-    if (changed != 1) throw StateError('Contexte introuvable.');
+    await _database.transaction(() async {
+      final changed =
+          await (_database.update(_database.contexts)..where(
+                (row) => row.id.equals(contextId) & row.deletedAt.isNull(),
+              ))
+              .write(
+                ContextsCompanion(
+                  name: Value(_requiredName(name)),
+                  updatedAtLocal: Value(DateTime.now().toUtc()),
+                ),
+              );
+      if (changed != 1) throw StateError('Contexte introuvable.');
+      await _sync.recordUpsert(
+        'context',
+        contextId,
+        await _sync.payloadFor('context', contextId),
+      );
+    });
   }
 
   @override
@@ -107,8 +126,13 @@ class DriftContextRepository implements ContextRepository {
             association.associationId!,
             now,
           );
+          await _sync.recordDelete(
+            'context_association',
+            association.associationId!,
+          );
         }
       }
+      await _sync.recordDelete('context', contextId);
     });
   }
 
@@ -176,6 +200,10 @@ class DriftContextRepository implements ContextRepository {
               association.associationId!,
               now,
             );
+            await _sync.recordDelete(
+              'context_association',
+              association.associationId!,
+            );
           }
         }
       }
@@ -199,6 +227,11 @@ class DriftContextRepository implements ContextRepository {
                 deletedAt: const Value(null),
               ),
             );
+        await _sync.recordUpsert('context_association', associationId, {
+          'item_id': itemId,
+          'context_id': contextId,
+          'sync_scope': scope,
+        });
       }
     });
   }

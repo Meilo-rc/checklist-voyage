@@ -51,6 +51,7 @@ class _HomeShellState extends State<HomeShell> {
         importViewModel: _importViewModel,
         useCases: widget.dependencies.library,
         contextUseCases: widget.dependencies.contexts,
+        syncCoordinator: widget.dependencies.librarySync,
       ),
       QuickListsScreen(
         watchQuickLists: widget.dependencies.watchQuickLists,

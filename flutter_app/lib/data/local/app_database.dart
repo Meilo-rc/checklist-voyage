@@ -9,6 +9,15 @@ class InstallationSettings extends Table {
   TextColumn get futureUserId => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAtLocal => dateTime()();
+  TextColumn get libraryId => text().withDefault(
+    const Constant('6d0f0d44-54f8-4f6a-b535-0a58d6efac11'),
+  )();
+  IntColumn get nextOperationSequence =>
+      integer().withDefault(const Constant(1))();
+  IntColumn get pullCursor => integer().withDefault(const Constant(0))();
+  TextColumn get syncStatus => text().withDefault(const Constant('offline'))();
+  TextColumn get syncError => text().nullable()();
+  DateTimeColumn get lastSyncAt => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -228,6 +237,12 @@ class SyncOutbox extends Table {
   TextColumn get entityId => text()();
   TextColumn get operationType => text()();
   TextColumn get payloadJson => text()();
+  TextColumn get libraryId => text().withDefault(
+    const Constant('6d0f0d44-54f8-4f6a-b535-0a58d6efac11'),
+  )();
+  TextColumn get installationId => text().withDefault(const Constant(''))();
+  IntColumn get clientSequence => integer().withDefault(const Constant(0))();
+  IntColumn get clientCounter => integer().withDefault(const Constant(0))();
   IntColumn get baseRevision => integer().nullable()();
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
@@ -259,6 +274,19 @@ class SyncTombstones extends Table {
   DateTimeColumn get deletedAt => dateTime()();
   DateTimeColumn get propagatedAt => dateTime().nullable()();
   DateTimeColumn get purgeEligibleAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {entityType, entityId};
+}
+
+class SyncEntityStates extends Table {
+  TextColumn get entityType => text()();
+  TextColumn get entityId => text()();
+  IntColumn get clientCounter => integer().withDefault(const Constant(0))();
+  IntColumn get serverRevision => integer().withDefault(const Constant(0))();
+  TextColumn get winningDeviceId => text().nullable()();
+  BoolColumn get remotelyDeleted =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {entityType, entityId};
@@ -318,6 +346,7 @@ class MigrationHistory extends Table {
     SyncOutbox,
     SyncConflicts,
     SyncTombstones,
+    SyncEntityStates,
     LegacyIdMaps,
     MigrationHistory,
   ],
@@ -335,7 +364,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -376,9 +405,88 @@ class AppDatabase extends _$AppDatabase {
         );
         await migrator.createTable(tripGenerationChoices);
       }
+      if (from < 5) {
+        if (!await _tableExists('installation_settings')) {
+          await migrator.createTable(installationSettings);
+        } else {
+          await _addColumnIfMissing(
+            migrator,
+            installationSettings,
+            installationSettings.libraryId,
+          );
+          await _addColumnIfMissing(
+            migrator,
+            installationSettings,
+            installationSettings.nextOperationSequence,
+          );
+          await _addColumnIfMissing(
+            migrator,
+            installationSettings,
+            installationSettings.pullCursor,
+          );
+          await _addColumnIfMissing(
+            migrator,
+            installationSettings,
+            installationSettings.syncStatus,
+          );
+          await _addColumnIfMissing(
+            migrator,
+            installationSettings,
+            installationSettings.syncError,
+          );
+          await _addColumnIfMissing(
+            migrator,
+            installationSettings,
+            installationSettings.lastSyncAt,
+          );
+        }
+        if (!await _tableExists('sync_outbox')) {
+          await migrator.createTable(syncOutbox);
+        } else {
+          await _addColumnIfMissing(migrator, syncOutbox, syncOutbox.libraryId);
+          await _addColumnIfMissing(
+            migrator,
+            syncOutbox,
+            syncOutbox.installationId,
+          );
+          await _addColumnIfMissing(
+            migrator,
+            syncOutbox,
+            syncOutbox.clientSequence,
+          );
+          await _addColumnIfMissing(
+            migrator,
+            syncOutbox,
+            syncOutbox.clientCounter,
+          );
+        }
+        if (!await _tableExists('sync_entity_states')) {
+          await migrator.createTable(syncEntityStates);
+        }
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  Future<bool> _tableExists(String name) async {
+    final row = await customSelect(
+      "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = ?",
+      variables: [Variable.withString(name)],
+    ).getSingle();
+    return row.read<int>('count') == 1;
+  }
+
+  Future<void> _addColumnIfMissing(
+    Migrator migrator,
+    TableInfo<Table, Object?> table,
+    GeneratedColumn<Object> column,
+  ) async {
+    final rows = await customSelect(
+      'PRAGMA table_info(${table.actualTableName})',
+    ).get();
+    if (rows.any((row) => row.read<String>('name') == column.$name)) return;
+    await migrator.addColumn(table, column);
+  }
 }

@@ -8,6 +8,8 @@ import '../../domain/usecases/library_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
 import '../import_data/import_view_model.dart';
 import '../shared/destination_scaffold.dart';
+import '../../sync/library_sync_coordinator.dart';
+import '../../sync/sync_models.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({
@@ -17,6 +19,7 @@ class LibraryScreen extends StatefulWidget {
     required this.importViewModel,
     required this.useCases,
     required this.contextUseCases,
+    required this.syncCoordinator,
   });
 
   final WatchLibraryOwners watchOwners;
@@ -24,6 +27,7 @@ class LibraryScreen extends StatefulWidget {
   final ImportViewModel importViewModel;
   final LibraryUseCases useCases;
   final ContextUseCases contextUseCases;
+  final LibrarySyncCoordinator syncCoordinator;
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -441,7 +445,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _InstallationCard(localData: widget.localData),
+              _InstallationCard(
+                localData: widget.localData,
+                syncCoordinator: widget.syncCoordinator,
+              ),
               const SizedBox(height: 12),
               if (owners.isEmpty)
                 const EmptyDestination(
@@ -777,9 +784,13 @@ class _ContextCatalogSheet extends StatelessWidget {
 }
 
 class _InstallationCard extends StatelessWidget {
-  const _InstallationCard({required this.localData});
+  const _InstallationCard({
+    required this.localData,
+    required this.syncCoordinator,
+  });
 
   final LocalDataRepository localData;
+  final LibrarySyncCoordinator syncCoordinator;
 
   @override
   Widget build(BuildContext context) {
@@ -790,6 +801,7 @@ class _InstallationCard extends StatelessWidget {
         return Card(
           child: ListTile(
             leading: const Icon(Icons.offline_bolt_outlined),
+            trailing: _SyncControl(syncCoordinator: syncCoordinator),
             title: const Text('Mode local-first actif'),
             subtitle: Text(
               id == null
@@ -797,6 +809,49 @@ class _InstallationCard extends StatelessWidget {
                   : 'Installation ${id.substring(0, 8)}…',
             ),
           ),
+        );
+      },
+    );
+  }
+}
+
+class _SyncControl extends StatelessWidget {
+  const _SyncControl({required this.syncCoordinator});
+
+  final LibrarySyncCoordinator syncCoordinator;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<SyncStatusModel>(
+      stream: syncCoordinator.watchStatus(),
+      builder: (context, snapshot) {
+        final status = snapshot.data;
+        final syncing = status?.state == SyncConnectionState.syncing;
+        final tooltip = switch (status?.state) {
+          SyncConnectionState.synced => 'Bibliothèque synchronisée',
+          SyncConnectionState.syncing => 'Synchronisation en cours',
+          SyncConnectionState.pending =>
+            '${status?.pendingOperations ?? 0} modification(s) en attente',
+          SyncConnectionState.offline => 'Hors ligne',
+          SyncConnectionState.error => 'Erreur de synchronisation',
+          _ => 'Synchroniser',
+        };
+        return IconButton(
+          key: const Key('library-sync-now'),
+          tooltip: tooltip,
+          onPressed: syncing ? null : syncCoordinator.syncNow,
+          icon: syncing
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(
+                  status?.state == SyncConnectionState.synced
+                      ? Icons.cloud_done_outlined
+                      : status?.state == SyncConnectionState.error
+                      ? Icons.cloud_off_outlined
+                      : Icons.sync,
+                ),
         );
       },
     );

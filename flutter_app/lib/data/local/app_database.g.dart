@@ -65,6 +65,75 @@ class $InstallationSettingsTable extends InstallationSettings
         type: DriftSqlType.dateTime,
         requiredDuringInsert: true,
       );
+  static const VerificationMeta _libraryIdMeta = const VerificationMeta(
+    'libraryId',
+  );
+  @override
+  late final GeneratedColumn<String> libraryId = GeneratedColumn<String>(
+    'library_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('6d0f0d44-54f8-4f6a-b535-0a58d6efac11'),
+  );
+  static const VerificationMeta _nextOperationSequenceMeta =
+      const VerificationMeta('nextOperationSequence');
+  @override
+  late final GeneratedColumn<int> nextOperationSequence = GeneratedColumn<int>(
+    'next_operation_sequence',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _pullCursorMeta = const VerificationMeta(
+    'pullCursor',
+  );
+  @override
+  late final GeneratedColumn<int> pullCursor = GeneratedColumn<int>(
+    'pull_cursor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('offline'),
+  );
+  static const VerificationMeta _syncErrorMeta = const VerificationMeta(
+    'syncError',
+  );
+  @override
+  late final GeneratedColumn<String> syncError = GeneratedColumn<String>(
+    'sync_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSyncAtMeta = const VerificationMeta(
+    'lastSyncAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncAt = GeneratedColumn<DateTime>(
+    'last_sync_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -72,6 +141,12 @@ class $InstallationSettingsTable extends InstallationSettings
     futureUserId,
     createdAt,
     updatedAtLocal,
+    libraryId,
+    nextOperationSequence,
+    pullCursor,
+    syncStatus,
+    syncError,
+    lastSyncAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -127,6 +202,48 @@ class $InstallationSettingsTable extends InstallationSettings
     } else if (isInserting) {
       context.missing(_updatedAtLocalMeta);
     }
+    if (data.containsKey('library_id')) {
+      context.handle(
+        _libraryIdMeta,
+        libraryId.isAcceptableOrUnknown(data['library_id']!, _libraryIdMeta),
+      );
+    }
+    if (data.containsKey('next_operation_sequence')) {
+      context.handle(
+        _nextOperationSequenceMeta,
+        nextOperationSequence.isAcceptableOrUnknown(
+          data['next_operation_sequence']!,
+          _nextOperationSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pull_cursor')) {
+      context.handle(
+        _pullCursorMeta,
+        pullCursor.isAcceptableOrUnknown(data['pull_cursor']!, _pullCursorMeta),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('sync_error')) {
+      context.handle(
+        _syncErrorMeta,
+        syncError.isAcceptableOrUnknown(data['sync_error']!, _syncErrorMeta),
+      );
+    }
+    if (data.containsKey('last_sync_at')) {
+      context.handle(
+        _lastSyncAtMeta,
+        lastSyncAt.isAcceptableOrUnknown(
+          data['last_sync_at']!,
+          _lastSyncAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -156,6 +273,30 @@ class $InstallationSettingsTable extends InstallationSettings
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at_local'],
       )!,
+      libraryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}library_id'],
+      )!,
+      nextOperationSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}next_operation_sequence'],
+      )!,
+      pullCursor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pull_cursor'],
+      )!,
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      syncError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_error'],
+      ),
+      lastSyncAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_sync_at'],
+      ),
     );
   }
 
@@ -172,12 +313,24 @@ class InstallationSetting extends DataClass
   final String? futureUserId;
   final DateTime createdAt;
   final DateTime updatedAtLocal;
+  final String libraryId;
+  final int nextOperationSequence;
+  final int pullCursor;
+  final String syncStatus;
+  final String? syncError;
+  final DateTime? lastSyncAt;
   const InstallationSetting({
     required this.id,
     required this.installationId,
     this.futureUserId,
     required this.createdAt,
     required this.updatedAtLocal,
+    required this.libraryId,
+    required this.nextOperationSequence,
+    required this.pullCursor,
+    required this.syncStatus,
+    this.syncError,
+    this.lastSyncAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -189,6 +342,16 @@ class InstallationSetting extends DataClass
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at_local'] = Variable<DateTime>(updatedAtLocal);
+    map['library_id'] = Variable<String>(libraryId);
+    map['next_operation_sequence'] = Variable<int>(nextOperationSequence);
+    map['pull_cursor'] = Variable<int>(pullCursor);
+    map['sync_status'] = Variable<String>(syncStatus);
+    if (!nullToAbsent || syncError != null) {
+      map['sync_error'] = Variable<String>(syncError);
+    }
+    if (!nullToAbsent || lastSyncAt != null) {
+      map['last_sync_at'] = Variable<DateTime>(lastSyncAt);
+    }
     return map;
   }
 
@@ -201,6 +364,16 @@ class InstallationSetting extends DataClass
           : Value(futureUserId),
       createdAt: Value(createdAt),
       updatedAtLocal: Value(updatedAtLocal),
+      libraryId: Value(libraryId),
+      nextOperationSequence: Value(nextOperationSequence),
+      pullCursor: Value(pullCursor),
+      syncStatus: Value(syncStatus),
+      syncError: syncError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncError),
+      lastSyncAt: lastSyncAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncAt),
     );
   }
 
@@ -215,6 +388,14 @@ class InstallationSetting extends DataClass
       futureUserId: serializer.fromJson<String?>(json['futureUserId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAtLocal: serializer.fromJson<DateTime>(json['updatedAtLocal']),
+      libraryId: serializer.fromJson<String>(json['libraryId']),
+      nextOperationSequence: serializer.fromJson<int>(
+        json['nextOperationSequence'],
+      ),
+      pullCursor: serializer.fromJson<int>(json['pullCursor']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      syncError: serializer.fromJson<String?>(json['syncError']),
+      lastSyncAt: serializer.fromJson<DateTime?>(json['lastSyncAt']),
     );
   }
   @override
@@ -226,6 +407,12 @@ class InstallationSetting extends DataClass
       'futureUserId': serializer.toJson<String?>(futureUserId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAtLocal': serializer.toJson<DateTime>(updatedAtLocal),
+      'libraryId': serializer.toJson<String>(libraryId),
+      'nextOperationSequence': serializer.toJson<int>(nextOperationSequence),
+      'pullCursor': serializer.toJson<int>(pullCursor),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'syncError': serializer.toJson<String?>(syncError),
+      'lastSyncAt': serializer.toJson<DateTime?>(lastSyncAt),
     };
   }
 
@@ -235,12 +422,24 @@ class InstallationSetting extends DataClass
     Value<String?> futureUserId = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAtLocal,
+    String? libraryId,
+    int? nextOperationSequence,
+    int? pullCursor,
+    String? syncStatus,
+    Value<String?> syncError = const Value.absent(),
+    Value<DateTime?> lastSyncAt = const Value.absent(),
   }) => InstallationSetting(
     id: id ?? this.id,
     installationId: installationId ?? this.installationId,
     futureUserId: futureUserId.present ? futureUserId.value : this.futureUserId,
     createdAt: createdAt ?? this.createdAt,
     updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
+    libraryId: libraryId ?? this.libraryId,
+    nextOperationSequence: nextOperationSequence ?? this.nextOperationSequence,
+    pullCursor: pullCursor ?? this.pullCursor,
+    syncStatus: syncStatus ?? this.syncStatus,
+    syncError: syncError.present ? syncError.value : this.syncError,
+    lastSyncAt: lastSyncAt.present ? lastSyncAt.value : this.lastSyncAt,
   );
   InstallationSetting copyWithCompanion(InstallationSettingsCompanion data) {
     return InstallationSetting(
@@ -255,6 +454,20 @@ class InstallationSetting extends DataClass
       updatedAtLocal: data.updatedAtLocal.present
           ? data.updatedAtLocal.value
           : this.updatedAtLocal,
+      libraryId: data.libraryId.present ? data.libraryId.value : this.libraryId,
+      nextOperationSequence: data.nextOperationSequence.present
+          ? data.nextOperationSequence.value
+          : this.nextOperationSequence,
+      pullCursor: data.pullCursor.present
+          ? data.pullCursor.value
+          : this.pullCursor,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      syncError: data.syncError.present ? data.syncError.value : this.syncError,
+      lastSyncAt: data.lastSyncAt.present
+          ? data.lastSyncAt.value
+          : this.lastSyncAt,
     );
   }
 
@@ -265,14 +478,31 @@ class InstallationSetting extends DataClass
           ..write('installationId: $installationId, ')
           ..write('futureUserId: $futureUserId, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAtLocal: $updatedAtLocal')
+          ..write('updatedAtLocal: $updatedAtLocal, ')
+          ..write('libraryId: $libraryId, ')
+          ..write('nextOperationSequence: $nextOperationSequence, ')
+          ..write('pullCursor: $pullCursor, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('syncError: $syncError, ')
+          ..write('lastSyncAt: $lastSyncAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, installationId, futureUserId, createdAt, updatedAtLocal);
+  int get hashCode => Object.hash(
+    id,
+    installationId,
+    futureUserId,
+    createdAt,
+    updatedAtLocal,
+    libraryId,
+    nextOperationSequence,
+    pullCursor,
+    syncStatus,
+    syncError,
+    lastSyncAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -281,7 +511,13 @@ class InstallationSetting extends DataClass
           other.installationId == this.installationId &&
           other.futureUserId == this.futureUserId &&
           other.createdAt == this.createdAt &&
-          other.updatedAtLocal == this.updatedAtLocal);
+          other.updatedAtLocal == this.updatedAtLocal &&
+          other.libraryId == this.libraryId &&
+          other.nextOperationSequence == this.nextOperationSequence &&
+          other.pullCursor == this.pullCursor &&
+          other.syncStatus == this.syncStatus &&
+          other.syncError == this.syncError &&
+          other.lastSyncAt == this.lastSyncAt);
 }
 
 class InstallationSettingsCompanion
@@ -291,6 +527,12 @@ class InstallationSettingsCompanion
   final Value<String?> futureUserId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAtLocal;
+  final Value<String> libraryId;
+  final Value<int> nextOperationSequence;
+  final Value<int> pullCursor;
+  final Value<String> syncStatus;
+  final Value<String?> syncError;
+  final Value<DateTime?> lastSyncAt;
   final Value<int> rowid;
   const InstallationSettingsCompanion({
     this.id = const Value.absent(),
@@ -298,6 +540,12 @@ class InstallationSettingsCompanion
     this.futureUserId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAtLocal = const Value.absent(),
+    this.libraryId = const Value.absent(),
+    this.nextOperationSequence = const Value.absent(),
+    this.pullCursor = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.syncError = const Value.absent(),
+    this.lastSyncAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   InstallationSettingsCompanion.insert({
@@ -306,6 +554,12 @@ class InstallationSettingsCompanion
     this.futureUserId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAtLocal,
+    this.libraryId = const Value.absent(),
+    this.nextOperationSequence = const Value.absent(),
+    this.pullCursor = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.syncError = const Value.absent(),
+    this.lastSyncAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : installationId = Value(installationId),
        createdAt = Value(createdAt),
@@ -316,6 +570,12 @@ class InstallationSettingsCompanion
     Expression<String>? futureUserId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAtLocal,
+    Expression<String>? libraryId,
+    Expression<int>? nextOperationSequence,
+    Expression<int>? pullCursor,
+    Expression<String>? syncStatus,
+    Expression<String>? syncError,
+    Expression<DateTime>? lastSyncAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -324,6 +584,13 @@ class InstallationSettingsCompanion
       if (futureUserId != null) 'future_user_id': futureUserId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAtLocal != null) 'updated_at_local': updatedAtLocal,
+      if (libraryId != null) 'library_id': libraryId,
+      if (nextOperationSequence != null)
+        'next_operation_sequence': nextOperationSequence,
+      if (pullCursor != null) 'pull_cursor': pullCursor,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (syncError != null) 'sync_error': syncError,
+      if (lastSyncAt != null) 'last_sync_at': lastSyncAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -334,6 +601,12 @@ class InstallationSettingsCompanion
     Value<String?>? futureUserId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAtLocal,
+    Value<String>? libraryId,
+    Value<int>? nextOperationSequence,
+    Value<int>? pullCursor,
+    Value<String>? syncStatus,
+    Value<String?>? syncError,
+    Value<DateTime?>? lastSyncAt,
     Value<int>? rowid,
   }) {
     return InstallationSettingsCompanion(
@@ -342,6 +615,13 @@ class InstallationSettingsCompanion
       futureUserId: futureUserId ?? this.futureUserId,
       createdAt: createdAt ?? this.createdAt,
       updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
+      libraryId: libraryId ?? this.libraryId,
+      nextOperationSequence:
+          nextOperationSequence ?? this.nextOperationSequence,
+      pullCursor: pullCursor ?? this.pullCursor,
+      syncStatus: syncStatus ?? this.syncStatus,
+      syncError: syncError ?? this.syncError,
+      lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -364,6 +644,26 @@ class InstallationSettingsCompanion
     if (updatedAtLocal.present) {
       map['updated_at_local'] = Variable<DateTime>(updatedAtLocal.value);
     }
+    if (libraryId.present) {
+      map['library_id'] = Variable<String>(libraryId.value);
+    }
+    if (nextOperationSequence.present) {
+      map['next_operation_sequence'] = Variable<int>(
+        nextOperationSequence.value,
+      );
+    }
+    if (pullCursor.present) {
+      map['pull_cursor'] = Variable<int>(pullCursor.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (syncError.present) {
+      map['sync_error'] = Variable<String>(syncError.value);
+    }
+    if (lastSyncAt.present) {
+      map['last_sync_at'] = Variable<DateTime>(lastSyncAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -378,6 +678,12 @@ class InstallationSettingsCompanion
           ..write('futureUserId: $futureUserId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAtLocal: $updatedAtLocal, ')
+          ..write('libraryId: $libraryId, ')
+          ..write('nextOperationSequence: $nextOperationSequence, ')
+          ..write('pullCursor: $pullCursor, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('syncError: $syncError, ')
+          ..write('lastSyncAt: $lastSyncAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7875,6 +8181,54 @@ class $SyncOutboxTable extends SyncOutbox
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _libraryIdMeta = const VerificationMeta(
+    'libraryId',
+  );
+  @override
+  late final GeneratedColumn<String> libraryId = GeneratedColumn<String>(
+    'library_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('6d0f0d44-54f8-4f6a-b535-0a58d6efac11'),
+  );
+  static const VerificationMeta _installationIdMeta = const VerificationMeta(
+    'installationId',
+  );
+  @override
+  late final GeneratedColumn<String> installationId = GeneratedColumn<String>(
+    'installation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _clientSequenceMeta = const VerificationMeta(
+    'clientSequence',
+  );
+  @override
+  late final GeneratedColumn<int> clientSequence = GeneratedColumn<int>(
+    'client_sequence',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _clientCounterMeta = const VerificationMeta(
+    'clientCounter',
+  );
+  @override
+  late final GeneratedColumn<int> clientCounter = GeneratedColumn<int>(
+    'client_counter',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _baseRevisionMeta = const VerificationMeta(
     'baseRevision',
   );
@@ -7940,6 +8294,10 @@ class $SyncOutboxTable extends SyncOutbox
     entityId,
     operationType,
     payloadJson,
+    libraryId,
+    installationId,
+    clientSequence,
+    clientCounter,
     baseRevision,
     attempts,
     createdAt,
@@ -8015,6 +8373,39 @@ class $SyncOutboxTable extends SyncOutbox
     } else if (isInserting) {
       context.missing(_payloadJsonMeta);
     }
+    if (data.containsKey('library_id')) {
+      context.handle(
+        _libraryIdMeta,
+        libraryId.isAcceptableOrUnknown(data['library_id']!, _libraryIdMeta),
+      );
+    }
+    if (data.containsKey('installation_id')) {
+      context.handle(
+        _installationIdMeta,
+        installationId.isAcceptableOrUnknown(
+          data['installation_id']!,
+          _installationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('client_sequence')) {
+      context.handle(
+        _clientSequenceMeta,
+        clientSequence.isAcceptableOrUnknown(
+          data['client_sequence']!,
+          _clientSequenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('client_counter')) {
+      context.handle(
+        _clientCounterMeta,
+        clientCounter.isAcceptableOrUnknown(
+          data['client_counter']!,
+          _clientCounterMeta,
+        ),
+      );
+    }
     if (data.containsKey('base_revision')) {
       context.handle(
         _baseRevisionMeta,
@@ -8086,6 +8477,22 @@ class $SyncOutboxTable extends SyncOutbox
         DriftSqlType.string,
         data['${effectivePrefix}payload_json'],
       )!,
+      libraryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}library_id'],
+      )!,
+      installationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}installation_id'],
+      )!,
+      clientSequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}client_sequence'],
+      )!,
+      clientCounter: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}client_counter'],
+      )!,
       baseRevision: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}base_revision'],
@@ -8122,6 +8529,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
   final String entityId;
   final String operationType;
   final String payloadJson;
+  final String libraryId;
+  final String installationId;
+  final int clientSequence;
+  final int clientCounter;
   final int? baseRevision;
   final int attempts;
   final DateTime createdAt;
@@ -8134,6 +8545,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
     required this.entityId,
     required this.operationType,
     required this.payloadJson,
+    required this.libraryId,
+    required this.installationId,
+    required this.clientSequence,
+    required this.clientCounter,
     this.baseRevision,
     required this.attempts,
     required this.createdAt,
@@ -8149,6 +8564,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
     map['entity_id'] = Variable<String>(entityId);
     map['operation_type'] = Variable<String>(operationType);
     map['payload_json'] = Variable<String>(payloadJson);
+    map['library_id'] = Variable<String>(libraryId);
+    map['installation_id'] = Variable<String>(installationId);
+    map['client_sequence'] = Variable<int>(clientSequence);
+    map['client_counter'] = Variable<int>(clientCounter);
     if (!nullToAbsent || baseRevision != null) {
       map['base_revision'] = Variable<int>(baseRevision);
     }
@@ -8171,6 +8590,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
       entityId: Value(entityId),
       operationType: Value(operationType),
       payloadJson: Value(payloadJson),
+      libraryId: Value(libraryId),
+      installationId: Value(installationId),
+      clientSequence: Value(clientSequence),
+      clientCounter: Value(clientCounter),
       baseRevision: baseRevision == null && nullToAbsent
           ? const Value.absent()
           : Value(baseRevision),
@@ -8197,6 +8620,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
       entityId: serializer.fromJson<String>(json['entityId']),
       operationType: serializer.fromJson<String>(json['operationType']),
       payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      libraryId: serializer.fromJson<String>(json['libraryId']),
+      installationId: serializer.fromJson<String>(json['installationId']),
+      clientSequence: serializer.fromJson<int>(json['clientSequence']),
+      clientCounter: serializer.fromJson<int>(json['clientCounter']),
       baseRevision: serializer.fromJson<int?>(json['baseRevision']),
       attempts: serializer.fromJson<int>(json['attempts']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -8214,6 +8641,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
       'entityId': serializer.toJson<String>(entityId),
       'operationType': serializer.toJson<String>(operationType),
       'payloadJson': serializer.toJson<String>(payloadJson),
+      'libraryId': serializer.toJson<String>(libraryId),
+      'installationId': serializer.toJson<String>(installationId),
+      'clientSequence': serializer.toJson<int>(clientSequence),
+      'clientCounter': serializer.toJson<int>(clientCounter),
       'baseRevision': serializer.toJson<int?>(baseRevision),
       'attempts': serializer.toJson<int>(attempts),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -8229,6 +8660,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
     String? entityId,
     String? operationType,
     String? payloadJson,
+    String? libraryId,
+    String? installationId,
+    int? clientSequence,
+    int? clientCounter,
     Value<int?> baseRevision = const Value.absent(),
     int? attempts,
     DateTime? createdAt,
@@ -8241,6 +8676,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
     entityId: entityId ?? this.entityId,
     operationType: operationType ?? this.operationType,
     payloadJson: payloadJson ?? this.payloadJson,
+    libraryId: libraryId ?? this.libraryId,
+    installationId: installationId ?? this.installationId,
+    clientSequence: clientSequence ?? this.clientSequence,
+    clientCounter: clientCounter ?? this.clientCounter,
     baseRevision: baseRevision.present ? baseRevision.value : this.baseRevision,
     attempts: attempts ?? this.attempts,
     createdAt: createdAt ?? this.createdAt,
@@ -8267,6 +8706,16 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
       payloadJson: data.payloadJson.present
           ? data.payloadJson.value
           : this.payloadJson,
+      libraryId: data.libraryId.present ? data.libraryId.value : this.libraryId,
+      installationId: data.installationId.present
+          ? data.installationId.value
+          : this.installationId,
+      clientSequence: data.clientSequence.present
+          ? data.clientSequence.value
+          : this.clientSequence,
+      clientCounter: data.clientCounter.present
+          ? data.clientCounter.value
+          : this.clientCounter,
       baseRevision: data.baseRevision.present
           ? data.baseRevision.value
           : this.baseRevision,
@@ -8288,6 +8737,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
           ..write('entityId: $entityId, ')
           ..write('operationType: $operationType, ')
           ..write('payloadJson: $payloadJson, ')
+          ..write('libraryId: $libraryId, ')
+          ..write('installationId: $installationId, ')
+          ..write('clientSequence: $clientSequence, ')
+          ..write('clientCounter: $clientCounter, ')
           ..write('baseRevision: $baseRevision, ')
           ..write('attempts: $attempts, ')
           ..write('createdAt: $createdAt, ')
@@ -8305,6 +8758,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
     entityId,
     operationType,
     payloadJson,
+    libraryId,
+    installationId,
+    clientSequence,
+    clientCounter,
     baseRevision,
     attempts,
     createdAt,
@@ -8321,6 +8778,10 @@ class SyncOutboxData extends DataClass implements Insertable<SyncOutboxData> {
           other.entityId == this.entityId &&
           other.operationType == this.operationType &&
           other.payloadJson == this.payloadJson &&
+          other.libraryId == this.libraryId &&
+          other.installationId == this.installationId &&
+          other.clientSequence == this.clientSequence &&
+          other.clientCounter == this.clientCounter &&
           other.baseRevision == this.baseRevision &&
           other.attempts == this.attempts &&
           other.createdAt == this.createdAt &&
@@ -8335,6 +8796,10 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
   final Value<String> entityId;
   final Value<String> operationType;
   final Value<String> payloadJson;
+  final Value<String> libraryId;
+  final Value<String> installationId;
+  final Value<int> clientSequence;
+  final Value<int> clientCounter;
   final Value<int?> baseRevision;
   final Value<int> attempts;
   final Value<DateTime> createdAt;
@@ -8348,6 +8813,10 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
     this.entityId = const Value.absent(),
     this.operationType = const Value.absent(),
     this.payloadJson = const Value.absent(),
+    this.libraryId = const Value.absent(),
+    this.installationId = const Value.absent(),
+    this.clientSequence = const Value.absent(),
+    this.clientCounter = const Value.absent(),
     this.baseRevision = const Value.absent(),
     this.attempts = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -8362,6 +8831,10 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
     required String entityId,
     required String operationType,
     required String payloadJson,
+    this.libraryId = const Value.absent(),
+    this.installationId = const Value.absent(),
+    this.clientSequence = const Value.absent(),
+    this.clientCounter = const Value.absent(),
     this.baseRevision = const Value.absent(),
     this.attempts = const Value.absent(),
     required DateTime createdAt,
@@ -8382,6 +8855,10 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
     Expression<String>? entityId,
     Expression<String>? operationType,
     Expression<String>? payloadJson,
+    Expression<String>? libraryId,
+    Expression<String>? installationId,
+    Expression<int>? clientSequence,
+    Expression<int>? clientCounter,
     Expression<int>? baseRevision,
     Expression<int>? attempts,
     Expression<DateTime>? createdAt,
@@ -8396,6 +8873,10 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
       if (entityId != null) 'entity_id': entityId,
       if (operationType != null) 'operation_type': operationType,
       if (payloadJson != null) 'payload_json': payloadJson,
+      if (libraryId != null) 'library_id': libraryId,
+      if (installationId != null) 'installation_id': installationId,
+      if (clientSequence != null) 'client_sequence': clientSequence,
+      if (clientCounter != null) 'client_counter': clientCounter,
       if (baseRevision != null) 'base_revision': baseRevision,
       if (attempts != null) 'attempts': attempts,
       if (createdAt != null) 'created_at': createdAt,
@@ -8412,6 +8893,10 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
     Value<String>? entityId,
     Value<String>? operationType,
     Value<String>? payloadJson,
+    Value<String>? libraryId,
+    Value<String>? installationId,
+    Value<int>? clientSequence,
+    Value<int>? clientCounter,
     Value<int?>? baseRevision,
     Value<int>? attempts,
     Value<DateTime>? createdAt,
@@ -8426,6 +8911,10 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
       entityId: entityId ?? this.entityId,
       operationType: operationType ?? this.operationType,
       payloadJson: payloadJson ?? this.payloadJson,
+      libraryId: libraryId ?? this.libraryId,
+      installationId: installationId ?? this.installationId,
+      clientSequence: clientSequence ?? this.clientSequence,
+      clientCounter: clientCounter ?? this.clientCounter,
       baseRevision: baseRevision ?? this.baseRevision,
       attempts: attempts ?? this.attempts,
       createdAt: createdAt ?? this.createdAt,
@@ -8455,6 +8944,18 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
     }
     if (payloadJson.present) {
       map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (libraryId.present) {
+      map['library_id'] = Variable<String>(libraryId.value);
+    }
+    if (installationId.present) {
+      map['installation_id'] = Variable<String>(installationId.value);
+    }
+    if (clientSequence.present) {
+      map['client_sequence'] = Variable<int>(clientSequence.value);
+    }
+    if (clientCounter.present) {
+      map['client_counter'] = Variable<int>(clientCounter.value);
     }
     if (baseRevision.present) {
       map['base_revision'] = Variable<int>(baseRevision.value);
@@ -8486,6 +8987,10 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
           ..write('entityId: $entityId, ')
           ..write('operationType: $operationType, ')
           ..write('payloadJson: $payloadJson, ')
+          ..write('libraryId: $libraryId, ')
+          ..write('installationId: $installationId, ')
+          ..write('clientSequence: $clientSequence, ')
+          ..write('clientCounter: $clientCounter, ')
           ..write('baseRevision: $baseRevision, ')
           ..write('attempts: $attempts, ')
           ..write('createdAt: $createdAt, ')
@@ -9460,6 +9965,449 @@ class SyncTombstonesCompanion extends UpdateCompanion<SyncTombstone> {
   }
 }
 
+class $SyncEntityStatesTable extends SyncEntityStates
+    with TableInfo<$SyncEntityStatesTable, SyncEntityState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncEntityStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _clientCounterMeta = const VerificationMeta(
+    'clientCounter',
+  );
+  @override
+  late final GeneratedColumn<int> clientCounter = GeneratedColumn<int>(
+    'client_counter',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _serverRevisionMeta = const VerificationMeta(
+    'serverRevision',
+  );
+  @override
+  late final GeneratedColumn<int> serverRevision = GeneratedColumn<int>(
+    'server_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _winningDeviceIdMeta = const VerificationMeta(
+    'winningDeviceId',
+  );
+  @override
+  late final GeneratedColumn<String> winningDeviceId = GeneratedColumn<String>(
+    'winning_device_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remotelyDeletedMeta = const VerificationMeta(
+    'remotelyDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> remotelyDeleted = GeneratedColumn<bool>(
+    'remotely_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("remotely_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    entityType,
+    entityId,
+    clientCounter,
+    serverRevision,
+    winningDeviceId,
+    remotelyDeleted,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_entity_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncEntityState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('client_counter')) {
+      context.handle(
+        _clientCounterMeta,
+        clientCounter.isAcceptableOrUnknown(
+          data['client_counter']!,
+          _clientCounterMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_revision')) {
+      context.handle(
+        _serverRevisionMeta,
+        serverRevision.isAcceptableOrUnknown(
+          data['server_revision']!,
+          _serverRevisionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('winning_device_id')) {
+      context.handle(
+        _winningDeviceIdMeta,
+        winningDeviceId.isAcceptableOrUnknown(
+          data['winning_device_id']!,
+          _winningDeviceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('remotely_deleted')) {
+      context.handle(
+        _remotelyDeletedMeta,
+        remotelyDeleted.isAcceptableOrUnknown(
+          data['remotely_deleted']!,
+          _remotelyDeletedMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {entityType, entityId};
+  @override
+  SyncEntityState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncEntityState(
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      clientCounter: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}client_counter'],
+      )!,
+      serverRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_revision'],
+      )!,
+      winningDeviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}winning_device_id'],
+      ),
+      remotelyDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}remotely_deleted'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncEntityStatesTable createAlias(String alias) {
+    return $SyncEntityStatesTable(attachedDatabase, alias);
+  }
+}
+
+class SyncEntityState extends DataClass implements Insertable<SyncEntityState> {
+  final String entityType;
+  final String entityId;
+  final int clientCounter;
+  final int serverRevision;
+  final String? winningDeviceId;
+  final bool remotelyDeleted;
+  const SyncEntityState({
+    required this.entityType,
+    required this.entityId,
+    required this.clientCounter,
+    required this.serverRevision,
+    this.winningDeviceId,
+    required this.remotelyDeleted,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    map['client_counter'] = Variable<int>(clientCounter);
+    map['server_revision'] = Variable<int>(serverRevision);
+    if (!nullToAbsent || winningDeviceId != null) {
+      map['winning_device_id'] = Variable<String>(winningDeviceId);
+    }
+    map['remotely_deleted'] = Variable<bool>(remotelyDeleted);
+    return map;
+  }
+
+  SyncEntityStatesCompanion toCompanion(bool nullToAbsent) {
+    return SyncEntityStatesCompanion(
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      clientCounter: Value(clientCounter),
+      serverRevision: Value(serverRevision),
+      winningDeviceId: winningDeviceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(winningDeviceId),
+      remotelyDeleted: Value(remotelyDeleted),
+    );
+  }
+
+  factory SyncEntityState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncEntityState(
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      clientCounter: serializer.fromJson<int>(json['clientCounter']),
+      serverRevision: serializer.fromJson<int>(json['serverRevision']),
+      winningDeviceId: serializer.fromJson<String?>(json['winningDeviceId']),
+      remotelyDeleted: serializer.fromJson<bool>(json['remotelyDeleted']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'clientCounter': serializer.toJson<int>(clientCounter),
+      'serverRevision': serializer.toJson<int>(serverRevision),
+      'winningDeviceId': serializer.toJson<String?>(winningDeviceId),
+      'remotelyDeleted': serializer.toJson<bool>(remotelyDeleted),
+    };
+  }
+
+  SyncEntityState copyWith({
+    String? entityType,
+    String? entityId,
+    int? clientCounter,
+    int? serverRevision,
+    Value<String?> winningDeviceId = const Value.absent(),
+    bool? remotelyDeleted,
+  }) => SyncEntityState(
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    clientCounter: clientCounter ?? this.clientCounter,
+    serverRevision: serverRevision ?? this.serverRevision,
+    winningDeviceId: winningDeviceId.present
+        ? winningDeviceId.value
+        : this.winningDeviceId,
+    remotelyDeleted: remotelyDeleted ?? this.remotelyDeleted,
+  );
+  SyncEntityState copyWithCompanion(SyncEntityStatesCompanion data) {
+    return SyncEntityState(
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      clientCounter: data.clientCounter.present
+          ? data.clientCounter.value
+          : this.clientCounter,
+      serverRevision: data.serverRevision.present
+          ? data.serverRevision.value
+          : this.serverRevision,
+      winningDeviceId: data.winningDeviceId.present
+          ? data.winningDeviceId.value
+          : this.winningDeviceId,
+      remotelyDeleted: data.remotelyDeleted.present
+          ? data.remotelyDeleted.value
+          : this.remotelyDeleted,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncEntityState(')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('clientCounter: $clientCounter, ')
+          ..write('serverRevision: $serverRevision, ')
+          ..write('winningDeviceId: $winningDeviceId, ')
+          ..write('remotelyDeleted: $remotelyDeleted')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    entityType,
+    entityId,
+    clientCounter,
+    serverRevision,
+    winningDeviceId,
+    remotelyDeleted,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncEntityState &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.clientCounter == this.clientCounter &&
+          other.serverRevision == this.serverRevision &&
+          other.winningDeviceId == this.winningDeviceId &&
+          other.remotelyDeleted == this.remotelyDeleted);
+}
+
+class SyncEntityStatesCompanion extends UpdateCompanion<SyncEntityState> {
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<int> clientCounter;
+  final Value<int> serverRevision;
+  final Value<String?> winningDeviceId;
+  final Value<bool> remotelyDeleted;
+  final Value<int> rowid;
+  const SyncEntityStatesCompanion({
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.clientCounter = const Value.absent(),
+    this.serverRevision = const Value.absent(),
+    this.winningDeviceId = const Value.absent(),
+    this.remotelyDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncEntityStatesCompanion.insert({
+    required String entityType,
+    required String entityId,
+    this.clientCounter = const Value.absent(),
+    this.serverRevision = const Value.absent(),
+    this.winningDeviceId = const Value.absent(),
+    this.remotelyDeleted = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : entityType = Value(entityType),
+       entityId = Value(entityId);
+  static Insertable<SyncEntityState> custom({
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<int>? clientCounter,
+    Expression<int>? serverRevision,
+    Expression<String>? winningDeviceId,
+    Expression<bool>? remotelyDeleted,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (clientCounter != null) 'client_counter': clientCounter,
+      if (serverRevision != null) 'server_revision': serverRevision,
+      if (winningDeviceId != null) 'winning_device_id': winningDeviceId,
+      if (remotelyDeleted != null) 'remotely_deleted': remotelyDeleted,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncEntityStatesCompanion copyWith({
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<int>? clientCounter,
+    Value<int>? serverRevision,
+    Value<String?>? winningDeviceId,
+    Value<bool>? remotelyDeleted,
+    Value<int>? rowid,
+  }) {
+    return SyncEntityStatesCompanion(
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      clientCounter: clientCounter ?? this.clientCounter,
+      serverRevision: serverRevision ?? this.serverRevision,
+      winningDeviceId: winningDeviceId ?? this.winningDeviceId,
+      remotelyDeleted: remotelyDeleted ?? this.remotelyDeleted,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (clientCounter.present) {
+      map['client_counter'] = Variable<int>(clientCounter.value);
+    }
+    if (serverRevision.present) {
+      map['server_revision'] = Variable<int>(serverRevision.value);
+    }
+    if (winningDeviceId.present) {
+      map['winning_device_id'] = Variable<String>(winningDeviceId.value);
+    }
+    if (remotelyDeleted.present) {
+      map['remotely_deleted'] = Variable<bool>(remotelyDeleted.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncEntityStatesCompanion(')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('clientCounter: $clientCounter, ')
+          ..write('serverRevision: $serverRevision, ')
+          ..write('winningDeviceId: $winningDeviceId, ')
+          ..write('remotelyDeleted: $remotelyDeleted, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $LegacyIdMapsTable extends LegacyIdMaps
     with TableInfo<$LegacyIdMapsTable, LegacyIdMap> {
   @override
@@ -10358,6 +11306,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
   late final $SyncConflictsTable syncConflicts = $SyncConflictsTable(this);
   late final $SyncTombstonesTable syncTombstones = $SyncTombstonesTable(this);
+  late final $SyncEntityStatesTable syncEntityStates = $SyncEntityStatesTable(
+    this,
+  );
   late final $LegacyIdMapsTable legacyIdMaps = $LegacyIdMapsTable(this);
   late final $MigrationHistoryTable migrationHistory = $MigrationHistoryTable(
     this,
@@ -10385,6 +11336,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncOutbox,
     syncConflicts,
     syncTombstones,
+    syncEntityStates,
     legacyIdMaps,
     migrationHistory,
   ];
@@ -10397,6 +11349,12 @@ typedef $$InstallationSettingsTableCreateCompanionBuilder =
       Value<String?> futureUserId,
       required DateTime createdAt,
       required DateTime updatedAtLocal,
+      Value<String> libraryId,
+      Value<int> nextOperationSequence,
+      Value<int> pullCursor,
+      Value<String> syncStatus,
+      Value<String?> syncError,
+      Value<DateTime?> lastSyncAt,
       Value<int> rowid,
     });
 typedef $$InstallationSettingsTableUpdateCompanionBuilder =
@@ -10406,6 +11364,12 @@ typedef $$InstallationSettingsTableUpdateCompanionBuilder =
       Value<String?> futureUserId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAtLocal,
+      Value<String> libraryId,
+      Value<int> nextOperationSequence,
+      Value<int> pullCursor,
+      Value<String> syncStatus,
+      Value<String?> syncError,
+      Value<DateTime?> lastSyncAt,
       Value<int> rowid,
     });
 
@@ -10440,6 +11404,36 @@ class $$InstallationSettingsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAtLocal => $composableBuilder(
     column: $table.updatedAtLocal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get libraryId => $composableBuilder(
+    column: $table.libraryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nextOperationSequence => $composableBuilder(
+    column: $table.nextOperationSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pullCursor => $composableBuilder(
+    column: $table.pullCursor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncError => $composableBuilder(
+    column: $table.syncError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -10477,6 +11471,36 @@ class $$InstallationSettingsTableOrderingComposer
     column: $table.updatedAtLocal,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get libraryId => $composableBuilder(
+    column: $table.libraryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nextOperationSequence => $composableBuilder(
+    column: $table.nextOperationSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pullCursor => $composableBuilder(
+    column: $table.pullCursor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncError => $composableBuilder(
+    column: $table.syncError,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$InstallationSettingsTableAnnotationComposer
@@ -10506,6 +11530,32 @@ class $$InstallationSettingsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAtLocal => $composableBuilder(
     column: $table.updatedAtLocal,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get libraryId =>
+      $composableBuilder(column: $table.libraryId, builder: (column) => column);
+
+  GeneratedColumn<int> get nextOperationSequence => $composableBuilder(
+    column: $table.nextOperationSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get pullCursor => $composableBuilder(
+    column: $table.pullCursor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncError =>
+      $composableBuilder(column: $table.syncError, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
     builder: (column) => column,
   );
 }
@@ -10558,6 +11608,12 @@ class $$InstallationSettingsTableTableManager
                 Value<String?> futureUserId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAtLocal = const Value.absent(),
+                Value<String> libraryId = const Value.absent(),
+                Value<int> nextOperationSequence = const Value.absent(),
+                Value<int> pullCursor = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<String?> syncError = const Value.absent(),
+                Value<DateTime?> lastSyncAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => InstallationSettingsCompanion(
                 id: id,
@@ -10565,6 +11621,12 @@ class $$InstallationSettingsTableTableManager
                 futureUserId: futureUserId,
                 createdAt: createdAt,
                 updatedAtLocal: updatedAtLocal,
+                libraryId: libraryId,
+                nextOperationSequence: nextOperationSequence,
+                pullCursor: pullCursor,
+                syncStatus: syncStatus,
+                syncError: syncError,
+                lastSyncAt: lastSyncAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -10574,6 +11636,12 @@ class $$InstallationSettingsTableTableManager
                 Value<String?> futureUserId = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAtLocal,
+                Value<String> libraryId = const Value.absent(),
+                Value<int> nextOperationSequence = const Value.absent(),
+                Value<int> pullCursor = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<String?> syncError = const Value.absent(),
+                Value<DateTime?> lastSyncAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => InstallationSettingsCompanion.insert(
                 id: id,
@@ -10581,6 +11649,12 @@ class $$InstallationSettingsTableTableManager
                 futureUserId: futureUserId,
                 createdAt: createdAt,
                 updatedAtLocal: updatedAtLocal,
+                libraryId: libraryId,
+                nextOperationSequence: nextOperationSequence,
+                pullCursor: pullCursor,
+                syncStatus: syncStatus,
+                syncError: syncError,
+                lastSyncAt: lastSyncAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -16895,6 +17969,10 @@ typedef $$SyncOutboxTableCreateCompanionBuilder =
       required String entityId,
       required String operationType,
       required String payloadJson,
+      Value<String> libraryId,
+      Value<String> installationId,
+      Value<int> clientSequence,
+      Value<int> clientCounter,
       Value<int?> baseRevision,
       Value<int> attempts,
       required DateTime createdAt,
@@ -16910,6 +17988,10 @@ typedef $$SyncOutboxTableUpdateCompanionBuilder =
       Value<String> entityId,
       Value<String> operationType,
       Value<String> payloadJson,
+      Value<String> libraryId,
+      Value<String> installationId,
+      Value<int> clientSequence,
+      Value<int> clientCounter,
       Value<int?> baseRevision,
       Value<int> attempts,
       Value<DateTime> createdAt,
@@ -16954,6 +18036,26 @@ class $$SyncOutboxTableFilterComposer
 
   ColumnFilters<String> get payloadJson => $composableBuilder(
     column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get libraryId => $composableBuilder(
+    column: $table.libraryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get installationId => $composableBuilder(
+    column: $table.installationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get clientSequence => $composableBuilder(
+    column: $table.clientSequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get clientCounter => $composableBuilder(
+    column: $table.clientCounter,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17022,6 +18124,26 @@ class $$SyncOutboxTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get libraryId => $composableBuilder(
+    column: $table.libraryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get installationId => $composableBuilder(
+    column: $table.installationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get clientSequence => $composableBuilder(
+    column: $table.clientSequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get clientCounter => $composableBuilder(
+    column: $table.clientCounter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get baseRevision => $composableBuilder(
     column: $table.baseRevision,
     builder: (column) => ColumnOrderings(column),
@@ -17085,6 +18207,24 @@ class $$SyncOutboxTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get libraryId =>
+      $composableBuilder(column: $table.libraryId, builder: (column) => column);
+
+  GeneratedColumn<String> get installationId => $composableBuilder(
+    column: $table.installationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get clientSequence => $composableBuilder(
+    column: $table.clientSequence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get clientCounter => $composableBuilder(
+    column: $table.clientCounter,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get baseRevision => $composableBuilder(
     column: $table.baseRevision,
     builder: (column) => column,
@@ -17142,6 +18282,10 @@ class $$SyncOutboxTableTableManager
                 Value<String> entityId = const Value.absent(),
                 Value<String> operationType = const Value.absent(),
                 Value<String> payloadJson = const Value.absent(),
+                Value<String> libraryId = const Value.absent(),
+                Value<String> installationId = const Value.absent(),
+                Value<int> clientSequence = const Value.absent(),
+                Value<int> clientCounter = const Value.absent(),
                 Value<int?> baseRevision = const Value.absent(),
                 Value<int> attempts = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -17155,6 +18299,10 @@ class $$SyncOutboxTableTableManager
                 entityId: entityId,
                 operationType: operationType,
                 payloadJson: payloadJson,
+                libraryId: libraryId,
+                installationId: installationId,
+                clientSequence: clientSequence,
+                clientCounter: clientCounter,
                 baseRevision: baseRevision,
                 attempts: attempts,
                 createdAt: createdAt,
@@ -17170,6 +18318,10 @@ class $$SyncOutboxTableTableManager
                 required String entityId,
                 required String operationType,
                 required String payloadJson,
+                Value<String> libraryId = const Value.absent(),
+                Value<String> installationId = const Value.absent(),
+                Value<int> clientSequence = const Value.absent(),
+                Value<int> clientCounter = const Value.absent(),
                 Value<int?> baseRevision = const Value.absent(),
                 Value<int> attempts = const Value.absent(),
                 required DateTime createdAt,
@@ -17183,6 +18335,10 @@ class $$SyncOutboxTableTableManager
                 entityId: entityId,
                 operationType: operationType,
                 payloadJson: payloadJson,
+                libraryId: libraryId,
+                installationId: installationId,
+                clientSequence: clientSequence,
+                clientCounter: clientCounter,
                 baseRevision: baseRevision,
                 attempts: attempts,
                 createdAt: createdAt,
@@ -17711,6 +18867,241 @@ typedef $$SyncTombstonesTableProcessedTableManager =
       SyncTombstone,
       PrefetchHooks Function()
     >;
+typedef $$SyncEntityStatesTableCreateCompanionBuilder =
+    SyncEntityStatesCompanion Function({
+      required String entityType,
+      required String entityId,
+      Value<int> clientCounter,
+      Value<int> serverRevision,
+      Value<String?> winningDeviceId,
+      Value<bool> remotelyDeleted,
+      Value<int> rowid,
+    });
+typedef $$SyncEntityStatesTableUpdateCompanionBuilder =
+    SyncEntityStatesCompanion Function({
+      Value<String> entityType,
+      Value<String> entityId,
+      Value<int> clientCounter,
+      Value<int> serverRevision,
+      Value<String?> winningDeviceId,
+      Value<bool> remotelyDeleted,
+      Value<int> rowid,
+    });
+
+class $$SyncEntityStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncEntityStatesTable> {
+  $$SyncEntityStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get clientCounter => $composableBuilder(
+    column: $table.clientCounter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get winningDeviceId => $composableBuilder(
+    column: $table.winningDeviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get remotelyDeleted => $composableBuilder(
+    column: $table.remotelyDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncEntityStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncEntityStatesTable> {
+  $$SyncEntityStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get clientCounter => $composableBuilder(
+    column: $table.clientCounter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get winningDeviceId => $composableBuilder(
+    column: $table.winningDeviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get remotelyDeleted => $composableBuilder(
+    column: $table.remotelyDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncEntityStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncEntityStatesTable> {
+  $$SyncEntityStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<int> get clientCounter => $composableBuilder(
+    column: $table.clientCounter,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get serverRevision => $composableBuilder(
+    column: $table.serverRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get winningDeviceId => $composableBuilder(
+    column: $table.winningDeviceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get remotelyDeleted => $composableBuilder(
+    column: $table.remotelyDeleted,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncEntityStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncEntityStatesTable,
+          SyncEntityState,
+          $$SyncEntityStatesTableFilterComposer,
+          $$SyncEntityStatesTableOrderingComposer,
+          $$SyncEntityStatesTableAnnotationComposer,
+          $$SyncEntityStatesTableCreateCompanionBuilder,
+          $$SyncEntityStatesTableUpdateCompanionBuilder,
+          (
+            SyncEntityState,
+            BaseReferences<
+              _$AppDatabase,
+              $SyncEntityStatesTable,
+              SyncEntityState
+            >,
+          ),
+          SyncEntityState,
+          PrefetchHooks Function()
+        > {
+  $$SyncEntityStatesTableTableManager(
+    _$AppDatabase db,
+    $SyncEntityStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncEntityStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncEntityStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncEntityStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<int> clientCounter = const Value.absent(),
+                Value<int> serverRevision = const Value.absent(),
+                Value<String?> winningDeviceId = const Value.absent(),
+                Value<bool> remotelyDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncEntityStatesCompanion(
+                entityType: entityType,
+                entityId: entityId,
+                clientCounter: clientCounter,
+                serverRevision: serverRevision,
+                winningDeviceId: winningDeviceId,
+                remotelyDeleted: remotelyDeleted,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String entityType,
+                required String entityId,
+                Value<int> clientCounter = const Value.absent(),
+                Value<int> serverRevision = const Value.absent(),
+                Value<String?> winningDeviceId = const Value.absent(),
+                Value<bool> remotelyDeleted = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncEntityStatesCompanion.insert(
+                entityType: entityType,
+                entityId: entityId,
+                clientCounter: clientCounter,
+                serverRevision: serverRevision,
+                winningDeviceId: winningDeviceId,
+                remotelyDeleted: remotelyDeleted,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncEntityStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncEntityStatesTable,
+      SyncEntityState,
+      $$SyncEntityStatesTableFilterComposer,
+      $$SyncEntityStatesTableOrderingComposer,
+      $$SyncEntityStatesTableAnnotationComposer,
+      $$SyncEntityStatesTableCreateCompanionBuilder,
+      $$SyncEntityStatesTableUpdateCompanionBuilder,
+      (
+        SyncEntityState,
+        BaseReferences<_$AppDatabase, $SyncEntityStatesTable, SyncEntityState>,
+      ),
+      SyncEntityState,
+      PrefetchHooks Function()
+    >;
 typedef $$LegacyIdMapsTableCreateCompanionBuilder =
     LegacyIdMapsCompanion Function({
       required String sourceKind,
@@ -18215,6 +19606,8 @@ class $AppDatabaseManager {
       $$SyncConflictsTableTableManager(_db, _db.syncConflicts);
   $$SyncTombstonesTableTableManager get syncTombstones =>
       $$SyncTombstonesTableTableManager(_db, _db.syncTombstones);
+  $$SyncEntityStatesTableTableManager get syncEntityStates =>
+      $$SyncEntityStatesTableTableManager(_db, _db.syncEntityStates);
   $$LegacyIdMapsTableTableManager get legacyIdMaps =>
       $$LegacyIdMapsTableTableManager(_db, _db.legacyIdMaps);
   $$MigrationHistoryTableTableManager get migrationHistory =>

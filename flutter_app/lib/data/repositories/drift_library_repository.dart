@@ -5,12 +5,18 @@ import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
 import '../../domain/repositories/library_repository.dart';
 import '../local/app_database.dart';
+import '../../sync/library_sync_store.dart';
 
 class DriftLibraryRepository implements LibraryRepository {
-  DriftLibraryRepository(this._database, {this._uuid = const Uuid()});
+  DriftLibraryRepository(
+    this._database, {
+    this._uuid = const Uuid(),
+    LibrarySyncStore? syncStore,
+  }) : _sync = syncStore ?? LibrarySyncStore(_database, enabled: false);
 
   final AppDatabase _database;
   final Uuid _uuid;
+  final LibrarySyncStore _sync;
 
   @override
   Stream<List<LibraryOwnerSummary>> watchOwners() {
@@ -150,20 +156,36 @@ class DriftLibraryRepository implements LibraryRepository {
               updatedAtLocal: now,
             ),
           );
+      await _sync.recordUpsert('library_owner', id, {
+        'name': cleanName,
+        'kind': _ownerKindValue(kind),
+        'sync_scope': kind == LibraryOwnerKind.personal
+            ? 'personal_local'
+            : 'shared_library',
+        'generation_role': _generationRoleValue(kind, generationRole),
+        'icon': null,
+      });
     });
     return id;
   }
 
   @override
   Future<void> renameOwner(String ownerId, String name) async {
-    await (_database.update(
-      _database.libraryOwners,
-    )..where((row) => row.id.equals(ownerId) & row.deletedAt.isNull())).write(
-      LibraryOwnersCompanion(
-        name: Value(_requiredName(name)),
-        updatedAtLocal: Value(DateTime.now().toUtc()),
-      ),
-    );
+    await _database.transaction(() async {
+      await (_database.update(
+        _database.libraryOwners,
+      )..where((row) => row.id.equals(ownerId) & row.deletedAt.isNull())).write(
+        LibraryOwnersCompanion(
+          name: Value(_requiredName(name)),
+          updatedAtLocal: Value(DateTime.now().toUtc()),
+        ),
+      );
+      await _sync.recordUpsert(
+        'library_owner',
+        ownerId,
+        await _sync.payloadFor('library_owner', ownerId),
+      );
+    });
   }
 
   @override
@@ -251,6 +273,13 @@ class DriftLibraryRepository implements LibraryRepository {
         for (final item in items) {
           await _trackTombstone('library_item', item.id, now);
         }
+        for (final item in items) {
+          await _sync.recordDelete('library_item', item.id);
+        }
+        for (final category in categories) {
+          await _sync.recordDelete('library_category', category.id);
+        }
+        await _sync.recordDelete('library_owner', ownerId);
       }
     });
   }
@@ -274,20 +303,33 @@ class DriftLibraryRepository implements LibraryRepository {
               updatedAtLocal: now,
             ),
           );
+      await _sync.recordUpsert('library_category', id, {
+        'owner_id': ownerId,
+        'name': _requiredName(name),
+        'icon': null,
+      });
     });
     return id;
   }
 
   @override
   Future<void> renameCategory(String categoryId, String name) async {
-    await (_database.update(_database.libraryCategories)
-          ..where((row) => row.id.equals(categoryId) & row.deletedAt.isNull()))
-        .write(
-          LibraryCategoriesCompanion(
-            name: Value(_requiredName(name)),
-            updatedAtLocal: Value(DateTime.now().toUtc()),
-          ),
-        );
+    await _database.transaction(() async {
+      await (_database.update(
+            _database.libraryCategories,
+          )..where((row) => row.id.equals(categoryId) & row.deletedAt.isNull()))
+          .write(
+            LibraryCategoriesCompanion(
+              name: Value(_requiredName(name)),
+              updatedAtLocal: Value(DateTime.now().toUtc()),
+            ),
+          );
+      await _sync.recordUpsert(
+        'library_category',
+        categoryId,
+        await _sync.payloadFor('library_category', categoryId),
+      );
+    });
   }
 
   @override
@@ -324,7 +366,9 @@ class DriftLibraryRepository implements LibraryRepository {
         await _trackTombstone('library_category', categoryId, now);
         for (final item in items) {
           await _trackTombstone('library_item', item.id, now);
+          await _sync.recordDelete('library_item', item.id);
         }
+        await _sync.recordDelete('library_category', categoryId);
       }
     });
   }
@@ -356,6 +400,12 @@ class DriftLibraryRepository implements LibraryRepository {
               updatedAtLocal: now,
             ),
           );
+      await _sync.recordUpsert('library_item', id, {
+        'category_id': categoryId,
+        'name': _requiredName(name),
+        'default_quantity': _quantity(defaultQuantity),
+        'logical_source_id': logicalSourceId ?? id,
+      });
     });
     return id;
   }
@@ -366,15 +416,22 @@ class DriftLibraryRepository implements LibraryRepository {
     required String name,
     required int defaultQuantity,
   }) async {
-    await (_database.update(
-      _database.libraryItems,
-    )..where((row) => row.id.equals(itemId) & row.deletedAt.isNull())).write(
-      LibraryItemsCompanion(
-        name: Value(_requiredName(name)),
-        defaultQuantity: Value(_quantity(defaultQuantity)),
-        updatedAtLocal: Value(DateTime.now().toUtc()),
-      ),
-    );
+    await _database.transaction(() async {
+      await (_database.update(
+        _database.libraryItems,
+      )..where((row) => row.id.equals(itemId) & row.deletedAt.isNull())).write(
+        LibraryItemsCompanion(
+          name: Value(_requiredName(name)),
+          defaultQuantity: Value(_quantity(defaultQuantity)),
+          updatedAtLocal: Value(DateTime.now().toUtc()),
+        ),
+      );
+      await _sync.recordUpsert(
+        'library_item',
+        itemId,
+        await _sync.payloadFor('library_item', itemId),
+      );
+    });
   }
 
   @override
@@ -401,6 +458,7 @@ class DriftLibraryRepository implements LibraryRepository {
       await _softDeleteContextAssociations([itemId], now);
       if (owner.syncScope == 'shared_library') {
         await _trackTombstone('library_item', itemId, now);
+        await _sync.recordDelete('library_item', itemId);
       }
     });
   }
@@ -429,6 +487,10 @@ class DriftLibraryRepository implements LibraryRepository {
           'context_association',
           association.associationId!,
           now,
+        );
+        await _sync.recordDelete(
+          'context_association',
+          association.associationId!,
         );
       }
     }

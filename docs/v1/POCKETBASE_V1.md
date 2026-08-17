@@ -1,5 +1,10 @@
 # Stratégie PocketBase V1 séparée
 
+> Mise à jour lot 6 : la bibliothèque partagée est désormais implémentée avec
+> `cv1_libraries`, `cv1_library_entities`, `cv1_operations` et `cv1_devices`.
+> Le protocole réellement déployé est décrit dans `LOT_6_SYNC_BIBLIOTHEQUE.md`.
+> Les sections relatives aux futurs documents voyage/liste restent prospectives.
+
 Statut : arbitrages validés, sans création ni modification distante pendant le lot 3.
 
 ## 1. Isolation

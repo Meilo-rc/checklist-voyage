@@ -1,5 +1,19 @@
--- Contrat de schéma V1, mis à jour avec le schéma Drift utilisé au lot 5.
+-- Contrat de schéma V1, mis à jour avec le schéma Drift v5 utilisé au lot 6.
 PRAGMA foreign_keys = ON;
+
+CREATE TABLE installation_settings (
+  id TEXT PRIMARY KEY DEFAULT 'current',
+  installation_id TEXT NOT NULL UNIQUE,
+  future_user_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at_local TEXT NOT NULL,
+  library_id TEXT NOT NULL DEFAULT '6d0f0d44-54f8-4f6a-b535-0a58d6efac11',
+  next_operation_sequence INTEGER NOT NULL DEFAULT 1,
+  pull_cursor INTEGER NOT NULL DEFAULT 0,
+  sync_status TEXT NOT NULL DEFAULT 'offline',
+  sync_error TEXT,
+  last_sync_at TEXT
+);
 
 CREATE TABLE library_owners (
   id TEXT PRIMARY KEY,
@@ -167,11 +181,34 @@ CREATE TABLE sync_outbox (
   entity_id TEXT NOT NULL,
   operation_type TEXT NOT NULL,
   payload_json TEXT NOT NULL,
+  library_id TEXT NOT NULL,
+  installation_id TEXT NOT NULL,
+  client_sequence INTEGER NOT NULL,
+  client_counter INTEGER NOT NULL,
   base_revision INTEGER,
   attempts INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   next_attempt_at TEXT,
   last_error TEXT
+);
+
+CREATE TABLE sync_entity_states (
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  client_counter INTEGER NOT NULL DEFAULT 0,
+  server_revision INTEGER NOT NULL DEFAULT 0,
+  winning_device_id TEXT,
+  remotely_deleted INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (entity_type, entity_id)
+);
+
+CREATE TABLE sync_tombstones (
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  deleted_at TEXT NOT NULL,
+  propagated_at TEXT,
+  purge_eligible_at TEXT NOT NULL,
+  PRIMARY KEY (entity_type, entity_id)
 );
 
 CREATE TABLE sync_conflicts (

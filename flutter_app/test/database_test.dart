@@ -20,7 +20,7 @@ void main() {
         .get();
     final names = tables.map((row) => row.read<String>('name')).toSet();
 
-    expect(database.schemaVersion, 4);
+    expect(database.schemaVersion, 5);
     expect(
       names,
       containsAll(<String>{
@@ -35,6 +35,7 @@ void main() {
         'legacy_id_maps',
         'migration_history',
         'sync_tombstones',
+        'sync_entity_states',
       }),
     );
   });
@@ -71,7 +72,7 @@ void main() {
           .get();
       final names = tables.map((row) => row.read<String>('name')).toSet();
 
-      expect(version.read<int>('user_version'), 4);
+      expect(version.read<int>('user_version'), 5);
       expect(names, contains('installation_settings'));
       expect(names, contains('sync_tombstones'));
       expect(names, contains('library_owners'));
@@ -133,7 +134,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 4);
+    expect(version.read<int>('user_version'), 5);
   });
 
   test('l UUID installation reste stable dans une base persistante', () async {
