@@ -1,0 +1,132 @@
+{
+  "schema": "checklist-voyage-backup-v1",
+  "app": "checklist-voyage",
+  "version": "2.63",
+  "exportedAt": "2026-08-17T08:00:00.000Z",
+  "data": {
+    "currentVoyageId": "trip-local",
+    "currentQuickListId": "quick-local",
+    "voyages": [
+      {
+        "id": "trip-local",
+        "code": "LOCAL1",
+        "name": "Voyage local",
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-07",
+        "shared": true,
+        "remoteRecordId": "",
+        "createdAt": "2026-08-10T10:00:00.000Z",
+        "updatedAt": "2026-08-11T10:00:00.000Z",
+        "categories": [
+          {
+            "id": "trip-cat-general",
+            "sourceTemplateId": "cat-general",
+            "name": "Documents",
+            "items": [
+              {
+                "id": "trip-item-passport",
+                "sourceTemplateItemId": "item-passport",
+                "name": "Passeport",
+                "qty": 2,
+                "status": "checked",
+                "updatedAt": "2026-08-11T10:00:00.000Z"
+              }
+            ]
+          }
+        ],
+        "members": [
+          {
+            "id": "trip-member-alex",
+            "name": "Alex",
+            "group": "family",
+            "categories": [
+              {
+                "id": "trip-cat-alex",
+                "sourceTemplateId": "cat-alex",
+                "name": "Vêtements",
+                "items": [
+                  {
+                    "id": "trip-item-shirt",
+                    "sourceTemplateItemId": "item-shirt",
+                    "name": "T-shirt",
+                    "qty": 4,
+                    "status": "done",
+                    "done": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "trip-shared",
+        "code": "SHARE1",
+        "name": "Voyage partagé historique",
+        "shared": true,
+        "remoteRecordId": "pb-trip-record",
+        "categories": [],
+        "members": []
+      }
+    ],
+    "quickLists": [
+      {
+        "id": "quick-local",
+        "code": "QLOCAL",
+        "name": "Courses locales",
+        "shared": true,
+        "remoteRecordId": "",
+        "items": [
+          {"id": "quick-item-local", "name": "Eau", "qty": 3, "done": true}
+        ]
+      },
+      {
+        "id": "quick-shared",
+        "code": "QSHARE",
+        "name": "Liste partagée historique",
+        "shared": true,
+        "remoteRecordId": "pb-quick-record",
+        "items": []
+      }
+    ],
+    "customCategories": [
+      {
+        "id": "cat-general",
+        "member": "Général",
+        "name": "Documents",
+        "icon": "document",
+        "items": [
+          {"id": "item-passport", "name": "Passeport", "qty": 2}
+        ]
+      },
+      {
+        "id": "cat-alex",
+        "member": "Alex",
+        "name": "Vêtements",
+        "icon": "clothes",
+        "items": [
+          {"id": "item-shirt", "name": "T-shirt", "qty": 4}
+        ]
+      },
+      {
+        "id": "cat-personal",
+        "member": "Moi",
+        "name": "Personnel",
+        "icon": "suitcase",
+        "items": [
+          {"id": "item-personal", "name": "Objet privé", "qty": 1}
+        ]
+      }
+    ],
+    "customCategoryMembers": ["Général", "Alex", "Moi"],
+    "customMemberAliases": {},
+    "customMemberIcons": {},
+    "customMemberGroups": {
+      "Général": "general",
+      "Alex": "family",
+      "Moi": "personal"
+    },
+    "customMemberDeletedAt": {},
+    "settingsRecordId": "pb-settings-record"
+  }
+}

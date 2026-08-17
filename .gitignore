@@ -1,0 +1,25 @@
+# Sauvegardes et exports réels
+/sauvegardes/
+/backups/
+**/pocketbase-full*.json
+**/pocketbase-full*.sha256
+**/pocketbase-full*.report.json
+**/sauvegarde-checklist-voyage-*.json
+
+# Secrets et configuration locale
+**/.env
+**/.env.*
+!**/.env.example
+**/key.properties
+**/*.keystore
+**/*.jks
+**/*.p12
+**/*.pem
+
+# Livrables et artefacts générés
+**/*.apk
+**/*.aab
+flutter_app/.dart_tool/
+flutter_app/.gradle/
+flutter_app/build/
+flutter_app/android/local.properties

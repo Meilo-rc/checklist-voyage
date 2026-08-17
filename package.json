@@ -1,0 +1,8 @@
+{
+  "name": "checklist-voyage-web-reference",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-isolation=none test/v1/*.test.mjs"
+  }
+}
