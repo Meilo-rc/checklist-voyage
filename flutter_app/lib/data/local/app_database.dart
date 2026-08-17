@@ -22,6 +22,7 @@ class LibraryOwners extends Table {
       text().withDefault(const Constant('general'))();
   TextColumn get name => text()();
   TextColumn get icon => text().nullable()();
+  TextColumn get linkedParticipantOwnerId => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAtLocal => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -48,6 +49,7 @@ class LibraryItems extends Table {
   TextColumn get categoryId => text().references(LibraryCategories, #id)();
   TextColumn get name => text()();
   IntColumn get defaultQuantity => integer().withDefault(const Constant(1))();
+  TextColumn get logicalSourceId => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAtLocal => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -71,7 +73,11 @@ class Contexts extends Table {
 class LibraryItemContexts extends Table {
   TextColumn get itemId => text().references(LibraryItems, #id)();
   TextColumn get contextId => text().references(Contexts, #id)();
+  TextColumn get associationId => text().nullable()();
+  TextColumn get syncScope =>
+      text().withDefault(const Constant('shared_library'))();
   DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAtLocal => dateTime().nullable()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
@@ -145,6 +151,9 @@ class TripItemSources extends Table {
   TextColumn get tripItemId => text().references(TripItems, #id)();
   TextColumn get sourceLibraryItemId => text()();
   TextColumn get sourceKind => text()();
+  TextColumn get reasonKind => text().withDefault(const Constant('legacy'))();
+  TextColumn get reasonId => text().withDefault(const Constant(''))();
+  TextColumn get contributingLibraryItemId => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {
@@ -152,6 +161,23 @@ class TripItemSources extends Table {
     sourceLibraryItemId,
     sourceKind,
   };
+}
+
+class TripGenerationChoices extends Table {
+  TextColumn get id => text()();
+  TextColumn get tripId => text().references(Trips, #id)();
+  TextColumn get choiceKind => text()();
+  TextColumn get choiceId => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {tripId, choiceKind, choiceId},
+  ];
 }
 
 class QuickLists extends Table {
@@ -285,6 +311,7 @@ class MigrationHistory extends Table {
     TripCategories,
     TripItems,
     TripItemSources,
+    TripGenerationChoices,
     QuickLists,
     QuickListItems,
     SyncDocuments,
@@ -308,7 +335,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -322,6 +349,32 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await migrator.addColumn(libraryOwners, libraryOwners.generationRole);
+      }
+      if (from < 4) {
+        await migrator.addColumn(
+          libraryOwners,
+          libraryOwners.linkedParticipantOwnerId,
+        );
+        await migrator.addColumn(libraryItems, libraryItems.logicalSourceId);
+        await migrator.addColumn(
+          libraryItemContexts,
+          libraryItemContexts.associationId,
+        );
+        await migrator.addColumn(
+          libraryItemContexts,
+          libraryItemContexts.syncScope,
+        );
+        await migrator.addColumn(
+          libraryItemContexts,
+          libraryItemContexts.updatedAtLocal,
+        );
+        await migrator.addColumn(tripItemSources, tripItemSources.reasonKind);
+        await migrator.addColumn(tripItemSources, tripItemSources.reasonId);
+        await migrator.addColumn(
+          tripItemSources,
+          tripItemSources.contributingLibraryItemId,
+        );
+        await migrator.createTable(tripGenerationChoices);
       }
     },
     beforeOpen: (details) async {

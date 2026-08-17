@@ -2,10 +2,12 @@ import '../data/import/web_v263_importer.dart';
 import '../data/local/app_database.dart';
 import '../data/repositories/drift_library_repository.dart';
 import '../data/repositories/drift_local_data_repository.dart';
+import '../data/repositories/drift_context_repository.dart';
 import '../data/repositories/drift_quick_list_repository.dart';
 import '../data/repositories/drift_trip_repository.dart';
 import '../domain/repositories/local_data_repository.dart';
 import '../domain/usecases/import_web_backup.dart';
+import '../domain/usecases/context_use_cases.dart';
 import '../domain/usecases/library_use_cases.dart';
 import '../domain/usecases/quick_list_use_cases.dart';
 import '../domain/usecases/trip_use_cases.dart';
@@ -22,6 +24,7 @@ class AppDependencies {
     required this.library,
     required this.trips,
     required this.quickLists,
+    required this.contexts,
   });
 
   final AppDatabase database;
@@ -33,6 +36,7 @@ class AppDependencies {
   final LibraryUseCases library;
   final TripUseCases trips;
   final QuickListUseCases quickLists;
+  final ContextUseCases contexts;
 
   static Future<AppDependencies> create({AppDatabase? database}) async {
     final db = database ?? AppDatabase.open();
@@ -40,6 +44,7 @@ class AppDependencies {
     await localData.ensureInstallationId();
     final tripRepository = DriftTripRepository(db);
     final libraryRepository = DriftLibraryRepository(db);
+    final contextRepository = DriftContextRepository(db);
     final quickListRepository = DriftQuickListRepository(db);
     return AppDependencies._(
       database: db,
@@ -49,8 +54,9 @@ class AppDependencies {
       watchLibraryOwners: WatchLibraryOwners(libraryRepository),
       watchQuickLists: WatchQuickLists(quickListRepository),
       library: LibraryUseCases(libraryRepository),
-      trips: TripUseCases(tripRepository, libraryRepository),
+      trips: TripUseCases(tripRepository, libraryRepository, contextRepository),
       quickLists: QuickListUseCases(quickListRepository),
+      contexts: ContextUseCases(contextRepository),
     );
   }
 

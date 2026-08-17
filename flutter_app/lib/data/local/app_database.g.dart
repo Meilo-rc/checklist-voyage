@@ -449,6 +449,17 @@ class $LibraryOwnersTable extends LibraryOwners
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _linkedParticipantOwnerIdMeta =
+      const VerificationMeta('linkedParticipantOwnerId');
+  @override
+  late final GeneratedColumn<String> linkedParticipantOwnerId =
+      GeneratedColumn<String>(
+        'linked_participant_owner_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -491,6 +502,7 @@ class $LibraryOwnersTable extends LibraryOwners
     generationRole,
     name,
     icon,
+    linkedParticipantOwnerId,
     createdAt,
     updatedAtLocal,
     deletedAt,
@@ -551,6 +563,15 @@ class $LibraryOwnersTable extends LibraryOwners
         icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
       );
     }
+    if (data.containsKey('linked_participant_owner_id')) {
+      context.handle(
+        _linkedParticipantOwnerIdMeta,
+        linkedParticipantOwnerId.isAcceptableOrUnknown(
+          data['linked_participant_owner_id']!,
+          _linkedParticipantOwnerIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -609,6 +630,10 @@ class $LibraryOwnersTable extends LibraryOwners
         DriftSqlType.string,
         data['${effectivePrefix}icon'],
       ),
+      linkedParticipantOwnerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linked_participant_owner_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -637,6 +662,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
   final String generationRole;
   final String name;
   final String? icon;
+  final String? linkedParticipantOwnerId;
   final DateTime createdAt;
   final DateTime updatedAtLocal;
   final DateTime? deletedAt;
@@ -647,6 +673,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     required this.generationRole,
     required this.name,
     this.icon,
+    this.linkedParticipantOwnerId,
     required this.createdAt,
     required this.updatedAtLocal,
     this.deletedAt,
@@ -661,6 +688,11 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || icon != null) {
       map['icon'] = Variable<String>(icon);
+    }
+    if (!nullToAbsent || linkedParticipantOwnerId != null) {
+      map['linked_participant_owner_id'] = Variable<String>(
+        linkedParticipantOwnerId,
+      );
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at_local'] = Variable<DateTime>(updatedAtLocal);
@@ -678,6 +710,9 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
       generationRole: Value(generationRole),
       name: Value(name),
       icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
+      linkedParticipantOwnerId: linkedParticipantOwnerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedParticipantOwnerId),
       createdAt: Value(createdAt),
       updatedAtLocal: Value(updatedAtLocal),
       deletedAt: deletedAt == null && nullToAbsent
@@ -698,6 +733,9 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
       generationRole: serializer.fromJson<String>(json['generationRole']),
       name: serializer.fromJson<String>(json['name']),
       icon: serializer.fromJson<String?>(json['icon']),
+      linkedParticipantOwnerId: serializer.fromJson<String?>(
+        json['linkedParticipantOwnerId'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAtLocal: serializer.fromJson<DateTime>(json['updatedAtLocal']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -713,6 +751,9 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
       'generationRole': serializer.toJson<String>(generationRole),
       'name': serializer.toJson<String>(name),
       'icon': serializer.toJson<String?>(icon),
+      'linkedParticipantOwnerId': serializer.toJson<String?>(
+        linkedParticipantOwnerId,
+      ),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAtLocal': serializer.toJson<DateTime>(updatedAtLocal),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -726,6 +767,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     String? generationRole,
     String? name,
     Value<String?> icon = const Value.absent(),
+    Value<String?> linkedParticipantOwnerId = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAtLocal,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -736,6 +778,9 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     generationRole: generationRole ?? this.generationRole,
     name: name ?? this.name,
     icon: icon.present ? icon.value : this.icon,
+    linkedParticipantOwnerId: linkedParticipantOwnerId.present
+        ? linkedParticipantOwnerId.value
+        : this.linkedParticipantOwnerId,
     createdAt: createdAt ?? this.createdAt,
     updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -750,6 +795,9 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
           : this.generationRole,
       name: data.name.present ? data.name.value : this.name,
       icon: data.icon.present ? data.icon.value : this.icon,
+      linkedParticipantOwnerId: data.linkedParticipantOwnerId.present
+          ? data.linkedParticipantOwnerId.value
+          : this.linkedParticipantOwnerId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAtLocal: data.updatedAtLocal.present
           ? data.updatedAtLocal.value
@@ -767,6 +815,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
           ..write('generationRole: $generationRole, ')
           ..write('name: $name, ')
           ..write('icon: $icon, ')
+          ..write('linkedParticipantOwnerId: $linkedParticipantOwnerId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAtLocal: $updatedAtLocal, ')
           ..write('deletedAt: $deletedAt')
@@ -782,6 +831,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
     generationRole,
     name,
     icon,
+    linkedParticipantOwnerId,
     createdAt,
     updatedAtLocal,
     deletedAt,
@@ -796,6 +846,7 @@ class LibraryOwner extends DataClass implements Insertable<LibraryOwner> {
           other.generationRole == this.generationRole &&
           other.name == this.name &&
           other.icon == this.icon &&
+          other.linkedParticipantOwnerId == this.linkedParticipantOwnerId &&
           other.createdAt == this.createdAt &&
           other.updatedAtLocal == this.updatedAtLocal &&
           other.deletedAt == this.deletedAt);
@@ -808,6 +859,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
   final Value<String> generationRole;
   final Value<String> name;
   final Value<String?> icon;
+  final Value<String?> linkedParticipantOwnerId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAtLocal;
   final Value<DateTime?> deletedAt;
@@ -819,6 +871,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     this.generationRole = const Value.absent(),
     this.name = const Value.absent(),
     this.icon = const Value.absent(),
+    this.linkedParticipantOwnerId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAtLocal = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -831,6 +884,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     this.generationRole = const Value.absent(),
     required String name,
     this.icon = const Value.absent(),
+    this.linkedParticipantOwnerId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAtLocal,
     this.deletedAt = const Value.absent(),
@@ -848,6 +902,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     Expression<String>? generationRole,
     Expression<String>? name,
     Expression<String>? icon,
+    Expression<String>? linkedParticipantOwnerId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAtLocal,
     Expression<DateTime>? deletedAt,
@@ -860,6 +915,8 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
       if (generationRole != null) 'generation_role': generationRole,
       if (name != null) 'name': name,
       if (icon != null) 'icon': icon,
+      if (linkedParticipantOwnerId != null)
+        'linked_participant_owner_id': linkedParticipantOwnerId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAtLocal != null) 'updated_at_local': updatedAtLocal,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -874,6 +931,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     Value<String>? generationRole,
     Value<String>? name,
     Value<String?>? icon,
+    Value<String?>? linkedParticipantOwnerId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAtLocal,
     Value<DateTime?>? deletedAt,
@@ -886,6 +944,8 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
       generationRole: generationRole ?? this.generationRole,
       name: name ?? this.name,
       icon: icon ?? this.icon,
+      linkedParticipantOwnerId:
+          linkedParticipantOwnerId ?? this.linkedParticipantOwnerId,
       createdAt: createdAt ?? this.createdAt,
       updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -914,6 +974,11 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
     if (icon.present) {
       map['icon'] = Variable<String>(icon.value);
     }
+    if (linkedParticipantOwnerId.present) {
+      map['linked_participant_owner_id'] = Variable<String>(
+        linkedParticipantOwnerId.value,
+      );
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -938,6 +1003,7 @@ class LibraryOwnersCompanion extends UpdateCompanion<LibraryOwner> {
           ..write('generationRole: $generationRole, ')
           ..write('name: $name, ')
           ..write('icon: $icon, ')
+          ..write('linkedParticipantOwnerId: $linkedParticipantOwnerId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAtLocal: $updatedAtLocal, ')
           ..write('deletedAt: $deletedAt, ')
@@ -1466,6 +1532,17 @@ class $LibraryItemsTable extends LibraryItems
     requiredDuringInsert: false,
     defaultValue: const Constant(1),
   );
+  static const VerificationMeta _logicalSourceIdMeta = const VerificationMeta(
+    'logicalSourceId',
+  );
+  @override
+  late final GeneratedColumn<String> logicalSourceId = GeneratedColumn<String>(
+    'logical_source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1506,6 +1583,7 @@ class $LibraryItemsTable extends LibraryItems
     categoryId,
     name,
     defaultQuantity,
+    logicalSourceId,
     createdAt,
     updatedAtLocal,
     deletedAt,
@@ -1549,6 +1627,15 @@ class $LibraryItemsTable extends LibraryItems
         defaultQuantity.isAcceptableOrUnknown(
           data['default_quantity']!,
           _defaultQuantityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('logical_source_id')) {
+      context.handle(
+        _logicalSourceIdMeta,
+        logicalSourceId.isAcceptableOrUnknown(
+          data['logical_source_id']!,
+          _logicalSourceIdMeta,
         ),
       );
     }
@@ -1602,6 +1689,10 @@ class $LibraryItemsTable extends LibraryItems
         DriftSqlType.int,
         data['${effectivePrefix}default_quantity'],
       )!,
+      logicalSourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}logical_source_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1628,6 +1719,7 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
   final String categoryId;
   final String name;
   final int defaultQuantity;
+  final String? logicalSourceId;
   final DateTime createdAt;
   final DateTime updatedAtLocal;
   final DateTime? deletedAt;
@@ -1636,6 +1728,7 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
     required this.categoryId,
     required this.name,
     required this.defaultQuantity,
+    this.logicalSourceId,
     required this.createdAt,
     required this.updatedAtLocal,
     this.deletedAt,
@@ -1647,6 +1740,9 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
     map['category_id'] = Variable<String>(categoryId);
     map['name'] = Variable<String>(name);
     map['default_quantity'] = Variable<int>(defaultQuantity);
+    if (!nullToAbsent || logicalSourceId != null) {
+      map['logical_source_id'] = Variable<String>(logicalSourceId);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at_local'] = Variable<DateTime>(updatedAtLocal);
     if (!nullToAbsent || deletedAt != null) {
@@ -1661,6 +1757,9 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
       categoryId: Value(categoryId),
       name: Value(name),
       defaultQuantity: Value(defaultQuantity),
+      logicalSourceId: logicalSourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(logicalSourceId),
       createdAt: Value(createdAt),
       updatedAtLocal: Value(updatedAtLocal),
       deletedAt: deletedAt == null && nullToAbsent
@@ -1679,6 +1778,7 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
       categoryId: serializer.fromJson<String>(json['categoryId']),
       name: serializer.fromJson<String>(json['name']),
       defaultQuantity: serializer.fromJson<int>(json['defaultQuantity']),
+      logicalSourceId: serializer.fromJson<String?>(json['logicalSourceId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAtLocal: serializer.fromJson<DateTime>(json['updatedAtLocal']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -1692,6 +1792,7 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
       'categoryId': serializer.toJson<String>(categoryId),
       'name': serializer.toJson<String>(name),
       'defaultQuantity': serializer.toJson<int>(defaultQuantity),
+      'logicalSourceId': serializer.toJson<String?>(logicalSourceId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAtLocal': serializer.toJson<DateTime>(updatedAtLocal),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -1703,6 +1804,7 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
     String? categoryId,
     String? name,
     int? defaultQuantity,
+    Value<String?> logicalSourceId = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAtLocal,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -1711,6 +1813,9 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
     categoryId: categoryId ?? this.categoryId,
     name: name ?? this.name,
     defaultQuantity: defaultQuantity ?? this.defaultQuantity,
+    logicalSourceId: logicalSourceId.present
+        ? logicalSourceId.value
+        : this.logicalSourceId,
     createdAt: createdAt ?? this.createdAt,
     updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -1725,6 +1830,9 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
       defaultQuantity: data.defaultQuantity.present
           ? data.defaultQuantity.value
           : this.defaultQuantity,
+      logicalSourceId: data.logicalSourceId.present
+          ? data.logicalSourceId.value
+          : this.logicalSourceId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAtLocal: data.updatedAtLocal.present
           ? data.updatedAtLocal.value
@@ -1740,6 +1848,7 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
           ..write('categoryId: $categoryId, ')
           ..write('name: $name, ')
           ..write('defaultQuantity: $defaultQuantity, ')
+          ..write('logicalSourceId: $logicalSourceId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAtLocal: $updatedAtLocal, ')
           ..write('deletedAt: $deletedAt')
@@ -1753,6 +1862,7 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
     categoryId,
     name,
     defaultQuantity,
+    logicalSourceId,
     createdAt,
     updatedAtLocal,
     deletedAt,
@@ -1765,6 +1875,7 @@ class LibraryItem extends DataClass implements Insertable<LibraryItem> {
           other.categoryId == this.categoryId &&
           other.name == this.name &&
           other.defaultQuantity == this.defaultQuantity &&
+          other.logicalSourceId == this.logicalSourceId &&
           other.createdAt == this.createdAt &&
           other.updatedAtLocal == this.updatedAtLocal &&
           other.deletedAt == this.deletedAt);
@@ -1775,6 +1886,7 @@ class LibraryItemsCompanion extends UpdateCompanion<LibraryItem> {
   final Value<String> categoryId;
   final Value<String> name;
   final Value<int> defaultQuantity;
+  final Value<String?> logicalSourceId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAtLocal;
   final Value<DateTime?> deletedAt;
@@ -1784,6 +1896,7 @@ class LibraryItemsCompanion extends UpdateCompanion<LibraryItem> {
     this.categoryId = const Value.absent(),
     this.name = const Value.absent(),
     this.defaultQuantity = const Value.absent(),
+    this.logicalSourceId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAtLocal = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -1794,6 +1907,7 @@ class LibraryItemsCompanion extends UpdateCompanion<LibraryItem> {
     required String categoryId,
     required String name,
     this.defaultQuantity = const Value.absent(),
+    this.logicalSourceId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAtLocal,
     this.deletedAt = const Value.absent(),
@@ -1808,6 +1922,7 @@ class LibraryItemsCompanion extends UpdateCompanion<LibraryItem> {
     Expression<String>? categoryId,
     Expression<String>? name,
     Expression<int>? defaultQuantity,
+    Expression<String>? logicalSourceId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAtLocal,
     Expression<DateTime>? deletedAt,
@@ -1818,6 +1933,7 @@ class LibraryItemsCompanion extends UpdateCompanion<LibraryItem> {
       if (categoryId != null) 'category_id': categoryId,
       if (name != null) 'name': name,
       if (defaultQuantity != null) 'default_quantity': defaultQuantity,
+      if (logicalSourceId != null) 'logical_source_id': logicalSourceId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAtLocal != null) 'updated_at_local': updatedAtLocal,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -1830,6 +1946,7 @@ class LibraryItemsCompanion extends UpdateCompanion<LibraryItem> {
     Value<String>? categoryId,
     Value<String>? name,
     Value<int>? defaultQuantity,
+    Value<String?>? logicalSourceId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAtLocal,
     Value<DateTime?>? deletedAt,
@@ -1840,6 +1957,7 @@ class LibraryItemsCompanion extends UpdateCompanion<LibraryItem> {
       categoryId: categoryId ?? this.categoryId,
       name: name ?? this.name,
       defaultQuantity: defaultQuantity ?? this.defaultQuantity,
+      logicalSourceId: logicalSourceId ?? this.logicalSourceId,
       createdAt: createdAt ?? this.createdAt,
       updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -1861,6 +1979,9 @@ class LibraryItemsCompanion extends UpdateCompanion<LibraryItem> {
     }
     if (defaultQuantity.present) {
       map['default_quantity'] = Variable<int>(defaultQuantity.value);
+    }
+    if (logicalSourceId.present) {
+      map['logical_source_id'] = Variable<String>(logicalSourceId.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -1884,6 +2005,7 @@ class LibraryItemsCompanion extends UpdateCompanion<LibraryItem> {
           ..write('categoryId: $categoryId, ')
           ..write('name: $name, ')
           ..write('defaultQuantity: $defaultQuantity, ')
+          ..write('logicalSourceId: $logicalSourceId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAtLocal: $updatedAtLocal, ')
           ..write('deletedAt: $deletedAt, ')
@@ -2339,6 +2461,29 @@ class $LibraryItemContextsTable extends LibraryItemContexts
       'REFERENCES contexts (id)',
     ),
   );
+  static const VerificationMeta _associationIdMeta = const VerificationMeta(
+    'associationId',
+  );
+  @override
+  late final GeneratedColumn<String> associationId = GeneratedColumn<String>(
+    'association_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncScopeMeta = const VerificationMeta(
+    'syncScope',
+  );
+  @override
+  late final GeneratedColumn<String> syncScope = GeneratedColumn<String>(
+    'sync_scope',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('shared_library'),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2350,6 +2495,18 @@ class $LibraryItemContextsTable extends LibraryItemContexts
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _updatedAtLocalMeta = const VerificationMeta(
+    'updatedAtLocal',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAtLocal =
+      GeneratedColumn<DateTime>(
+        'updated_at_local',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _deletedAtMeta = const VerificationMeta(
     'deletedAt',
   );
@@ -2365,7 +2522,10 @@ class $LibraryItemContextsTable extends LibraryItemContexts
   List<GeneratedColumn> get $columns => [
     itemId,
     contextId,
+    associationId,
+    syncScope,
     createdAt,
+    updatedAtLocal,
     deletedAt,
   ];
   @override
@@ -2396,6 +2556,21 @@ class $LibraryItemContextsTable extends LibraryItemContexts
     } else if (isInserting) {
       context.missing(_contextIdMeta);
     }
+    if (data.containsKey('association_id')) {
+      context.handle(
+        _associationIdMeta,
+        associationId.isAcceptableOrUnknown(
+          data['association_id']!,
+          _associationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_scope')) {
+      context.handle(
+        _syncScopeMeta,
+        syncScope.isAcceptableOrUnknown(data['sync_scope']!, _syncScopeMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2403,6 +2578,15 @@ class $LibraryItemContextsTable extends LibraryItemContexts
       );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at_local')) {
+      context.handle(
+        _updatedAtLocalMeta,
+        updatedAtLocal.isAcceptableOrUnknown(
+          data['updated_at_local']!,
+          _updatedAtLocalMeta,
+        ),
+      );
     }
     if (data.containsKey('deleted_at')) {
       context.handle(
@@ -2427,10 +2611,22 @@ class $LibraryItemContextsTable extends LibraryItemContexts
         DriftSqlType.string,
         data['${effectivePrefix}context_id'],
       )!,
+      associationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}association_id'],
+      ),
+      syncScope: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_scope'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      updatedAtLocal: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at_local'],
+      ),
       deletedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
@@ -2448,12 +2644,18 @@ class LibraryItemContext extends DataClass
     implements Insertable<LibraryItemContext> {
   final String itemId;
   final String contextId;
+  final String? associationId;
+  final String syncScope;
   final DateTime createdAt;
+  final DateTime? updatedAtLocal;
   final DateTime? deletedAt;
   const LibraryItemContext({
     required this.itemId,
     required this.contextId,
+    this.associationId,
+    required this.syncScope,
     required this.createdAt,
+    this.updatedAtLocal,
     this.deletedAt,
   });
   @override
@@ -2461,7 +2663,14 @@ class LibraryItemContext extends DataClass
     final map = <String, Expression>{};
     map['item_id'] = Variable<String>(itemId);
     map['context_id'] = Variable<String>(contextId);
+    if (!nullToAbsent || associationId != null) {
+      map['association_id'] = Variable<String>(associationId);
+    }
+    map['sync_scope'] = Variable<String>(syncScope);
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || updatedAtLocal != null) {
+      map['updated_at_local'] = Variable<DateTime>(updatedAtLocal);
+    }
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
@@ -2472,7 +2681,14 @@ class LibraryItemContext extends DataClass
     return LibraryItemContextsCompanion(
       itemId: Value(itemId),
       contextId: Value(contextId),
+      associationId: associationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(associationId),
+      syncScope: Value(syncScope),
       createdAt: Value(createdAt),
+      updatedAtLocal: updatedAtLocal == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtLocal),
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
@@ -2487,7 +2703,10 @@ class LibraryItemContext extends DataClass
     return LibraryItemContext(
       itemId: serializer.fromJson<String>(json['itemId']),
       contextId: serializer.fromJson<String>(json['contextId']),
+      associationId: serializer.fromJson<String?>(json['associationId']),
+      syncScope: serializer.fromJson<String>(json['syncScope']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAtLocal: serializer.fromJson<DateTime?>(json['updatedAtLocal']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
@@ -2497,7 +2716,10 @@ class LibraryItemContext extends DataClass
     return <String, dynamic>{
       'itemId': serializer.toJson<String>(itemId),
       'contextId': serializer.toJson<String>(contextId),
+      'associationId': serializer.toJson<String?>(associationId),
+      'syncScope': serializer.toJson<String>(syncScope),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAtLocal': serializer.toJson<DateTime?>(updatedAtLocal),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
@@ -2505,19 +2727,36 @@ class LibraryItemContext extends DataClass
   LibraryItemContext copyWith({
     String? itemId,
     String? contextId,
+    Value<String?> associationId = const Value.absent(),
+    String? syncScope,
     DateTime? createdAt,
+    Value<DateTime?> updatedAtLocal = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
   }) => LibraryItemContext(
     itemId: itemId ?? this.itemId,
     contextId: contextId ?? this.contextId,
+    associationId: associationId.present
+        ? associationId.value
+        : this.associationId,
+    syncScope: syncScope ?? this.syncScope,
     createdAt: createdAt ?? this.createdAt,
+    updatedAtLocal: updatedAtLocal.present
+        ? updatedAtLocal.value
+        : this.updatedAtLocal,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   LibraryItemContext copyWithCompanion(LibraryItemContextsCompanion data) {
     return LibraryItemContext(
       itemId: data.itemId.present ? data.itemId.value : this.itemId,
       contextId: data.contextId.present ? data.contextId.value : this.contextId,
+      associationId: data.associationId.present
+          ? data.associationId.value
+          : this.associationId,
+      syncScope: data.syncScope.present ? data.syncScope.value : this.syncScope,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAtLocal: data.updatedAtLocal.present
+          ? data.updatedAtLocal.value
+          : this.updatedAtLocal,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
@@ -2527,41 +2766,64 @@ class LibraryItemContext extends DataClass
     return (StringBuffer('LibraryItemContext(')
           ..write('itemId: $itemId, ')
           ..write('contextId: $contextId, ')
+          ..write('associationId: $associationId, ')
+          ..write('syncScope: $syncScope, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAtLocal: $updatedAtLocal, ')
           ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(itemId, contextId, createdAt, deletedAt);
+  int get hashCode => Object.hash(
+    itemId,
+    contextId,
+    associationId,
+    syncScope,
+    createdAt,
+    updatedAtLocal,
+    deletedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is LibraryItemContext &&
           other.itemId == this.itemId &&
           other.contextId == this.contextId &&
+          other.associationId == this.associationId &&
+          other.syncScope == this.syncScope &&
           other.createdAt == this.createdAt &&
+          other.updatedAtLocal == this.updatedAtLocal &&
           other.deletedAt == this.deletedAt);
 }
 
 class LibraryItemContextsCompanion extends UpdateCompanion<LibraryItemContext> {
   final Value<String> itemId;
   final Value<String> contextId;
+  final Value<String?> associationId;
+  final Value<String> syncScope;
   final Value<DateTime> createdAt;
+  final Value<DateTime?> updatedAtLocal;
   final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const LibraryItemContextsCompanion({
     this.itemId = const Value.absent(),
     this.contextId = const Value.absent(),
+    this.associationId = const Value.absent(),
+    this.syncScope = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAtLocal = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LibraryItemContextsCompanion.insert({
     required String itemId,
     required String contextId,
+    this.associationId = const Value.absent(),
+    this.syncScope = const Value.absent(),
     required DateTime createdAt,
+    this.updatedAtLocal = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : itemId = Value(itemId),
@@ -2570,14 +2832,20 @@ class LibraryItemContextsCompanion extends UpdateCompanion<LibraryItemContext> {
   static Insertable<LibraryItemContext> custom({
     Expression<String>? itemId,
     Expression<String>? contextId,
+    Expression<String>? associationId,
+    Expression<String>? syncScope,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAtLocal,
     Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (itemId != null) 'item_id': itemId,
       if (contextId != null) 'context_id': contextId,
+      if (associationId != null) 'association_id': associationId,
+      if (syncScope != null) 'sync_scope': syncScope,
       if (createdAt != null) 'created_at': createdAt,
+      if (updatedAtLocal != null) 'updated_at_local': updatedAtLocal,
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -2586,14 +2854,20 @@ class LibraryItemContextsCompanion extends UpdateCompanion<LibraryItemContext> {
   LibraryItemContextsCompanion copyWith({
     Value<String>? itemId,
     Value<String>? contextId,
+    Value<String?>? associationId,
+    Value<String>? syncScope,
     Value<DateTime>? createdAt,
+    Value<DateTime?>? updatedAtLocal,
     Value<DateTime?>? deletedAt,
     Value<int>? rowid,
   }) {
     return LibraryItemContextsCompanion(
       itemId: itemId ?? this.itemId,
       contextId: contextId ?? this.contextId,
+      associationId: associationId ?? this.associationId,
+      syncScope: syncScope ?? this.syncScope,
       createdAt: createdAt ?? this.createdAt,
+      updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
       deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -2608,8 +2882,17 @@ class LibraryItemContextsCompanion extends UpdateCompanion<LibraryItemContext> {
     if (contextId.present) {
       map['context_id'] = Variable<String>(contextId.value);
     }
+    if (associationId.present) {
+      map['association_id'] = Variable<String>(associationId.value);
+    }
+    if (syncScope.present) {
+      map['sync_scope'] = Variable<String>(syncScope.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAtLocal.present) {
+      map['updated_at_local'] = Variable<DateTime>(updatedAtLocal.value);
     }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
@@ -2625,7 +2908,10 @@ class LibraryItemContextsCompanion extends UpdateCompanion<LibraryItemContext> {
     return (StringBuffer('LibraryItemContextsCompanion(')
           ..write('itemId: $itemId, ')
           ..write('contextId: $contextId, ')
+          ..write('associationId: $associationId, ')
+          ..write('syncScope: $syncScope, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAtLocal: $updatedAtLocal, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -5123,11 +5409,49 @@ class $TripItemSourcesTable extends TripItemSources
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _reasonKindMeta = const VerificationMeta(
+    'reasonKind',
+  );
+  @override
+  late final GeneratedColumn<String> reasonKind = GeneratedColumn<String>(
+    'reason_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('legacy'),
+  );
+  static const VerificationMeta _reasonIdMeta = const VerificationMeta(
+    'reasonId',
+  );
+  @override
+  late final GeneratedColumn<String> reasonId = GeneratedColumn<String>(
+    'reason_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _contributingLibraryItemIdMeta =
+      const VerificationMeta('contributingLibraryItemId');
+  @override
+  late final GeneratedColumn<String> contributingLibraryItemId =
+      GeneratedColumn<String>(
+        'contributing_library_item_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     tripItemId,
     sourceLibraryItemId,
     sourceKind,
+    reasonKind,
+    reasonId,
+    contributingLibraryItemId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5171,6 +5495,27 @@ class $TripItemSourcesTable extends TripItemSources
     } else if (isInserting) {
       context.missing(_sourceKindMeta);
     }
+    if (data.containsKey('reason_kind')) {
+      context.handle(
+        _reasonKindMeta,
+        reasonKind.isAcceptableOrUnknown(data['reason_kind']!, _reasonKindMeta),
+      );
+    }
+    if (data.containsKey('reason_id')) {
+      context.handle(
+        _reasonIdMeta,
+        reasonId.isAcceptableOrUnknown(data['reason_id']!, _reasonIdMeta),
+      );
+    }
+    if (data.containsKey('contributing_library_item_id')) {
+      context.handle(
+        _contributingLibraryItemIdMeta,
+        contributingLibraryItemId.isAcceptableOrUnknown(
+          data['contributing_library_item_id']!,
+          _contributingLibraryItemIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -5196,6 +5541,18 @@ class $TripItemSourcesTable extends TripItemSources
         DriftSqlType.string,
         data['${effectivePrefix}source_kind'],
       )!,
+      reasonKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason_kind'],
+      )!,
+      reasonId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason_id'],
+      )!,
+      contributingLibraryItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contributing_library_item_id'],
+      ),
     );
   }
 
@@ -5209,10 +5566,16 @@ class TripItemSource extends DataClass implements Insertable<TripItemSource> {
   final String tripItemId;
   final String sourceLibraryItemId;
   final String sourceKind;
+  final String reasonKind;
+  final String reasonId;
+  final String? contributingLibraryItemId;
   const TripItemSource({
     required this.tripItemId,
     required this.sourceLibraryItemId,
     required this.sourceKind,
+    required this.reasonKind,
+    required this.reasonId,
+    this.contributingLibraryItemId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5220,6 +5583,13 @@ class TripItemSource extends DataClass implements Insertable<TripItemSource> {
     map['trip_item_id'] = Variable<String>(tripItemId);
     map['source_library_item_id'] = Variable<String>(sourceLibraryItemId);
     map['source_kind'] = Variable<String>(sourceKind);
+    map['reason_kind'] = Variable<String>(reasonKind);
+    map['reason_id'] = Variable<String>(reasonId);
+    if (!nullToAbsent || contributingLibraryItemId != null) {
+      map['contributing_library_item_id'] = Variable<String>(
+        contributingLibraryItemId,
+      );
+    }
     return map;
   }
 
@@ -5228,6 +5598,12 @@ class TripItemSource extends DataClass implements Insertable<TripItemSource> {
       tripItemId: Value(tripItemId),
       sourceLibraryItemId: Value(sourceLibraryItemId),
       sourceKind: Value(sourceKind),
+      reasonKind: Value(reasonKind),
+      reasonId: Value(reasonId),
+      contributingLibraryItemId:
+          contributingLibraryItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contributingLibraryItemId),
     );
   }
 
@@ -5242,6 +5618,11 @@ class TripItemSource extends DataClass implements Insertable<TripItemSource> {
         json['sourceLibraryItemId'],
       ),
       sourceKind: serializer.fromJson<String>(json['sourceKind']),
+      reasonKind: serializer.fromJson<String>(json['reasonKind']),
+      reasonId: serializer.fromJson<String>(json['reasonId']),
+      contributingLibraryItemId: serializer.fromJson<String?>(
+        json['contributingLibraryItemId'],
+      ),
     );
   }
   @override
@@ -5251,6 +5632,11 @@ class TripItemSource extends DataClass implements Insertable<TripItemSource> {
       'tripItemId': serializer.toJson<String>(tripItemId),
       'sourceLibraryItemId': serializer.toJson<String>(sourceLibraryItemId),
       'sourceKind': serializer.toJson<String>(sourceKind),
+      'reasonKind': serializer.toJson<String>(reasonKind),
+      'reasonId': serializer.toJson<String>(reasonId),
+      'contributingLibraryItemId': serializer.toJson<String?>(
+        contributingLibraryItemId,
+      ),
     };
   }
 
@@ -5258,10 +5644,18 @@ class TripItemSource extends DataClass implements Insertable<TripItemSource> {
     String? tripItemId,
     String? sourceLibraryItemId,
     String? sourceKind,
+    String? reasonKind,
+    String? reasonId,
+    Value<String?> contributingLibraryItemId = const Value.absent(),
   }) => TripItemSource(
     tripItemId: tripItemId ?? this.tripItemId,
     sourceLibraryItemId: sourceLibraryItemId ?? this.sourceLibraryItemId,
     sourceKind: sourceKind ?? this.sourceKind,
+    reasonKind: reasonKind ?? this.reasonKind,
+    reasonId: reasonId ?? this.reasonId,
+    contributingLibraryItemId: contributingLibraryItemId.present
+        ? contributingLibraryItemId.value
+        : this.contributingLibraryItemId,
   );
   TripItemSource copyWithCompanion(TripItemSourcesCompanion data) {
     return TripItemSource(
@@ -5274,6 +5668,13 @@ class TripItemSource extends DataClass implements Insertable<TripItemSource> {
       sourceKind: data.sourceKind.present
           ? data.sourceKind.value
           : this.sourceKind,
+      reasonKind: data.reasonKind.present
+          ? data.reasonKind.value
+          : this.reasonKind,
+      reasonId: data.reasonId.present ? data.reasonId.value : this.reasonId,
+      contributingLibraryItemId: data.contributingLibraryItemId.present
+          ? data.contributingLibraryItemId.value
+          : this.contributingLibraryItemId,
     );
   }
 
@@ -5282,37 +5683,59 @@ class TripItemSource extends DataClass implements Insertable<TripItemSource> {
     return (StringBuffer('TripItemSource(')
           ..write('tripItemId: $tripItemId, ')
           ..write('sourceLibraryItemId: $sourceLibraryItemId, ')
-          ..write('sourceKind: $sourceKind')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('reasonKind: $reasonKind, ')
+          ..write('reasonId: $reasonId, ')
+          ..write('contributingLibraryItemId: $contributingLibraryItemId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(tripItemId, sourceLibraryItemId, sourceKind);
+  int get hashCode => Object.hash(
+    tripItemId,
+    sourceLibraryItemId,
+    sourceKind,
+    reasonKind,
+    reasonId,
+    contributingLibraryItemId,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is TripItemSource &&
           other.tripItemId == this.tripItemId &&
           other.sourceLibraryItemId == this.sourceLibraryItemId &&
-          other.sourceKind == this.sourceKind);
+          other.sourceKind == this.sourceKind &&
+          other.reasonKind == this.reasonKind &&
+          other.reasonId == this.reasonId &&
+          other.contributingLibraryItemId == this.contributingLibraryItemId);
 }
 
 class TripItemSourcesCompanion extends UpdateCompanion<TripItemSource> {
   final Value<String> tripItemId;
   final Value<String> sourceLibraryItemId;
   final Value<String> sourceKind;
+  final Value<String> reasonKind;
+  final Value<String> reasonId;
+  final Value<String?> contributingLibraryItemId;
   final Value<int> rowid;
   const TripItemSourcesCompanion({
     this.tripItemId = const Value.absent(),
     this.sourceLibraryItemId = const Value.absent(),
     this.sourceKind = const Value.absent(),
+    this.reasonKind = const Value.absent(),
+    this.reasonId = const Value.absent(),
+    this.contributingLibraryItemId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TripItemSourcesCompanion.insert({
     required String tripItemId,
     required String sourceLibraryItemId,
     required String sourceKind,
+    this.reasonKind = const Value.absent(),
+    this.reasonId = const Value.absent(),
+    this.contributingLibraryItemId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : tripItemId = Value(tripItemId),
        sourceLibraryItemId = Value(sourceLibraryItemId),
@@ -5321,6 +5744,9 @@ class TripItemSourcesCompanion extends UpdateCompanion<TripItemSource> {
     Expression<String>? tripItemId,
     Expression<String>? sourceLibraryItemId,
     Expression<String>? sourceKind,
+    Expression<String>? reasonKind,
+    Expression<String>? reasonId,
+    Expression<String>? contributingLibraryItemId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5328,6 +5754,10 @@ class TripItemSourcesCompanion extends UpdateCompanion<TripItemSource> {
       if (sourceLibraryItemId != null)
         'source_library_item_id': sourceLibraryItemId,
       if (sourceKind != null) 'source_kind': sourceKind,
+      if (reasonKind != null) 'reason_kind': reasonKind,
+      if (reasonId != null) 'reason_id': reasonId,
+      if (contributingLibraryItemId != null)
+        'contributing_library_item_id': contributingLibraryItemId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5336,12 +5766,19 @@ class TripItemSourcesCompanion extends UpdateCompanion<TripItemSource> {
     Value<String>? tripItemId,
     Value<String>? sourceLibraryItemId,
     Value<String>? sourceKind,
+    Value<String>? reasonKind,
+    Value<String>? reasonId,
+    Value<String?>? contributingLibraryItemId,
     Value<int>? rowid,
   }) {
     return TripItemSourcesCompanion(
       tripItemId: tripItemId ?? this.tripItemId,
       sourceLibraryItemId: sourceLibraryItemId ?? this.sourceLibraryItemId,
       sourceKind: sourceKind ?? this.sourceKind,
+      reasonKind: reasonKind ?? this.reasonKind,
+      reasonId: reasonId ?? this.reasonId,
+      contributingLibraryItemId:
+          contributingLibraryItemId ?? this.contributingLibraryItemId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5360,6 +5797,17 @@ class TripItemSourcesCompanion extends UpdateCompanion<TripItemSource> {
     if (sourceKind.present) {
       map['source_kind'] = Variable<String>(sourceKind.value);
     }
+    if (reasonKind.present) {
+      map['reason_kind'] = Variable<String>(reasonKind.value);
+    }
+    if (reasonId.present) {
+      map['reason_id'] = Variable<String>(reasonId.value);
+    }
+    if (contributingLibraryItemId.present) {
+      map['contributing_library_item_id'] = Variable<String>(
+        contributingLibraryItemId.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5372,6 +5820,429 @@ class TripItemSourcesCompanion extends UpdateCompanion<TripItemSource> {
           ..write('tripItemId: $tripItemId, ')
           ..write('sourceLibraryItemId: $sourceLibraryItemId, ')
           ..write('sourceKind: $sourceKind, ')
+          ..write('reasonKind: $reasonKind, ')
+          ..write('reasonId: $reasonId, ')
+          ..write('contributingLibraryItemId: $contributingLibraryItemId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TripGenerationChoicesTable extends TripGenerationChoices
+    with TableInfo<$TripGenerationChoicesTable, TripGenerationChoice> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TripGenerationChoicesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tripIdMeta = const VerificationMeta('tripId');
+  @override
+  late final GeneratedColumn<String> tripId = GeneratedColumn<String>(
+    'trip_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES trips (id)',
+    ),
+  );
+  static const VerificationMeta _choiceKindMeta = const VerificationMeta(
+    'choiceKind',
+  );
+  @override
+  late final GeneratedColumn<String> choiceKind = GeneratedColumn<String>(
+    'choice_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _choiceIdMeta = const VerificationMeta(
+    'choiceId',
+  );
+  @override
+  late final GeneratedColumn<String> choiceId = GeneratedColumn<String>(
+    'choice_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    tripId,
+    choiceKind,
+    choiceId,
+    createdAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'trip_generation_choices';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TripGenerationChoice> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('trip_id')) {
+      context.handle(
+        _tripIdMeta,
+        tripId.isAcceptableOrUnknown(data['trip_id']!, _tripIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tripIdMeta);
+    }
+    if (data.containsKey('choice_kind')) {
+      context.handle(
+        _choiceKindMeta,
+        choiceKind.isAcceptableOrUnknown(data['choice_kind']!, _choiceKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_choiceKindMeta);
+    }
+    if (data.containsKey('choice_id')) {
+      context.handle(
+        _choiceIdMeta,
+        choiceId.isAcceptableOrUnknown(data['choice_id']!, _choiceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_choiceIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {tripId, choiceKind, choiceId},
+  ];
+  @override
+  TripGenerationChoice map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TripGenerationChoice(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      tripId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}trip_id'],
+      )!,
+      choiceKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}choice_kind'],
+      )!,
+      choiceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}choice_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $TripGenerationChoicesTable createAlias(String alias) {
+    return $TripGenerationChoicesTable(attachedDatabase, alias);
+  }
+}
+
+class TripGenerationChoice extends DataClass
+    implements Insertable<TripGenerationChoice> {
+  final String id;
+  final String tripId;
+  final String choiceKind;
+  final String choiceId;
+  final DateTime createdAt;
+  final DateTime? deletedAt;
+  const TripGenerationChoice({
+    required this.id,
+    required this.tripId,
+    required this.choiceKind,
+    required this.choiceId,
+    required this.createdAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['trip_id'] = Variable<String>(tripId);
+    map['choice_kind'] = Variable<String>(choiceKind);
+    map['choice_id'] = Variable<String>(choiceId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  TripGenerationChoicesCompanion toCompanion(bool nullToAbsent) {
+    return TripGenerationChoicesCompanion(
+      id: Value(id),
+      tripId: Value(tripId),
+      choiceKind: Value(choiceKind),
+      choiceId: Value(choiceId),
+      createdAt: Value(createdAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory TripGenerationChoice.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TripGenerationChoice(
+      id: serializer.fromJson<String>(json['id']),
+      tripId: serializer.fromJson<String>(json['tripId']),
+      choiceKind: serializer.fromJson<String>(json['choiceKind']),
+      choiceId: serializer.fromJson<String>(json['choiceId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tripId': serializer.toJson<String>(tripId),
+      'choiceKind': serializer.toJson<String>(choiceKind),
+      'choiceId': serializer.toJson<String>(choiceId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  TripGenerationChoice copyWith({
+    String? id,
+    String? tripId,
+    String? choiceKind,
+    String? choiceId,
+    DateTime? createdAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => TripGenerationChoice(
+    id: id ?? this.id,
+    tripId: tripId ?? this.tripId,
+    choiceKind: choiceKind ?? this.choiceKind,
+    choiceId: choiceId ?? this.choiceId,
+    createdAt: createdAt ?? this.createdAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  TripGenerationChoice copyWithCompanion(TripGenerationChoicesCompanion data) {
+    return TripGenerationChoice(
+      id: data.id.present ? data.id.value : this.id,
+      tripId: data.tripId.present ? data.tripId.value : this.tripId,
+      choiceKind: data.choiceKind.present
+          ? data.choiceKind.value
+          : this.choiceKind,
+      choiceId: data.choiceId.present ? data.choiceId.value : this.choiceId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TripGenerationChoice(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('choiceKind: $choiceKind, ')
+          ..write('choiceId: $choiceId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, tripId, choiceKind, choiceId, createdAt, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TripGenerationChoice &&
+          other.id == this.id &&
+          other.tripId == this.tripId &&
+          other.choiceKind == this.choiceKind &&
+          other.choiceId == this.choiceId &&
+          other.createdAt == this.createdAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class TripGenerationChoicesCompanion
+    extends UpdateCompanion<TripGenerationChoice> {
+  final Value<String> id;
+  final Value<String> tripId;
+  final Value<String> choiceKind;
+  final Value<String> choiceId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const TripGenerationChoicesCompanion({
+    this.id = const Value.absent(),
+    this.tripId = const Value.absent(),
+    this.choiceKind = const Value.absent(),
+    this.choiceId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TripGenerationChoicesCompanion.insert({
+    required String id,
+    required String tripId,
+    required String choiceKind,
+    required String choiceId,
+    required DateTime createdAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       tripId = Value(tripId),
+       choiceKind = Value(choiceKind),
+       choiceId = Value(choiceId),
+       createdAt = Value(createdAt);
+  static Insertable<TripGenerationChoice> custom({
+    Expression<String>? id,
+    Expression<String>? tripId,
+    Expression<String>? choiceKind,
+    Expression<String>? choiceId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tripId != null) 'trip_id': tripId,
+      if (choiceKind != null) 'choice_kind': choiceKind,
+      if (choiceId != null) 'choice_id': choiceId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TripGenerationChoicesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? tripId,
+    Value<String>? choiceKind,
+    Value<String>? choiceId,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return TripGenerationChoicesCompanion(
+      id: id ?? this.id,
+      tripId: tripId ?? this.tripId,
+      choiceKind: choiceKind ?? this.choiceKind,
+      choiceId: choiceId ?? this.choiceId,
+      createdAt: createdAt ?? this.createdAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tripId.present) {
+      map['trip_id'] = Variable<String>(tripId.value);
+    }
+    if (choiceKind.present) {
+      map['choice_kind'] = Variable<String>(choiceKind.value);
+    }
+    if (choiceId.present) {
+      map['choice_id'] = Variable<String>(choiceId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TripGenerationChoicesCompanion(')
+          ..write('id: $id, ')
+          ..write('tripId: $tripId, ')
+          ..write('choiceKind: $choiceKind, ')
+          ..write('choiceId: $choiceId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9479,6 +10350,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TripItemSourcesTable tripItemSources = $TripItemSourcesTable(
     this,
   );
+  late final $TripGenerationChoicesTable tripGenerationChoices =
+      $TripGenerationChoicesTable(this);
   late final $QuickListsTable quickLists = $QuickListsTable(this);
   late final $QuickListItemsTable quickListItems = $QuickListItemsTable(this);
   late final $SyncDocumentsTable syncDocuments = $SyncDocumentsTable(this);
@@ -9505,6 +10378,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     tripCategories,
     tripItems,
     tripItemSources,
+    tripGenerationChoices,
     quickLists,
     quickListItems,
     syncDocuments,
@@ -9746,6 +10620,7 @@ typedef $$LibraryOwnersTableCreateCompanionBuilder =
       Value<String> generationRole,
       required String name,
       Value<String?> icon,
+      Value<String?> linkedParticipantOwnerId,
       required DateTime createdAt,
       required DateTime updatedAtLocal,
       Value<DateTime?> deletedAt,
@@ -9759,6 +10634,7 @@ typedef $$LibraryOwnersTableUpdateCompanionBuilder =
       Value<String> generationRole,
       Value<String> name,
       Value<String?> icon,
+      Value<String?> linkedParticipantOwnerId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAtLocal,
       Value<DateTime?> deletedAt,
@@ -9831,6 +10707,11 @@ class $$LibraryOwnersTableFilterComposer
 
   ColumnFilters<String> get icon => $composableBuilder(
     column: $table.icon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedParticipantOwnerId => $composableBuilder(
+    column: $table.linkedParticipantOwnerId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9914,6 +10795,11 @@ class $$LibraryOwnersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get linkedParticipantOwnerId => $composableBuilder(
+    column: $table.linkedParticipantOwnerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -9958,6 +10844,11 @@ class $$LibraryOwnersTableAnnotationComposer
 
   GeneratedColumn<String> get icon =>
       $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<String> get linkedParticipantOwnerId => $composableBuilder(
+    column: $table.linkedParticipantOwnerId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -10031,6 +10922,7 @@ class $$LibraryOwnersTableTableManager
                 Value<String> generationRole = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
+                Value<String?> linkedParticipantOwnerId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAtLocal = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -10042,6 +10934,7 @@ class $$LibraryOwnersTableTableManager
                 generationRole: generationRole,
                 name: name,
                 icon: icon,
+                linkedParticipantOwnerId: linkedParticipantOwnerId,
                 createdAt: createdAt,
                 updatedAtLocal: updatedAtLocal,
                 deletedAt: deletedAt,
@@ -10055,6 +10948,7 @@ class $$LibraryOwnersTableTableManager
                 Value<String> generationRole = const Value.absent(),
                 required String name,
                 Value<String?> icon = const Value.absent(),
+                Value<String?> linkedParticipantOwnerId = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAtLocal,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -10066,6 +10960,7 @@ class $$LibraryOwnersTableTableManager
                 generationRole: generationRole,
                 name: name,
                 icon: icon,
+                linkedParticipantOwnerId: linkedParticipantOwnerId,
                 createdAt: createdAt,
                 updatedAtLocal: updatedAtLocal,
                 deletedAt: deletedAt,
@@ -10596,6 +11491,7 @@ typedef $$LibraryItemsTableCreateCompanionBuilder =
       required String categoryId,
       required String name,
       Value<int> defaultQuantity,
+      Value<String?> logicalSourceId,
       required DateTime createdAt,
       required DateTime updatedAtLocal,
       Value<DateTime?> deletedAt,
@@ -10607,6 +11503,7 @@ typedef $$LibraryItemsTableUpdateCompanionBuilder =
       Value<String> categoryId,
       Value<String> name,
       Value<int> defaultQuantity,
+      Value<String?> logicalSourceId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAtLocal,
       Value<DateTime?> deletedAt,
@@ -10681,6 +11578,11 @@ class $$LibraryItemsTableFilterComposer
 
   ColumnFilters<int> get defaultQuantity => $composableBuilder(
     column: $table.defaultQuantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get logicalSourceId => $composableBuilder(
+    column: $table.logicalSourceId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10772,6 +11674,11 @@ class $$LibraryItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get logicalSourceId => $composableBuilder(
+    column: $table.logicalSourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10828,6 +11735,11 @@ class $$LibraryItemsTableAnnotationComposer
 
   GeneratedColumn<int> get defaultQuantity => $composableBuilder(
     column: $table.defaultQuantity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get logicalSourceId => $composableBuilder(
+    column: $table.logicalSourceId,
     builder: (column) => column,
   );
 
@@ -10928,6 +11840,7 @@ class $$LibraryItemsTableTableManager
                 Value<String> categoryId = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<int> defaultQuantity = const Value.absent(),
+                Value<String?> logicalSourceId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAtLocal = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -10937,6 +11850,7 @@ class $$LibraryItemsTableTableManager
                 categoryId: categoryId,
                 name: name,
                 defaultQuantity: defaultQuantity,
+                logicalSourceId: logicalSourceId,
                 createdAt: createdAt,
                 updatedAtLocal: updatedAtLocal,
                 deletedAt: deletedAt,
@@ -10948,6 +11862,7 @@ class $$LibraryItemsTableTableManager
                 required String categoryId,
                 required String name,
                 Value<int> defaultQuantity = const Value.absent(),
+                Value<String?> logicalSourceId = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAtLocal,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -10957,6 +11872,7 @@ class $$LibraryItemsTableTableManager
                 categoryId: categoryId,
                 name: name,
                 defaultQuantity: defaultQuantity,
+                logicalSourceId: logicalSourceId,
                 createdAt: createdAt,
                 updatedAtLocal: updatedAtLocal,
                 deletedAt: deletedAt,
@@ -11390,7 +12306,10 @@ typedef $$LibraryItemContextsTableCreateCompanionBuilder =
     LibraryItemContextsCompanion Function({
       required String itemId,
       required String contextId,
+      Value<String?> associationId,
+      Value<String> syncScope,
       required DateTime createdAt,
+      Value<DateTime?> updatedAtLocal,
       Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
@@ -11398,7 +12317,10 @@ typedef $$LibraryItemContextsTableUpdateCompanionBuilder =
     LibraryItemContextsCompanion Function({
       Value<String> itemId,
       Value<String> contextId,
+      Value<String?> associationId,
+      Value<String> syncScope,
       Value<DateTime> createdAt,
+      Value<DateTime?> updatedAtLocal,
       Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
@@ -11460,8 +12382,23 @@ class $$LibraryItemContextsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get associationId => $composableBuilder(
+    column: $table.associationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncScope => $composableBuilder(
+    column: $table.syncScope,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAtLocal => $composableBuilder(
+    column: $table.updatedAtLocal,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11526,8 +12463,23 @@ class $$LibraryItemContextsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get associationId => $composableBuilder(
+    column: $table.associationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncScope => $composableBuilder(
+    column: $table.syncScope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAtLocal => $composableBuilder(
+    column: $table.updatedAtLocal,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -11592,8 +12544,21 @@ class $$LibraryItemContextsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get associationId => $composableBuilder(
+    column: $table.associationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncScope =>
+      $composableBuilder(column: $table.syncScope, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAtLocal => $composableBuilder(
+    column: $table.updatedAtLocal,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
@@ -11683,13 +12648,19 @@ class $$LibraryItemContextsTableTableManager
               ({
                 Value<String> itemId = const Value.absent(),
                 Value<String> contextId = const Value.absent(),
+                Value<String?> associationId = const Value.absent(),
+                Value<String> syncScope = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAtLocal = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LibraryItemContextsCompanion(
                 itemId: itemId,
                 contextId: contextId,
+                associationId: associationId,
+                syncScope: syncScope,
                 createdAt: createdAt,
+                updatedAtLocal: updatedAtLocal,
                 deletedAt: deletedAt,
                 rowid: rowid,
               ),
@@ -11697,13 +12668,19 @@ class $$LibraryItemContextsTableTableManager
               ({
                 required String itemId,
                 required String contextId,
+                Value<String?> associationId = const Value.absent(),
+                Value<String> syncScope = const Value.absent(),
                 required DateTime createdAt,
+                Value<DateTime?> updatedAtLocal = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LibraryItemContextsCompanion.insert(
                 itemId: itemId,
                 contextId: contextId,
+                associationId: associationId,
+                syncScope: syncScope,
                 createdAt: createdAt,
+                updatedAtLocal: updatedAtLocal,
                 deletedAt: deletedAt,
                 rowid: rowid,
               ),
@@ -11881,6 +12858,31 @@ final class $$TripsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $TripGenerationChoicesTable,
+    List<TripGenerationChoice>
+  >
+  _tripGenerationChoicesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.tripGenerationChoices,
+        aliasName: 'trips__id__trip_generation_choices__trip_id',
+      );
+
+  $$TripGenerationChoicesTableProcessedTableManager
+  get tripGenerationChoicesRefs {
+    final manager = $$TripGenerationChoicesTableTableManager(
+      $_db,
+      $_db.tripGenerationChoices,
+    ).filter((f) => f.tripId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _tripGenerationChoicesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
@@ -12023,6 +13025,32 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> tripGenerationChoicesRefs(
+    Expression<bool> Function($$TripGenerationChoicesTableFilterComposer f) f,
+  ) {
+    final $$TripGenerationChoicesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.tripGenerationChoices,
+          getReferencedColumn: (t) => t.tripId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TripGenerationChoicesTableFilterComposer(
+                $db: $db,
+                $table: $db.tripGenerationChoices,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -12226,6 +13254,32 @@ class $$TripsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> tripGenerationChoicesRefs<T extends Object>(
+    Expression<T> Function($$TripGenerationChoicesTableAnnotationComposer a) f,
+  ) {
+    final $$TripGenerationChoicesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.tripGenerationChoices,
+          getReferencedColumn: (t) => t.tripId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TripGenerationChoicesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.tripGenerationChoices,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$TripsTableTableManager
@@ -12245,6 +13299,7 @@ class $$TripsTableTableManager
             bool tripMembersRefs,
             bool tripCategoriesRefs,
             bool tripItemsRefs,
+            bool tripGenerationChoicesRefs,
           })
         > {
   $$TripsTableTableManager(_$AppDatabase db, $TripsTable table)
@@ -12329,6 +13384,7 @@ class $$TripsTableTableManager
                 tripMembersRefs = false,
                 tripCategoriesRefs = false,
                 tripItemsRefs = false,
+                tripGenerationChoicesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -12336,6 +13392,7 @@ class $$TripsTableTableManager
                     if (tripMembersRefs) db.tripMembers,
                     if (tripCategoriesRefs) db.tripCategories,
                     if (tripItemsRefs) db.tripItems,
+                    if (tripGenerationChoicesRefs) db.tripGenerationChoices,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -12399,6 +13456,27 @@ class $$TripsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (tripGenerationChoicesRefs)
+                        await $_getPrefetchedData<
+                          Trip,
+                          $TripsTable,
+                          TripGenerationChoice
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TripsTableReferences
+                              ._tripGenerationChoicesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TripsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).tripGenerationChoicesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.tripId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -12423,6 +13501,7 @@ typedef $$TripsTableProcessedTableManager =
         bool tripMembersRefs,
         bool tripCategoriesRefs,
         bool tripItemsRefs,
+        bool tripGenerationChoicesRefs,
       })
     >;
 typedef $$TripMembersTableCreateCompanionBuilder =
@@ -14099,6 +15178,9 @@ typedef $$TripItemSourcesTableCreateCompanionBuilder =
       required String tripItemId,
       required String sourceLibraryItemId,
       required String sourceKind,
+      Value<String> reasonKind,
+      Value<String> reasonId,
+      Value<String?> contributingLibraryItemId,
       Value<int> rowid,
     });
 typedef $$TripItemSourcesTableUpdateCompanionBuilder =
@@ -14106,6 +15188,9 @@ typedef $$TripItemSourcesTableUpdateCompanionBuilder =
       Value<String> tripItemId,
       Value<String> sourceLibraryItemId,
       Value<String> sourceKind,
+      Value<String> reasonKind,
+      Value<String> reasonId,
+      Value<String?> contributingLibraryItemId,
       Value<int> rowid,
     });
 
@@ -14155,6 +15240,21 @@ class $$TripItemSourcesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get reasonKind => $composableBuilder(
+    column: $table.reasonKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reasonId => $composableBuilder(
+    column: $table.reasonId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contributingLibraryItemId => $composableBuilder(
+    column: $table.contributingLibraryItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$TripItemsTableFilterComposer get tripItemId {
     final $$TripItemsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -14198,6 +15298,21 @@ class $$TripItemSourcesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get reasonKind => $composableBuilder(
+    column: $table.reasonKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reasonId => $composableBuilder(
+    column: $table.reasonId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contributingLibraryItemId => $composableBuilder(
+    column: $table.contributingLibraryItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$TripItemsTableOrderingComposer get tripItemId {
     final $$TripItemsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -14238,6 +15353,19 @@ class $$TripItemSourcesTableAnnotationComposer
 
   GeneratedColumn<String> get sourceKind => $composableBuilder(
     column: $table.sourceKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reasonKind => $composableBuilder(
+    column: $table.reasonKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reasonId =>
+      $composableBuilder(column: $table.reasonId, builder: (column) => column);
+
+  GeneratedColumn<String> get contributingLibraryItemId => $composableBuilder(
+    column: $table.contributingLibraryItemId,
     builder: (column) => column,
   );
 
@@ -14298,11 +15426,17 @@ class $$TripItemSourcesTableTableManager
                 Value<String> tripItemId = const Value.absent(),
                 Value<String> sourceLibraryItemId = const Value.absent(),
                 Value<String> sourceKind = const Value.absent(),
+                Value<String> reasonKind = const Value.absent(),
+                Value<String> reasonId = const Value.absent(),
+                Value<String?> contributingLibraryItemId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TripItemSourcesCompanion(
                 tripItemId: tripItemId,
                 sourceLibraryItemId: sourceLibraryItemId,
                 sourceKind: sourceKind,
+                reasonKind: reasonKind,
+                reasonId: reasonId,
+                contributingLibraryItemId: contributingLibraryItemId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -14310,11 +15444,17 @@ class $$TripItemSourcesTableTableManager
                 required String tripItemId,
                 required String sourceLibraryItemId,
                 required String sourceKind,
+                Value<String> reasonKind = const Value.absent(),
+                Value<String> reasonId = const Value.absent(),
+                Value<String?> contributingLibraryItemId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TripItemSourcesCompanion.insert(
                 tripItemId: tripItemId,
                 sourceLibraryItemId: sourceLibraryItemId,
                 sourceKind: sourceKind,
+                reasonKind: reasonKind,
+                reasonId: reasonId,
+                contributingLibraryItemId: contributingLibraryItemId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -14385,6 +15525,366 @@ typedef $$TripItemSourcesTableProcessedTableManager =
       (TripItemSource, $$TripItemSourcesTableReferences),
       TripItemSource,
       PrefetchHooks Function({bool tripItemId})
+    >;
+typedef $$TripGenerationChoicesTableCreateCompanionBuilder =
+    TripGenerationChoicesCompanion Function({
+      required String id,
+      required String tripId,
+      required String choiceKind,
+      required String choiceId,
+      required DateTime createdAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$TripGenerationChoicesTableUpdateCompanionBuilder =
+    TripGenerationChoicesCompanion Function({
+      Value<String> id,
+      Value<String> tripId,
+      Value<String> choiceKind,
+      Value<String> choiceId,
+      Value<DateTime> createdAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$TripGenerationChoicesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $TripGenerationChoicesTable,
+          TripGenerationChoice
+        > {
+  $$TripGenerationChoicesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TripsTable _tripIdTable(_$AppDatabase db) =>
+      db.trips.createAlias('trip_generation_choices__trip_id__trips__id');
+
+  $$TripsTableProcessedTableManager get tripId {
+    final $_column = $_itemColumn<String>('trip_id')!;
+
+    final manager = $$TripsTableTableManager(
+      $_db,
+      $_db.trips,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_tripIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TripGenerationChoicesTableFilterComposer
+    extends Composer<_$AppDatabase, $TripGenerationChoicesTable> {
+  $$TripGenerationChoicesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get choiceKind => $composableBuilder(
+    column: $table.choiceKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get choiceId => $composableBuilder(
+    column: $table.choiceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TripsTableFilterComposer get tripId {
+    final $$TripsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tripId,
+      referencedTable: $db.trips,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TripsTableFilterComposer(
+            $db: $db,
+            $table: $db.trips,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TripGenerationChoicesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TripGenerationChoicesTable> {
+  $$TripGenerationChoicesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get choiceKind => $composableBuilder(
+    column: $table.choiceKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get choiceId => $composableBuilder(
+    column: $table.choiceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TripsTableOrderingComposer get tripId {
+    final $$TripsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tripId,
+      referencedTable: $db.trips,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TripsTableOrderingComposer(
+            $db: $db,
+            $table: $db.trips,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TripGenerationChoicesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TripGenerationChoicesTable> {
+  $$TripGenerationChoicesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get choiceKind => $composableBuilder(
+    column: $table.choiceKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get choiceId =>
+      $composableBuilder(column: $table.choiceId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$TripsTableAnnotationComposer get tripId {
+    final $$TripsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tripId,
+      referencedTable: $db.trips,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TripsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.trips,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TripGenerationChoicesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TripGenerationChoicesTable,
+          TripGenerationChoice,
+          $$TripGenerationChoicesTableFilterComposer,
+          $$TripGenerationChoicesTableOrderingComposer,
+          $$TripGenerationChoicesTableAnnotationComposer,
+          $$TripGenerationChoicesTableCreateCompanionBuilder,
+          $$TripGenerationChoicesTableUpdateCompanionBuilder,
+          (TripGenerationChoice, $$TripGenerationChoicesTableReferences),
+          TripGenerationChoice,
+          PrefetchHooks Function({bool tripId})
+        > {
+  $$TripGenerationChoicesTableTableManager(
+    _$AppDatabase db,
+    $TripGenerationChoicesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TripGenerationChoicesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$TripGenerationChoicesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$TripGenerationChoicesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> tripId = const Value.absent(),
+                Value<String> choiceKind = const Value.absent(),
+                Value<String> choiceId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TripGenerationChoicesCompanion(
+                id: id,
+                tripId: tripId,
+                choiceKind: choiceKind,
+                choiceId: choiceId,
+                createdAt: createdAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String tripId,
+                required String choiceKind,
+                required String choiceId,
+                required DateTime createdAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TripGenerationChoicesCompanion.insert(
+                id: id,
+                tripId: tripId,
+                choiceKind: choiceKind,
+                choiceId: choiceId,
+                createdAt: createdAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TripGenerationChoicesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({tripId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (tripId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.tripId,
+                                referencedTable:
+                                    $$TripGenerationChoicesTableReferences
+                                        ._tripIdTable(db),
+                                referencedColumn:
+                                    $$TripGenerationChoicesTableReferences
+                                        ._tripIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TripGenerationChoicesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TripGenerationChoicesTable,
+      TripGenerationChoice,
+      $$TripGenerationChoicesTableFilterComposer,
+      $$TripGenerationChoicesTableOrderingComposer,
+      $$TripGenerationChoicesTableAnnotationComposer,
+      $$TripGenerationChoicesTableCreateCompanionBuilder,
+      $$TripGenerationChoicesTableUpdateCompanionBuilder,
+      (TripGenerationChoice, $$TripGenerationChoicesTableReferences),
+      TripGenerationChoice,
+      PrefetchHooks Function({bool tripId})
     >;
 typedef $$QuickListsTableCreateCompanionBuilder =
     QuickListsCompanion Function({
@@ -16701,6 +18201,8 @@ class $AppDatabaseManager {
       $$TripItemsTableTableManager(_db, _db.tripItems);
   $$TripItemSourcesTableTableManager get tripItemSources =>
       $$TripItemSourcesTableTableManager(_db, _db.tripItemSources);
+  $$TripGenerationChoicesTableTableManager get tripGenerationChoices =>
+      $$TripGenerationChoicesTableTableManager(_db, _db.tripGenerationChoices);
   $$QuickListsTableTableManager get quickLists =>
       $$QuickListsTableTableManager(_db, _db.quickLists);
   $$QuickListItemsTableTableManager get quickListItems =>

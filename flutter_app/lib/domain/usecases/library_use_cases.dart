@@ -8,18 +8,27 @@ class LibraryUseCases {
 
   Stream<List<LibraryOwnerModel>> watchLibrary() => _repository.watchLibrary();
 
+  Future<List<LibraryOwnerModel>> loadLibrary() => _repository.loadLibrary();
+
   Future<String> createOwner({
     required String name,
     required LibraryOwnerKind kind,
     required GenerationRole generationRole,
+    String? linkedParticipantOwnerId,
   }) => _repository.createOwner(
     name: name,
     kind: kind,
     generationRole: generationRole,
+    linkedParticipantOwnerId: linkedParticipantOwnerId,
   );
 
   Future<void> renameOwner(String ownerId, String name) =>
       _repository.renameOwner(ownerId, name);
+
+  Future<void> setLinkedParticipantOwner(
+    String ownerId,
+    String? participantOwnerId,
+  ) => _repository.setLinkedParticipantOwner(ownerId, participantOwnerId);
 
   Future<void> deleteOwner(String ownerId) => _repository.deleteOwner(ownerId);
 
@@ -36,10 +45,12 @@ class LibraryUseCases {
     required String categoryId,
     required String name,
     required int defaultQuantity,
+    String? logicalSourceId,
   }) => _repository.createItem(
     categoryId: categoryId,
     name: name,
     defaultQuantity: defaultQuantity,
+    logicalSourceId: logicalSourceId,
   );
 
   Future<void> updateItem({

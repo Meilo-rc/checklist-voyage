@@ -12,9 +12,15 @@ abstract interface class LibraryRepository {
     required String name,
     required LibraryOwnerKind kind,
     required GenerationRole generationRole,
+    String? linkedParticipantOwnerId,
   });
 
   Future<void> renameOwner(String ownerId, String name);
+
+  Future<void> setLinkedParticipantOwner(
+    String ownerId,
+    String? participantOwnerId,
+  );
 
   Future<void> deleteOwner(String ownerId);
 
@@ -28,6 +34,7 @@ abstract interface class LibraryRepository {
     required String categoryId,
     required String name,
     required int defaultQuantity,
+    String? logicalSourceId,
   });
 
   Future<void> updateItem({

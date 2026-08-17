@@ -26,10 +26,12 @@ class _TripsScreenState extends State<TripsScreen> {
 
   Future<void> _createTrip() async {
     final owners = await widget.useCases.loadGenerationChoices();
+    final contexts = await widget.useCases.loadContexts();
     if (!mounted) return;
     final request = await showDialog<CreateTripRequest>(
       context: context,
-      builder: (context) => _CreateTripDialog(owners: owners),
+      builder: (context) =>
+          _CreateTripDialog(owners: owners, contexts: contexts),
     );
     if (request == null) return;
     try {
@@ -96,9 +98,10 @@ class _TripsScreenState extends State<TripsScreen> {
 }
 
 class _CreateTripDialog extends StatefulWidget {
-  const _CreateTripDialog({required this.owners});
+  const _CreateTripDialog({required this.owners, required this.contexts});
 
   final List<LibraryOwnerModel> owners;
+  final List<ContextModel> contexts;
 
   @override
   State<_CreateTripDialog> createState() => _CreateTripDialogState();
@@ -110,6 +113,7 @@ class _CreateTripDialogState extends State<_CreateTripDialog> {
   final _participants = <String>{};
   final _transports = <String>{};
   final _lodgings = <String>{};
+  final _contexts = <String>{};
   DateTime? _startDate;
   DateTime? _endDate;
 
@@ -219,6 +223,11 @@ class _CreateTripDialogState extends State<_CreateTripDialog> {
                 selected: _lodgings,
                 onChanged: _toggle,
               ),
+              _ContextChoiceGroup(
+                contexts: widget.contexts,
+                selected: _contexts,
+                onChanged: _toggle,
+              ),
             ],
           ),
         ),
@@ -240,6 +249,7 @@ class _CreateTripDialogState extends State<_CreateTripDialog> {
               participantOwnerIds: _participants,
               transportOwnerIds: _transports,
               lodgingOwnerIds: _lodgings,
+              contextIds: _contexts,
             ),
           ),
           child: const Text('Créer'),
@@ -250,6 +260,48 @@ class _CreateTripDialogState extends State<_CreateTripDialog> {
 
   void _toggle(Set<String> selected, String id, bool value) {
     setState(() => value ? selected.add(id) : selected.remove(id));
+  }
+}
+
+class _ContextChoiceGroup extends StatelessWidget {
+  const _ContextChoiceGroup({
+    required this.contexts,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final List<ContextModel> contexts;
+  final Set<String> selected;
+  final void Function(Set<String>, String, bool) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            'Contextes / activités',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ),
+        if (contexts.isEmpty)
+          const Text('Aucun contexte dans la bibliothèque')
+        else
+          ...contexts.map(
+            (activity) => CheckboxListTile(
+              key: Key('trip-context-${activity.id}'),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: selected.contains(activity.id),
+              title: Text(activity.name),
+              onChanged: (value) =>
+                  onChanged(selected, activity.id, value ?? false),
+            ),
+          ),
+      ],
+    );
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/models/checklist_models.dart';
 import '../../domain/repositories/local_data_repository.dart';
+import '../../domain/usecases/context_use_cases.dart';
 import '../../domain/usecases/library_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
 import '../import_data/import_view_model.dart';
@@ -15,12 +16,14 @@ class LibraryScreen extends StatefulWidget {
     required this.localData,
     required this.importViewModel,
     required this.useCases,
+    required this.contextUseCases,
   });
 
   final WatchLibraryOwners watchOwners;
   final LocalDataRepository localData;
   final ImportViewModel importViewModel;
   final LibraryUseCases useCases;
+  final ContextUseCases contextUseCases;
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -72,9 +75,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _createOwner() async {
+    final library = await widget.useCases.loadLibrary();
+    if (!mounted) return;
+    final members = library
+        .where((owner) => owner.kind == LibraryOwnerKind.familyMember)
+        .toList(growable: false);
     final nameController = TextEditingController();
     var kind = LibraryOwnerKind.familyMember;
     var role = GenerationRole.participant;
+    String? linkedParticipantOwnerId;
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -111,6 +120,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   role = kind == LibraryOwnerKind.general
                       ? GenerationRole.general
                       : GenerationRole.participant;
+                  if (kind != LibraryOwnerKind.personal) {
+                    linkedParticipantOwnerId = null;
+                  }
                 }),
               ),
               if (kind == LibraryOwnerKind.general) ...[
@@ -141,6 +153,32 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   }),
                 ),
               ],
+              if (kind == LibraryOwnerKind.personal) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String?>(
+                  key: const ValueKey('personal-linked-participant'),
+                  initialValue: linkedParticipantOwnerId,
+                  decoration: const InputDecoration(
+                    labelText: 'Participant associé',
+                    helperText: 'Nécessaire pour inclure Personnel au voyage',
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Aucun'),
+                    ),
+                    ...members.map(
+                      (member) => DropdownMenuItem<String?>(
+                        value: member.id,
+                        child: Text(member.name),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) => setDialogState(() {
+                    linkedParticipantOwnerId = value;
+                  }),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -162,9 +200,126 @@ class _LibraryScreenState extends State<LibraryScreen> {
         name: nameController.text,
         kind: kind,
         generationRole: role,
+        linkedParticipantOwnerId: linkedParticipantOwnerId,
       );
     } on Object catch (error) {
       _message(error.toString());
+    }
+  }
+
+  Future<void> _openContextCatalog() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) =>
+          _ContextCatalogSheet(useCases: widget.contextUseCases),
+    );
+  }
+
+  Future<void> _linkPersonalOwner(LibraryOwnerModel owner) async {
+    final library = await widget.useCases.loadLibrary();
+    if (!mounted) return;
+    final members = library
+        .where((candidate) => candidate.kind == LibraryOwnerKind.familyMember)
+        .toList(growable: false);
+    final choice = await showDialog<_LinkChoice>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Participant associé'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, const _LinkChoice(null)),
+            child: const Text('Aucun'),
+          ),
+          ...members.map(
+            (member) => SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, _LinkChoice(member.id)),
+              child: Text(member.name),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+        ],
+      ),
+    );
+    if (choice != null) {
+      await widget.useCases.setLinkedParticipantOwner(
+        owner.id,
+        choice.participantOwnerId,
+      );
+    }
+  }
+
+  Future<void> _manageContexts(LibraryItemModel item) async {
+    final contexts = await widget.contextUseCases.loadContexts();
+    if (!mounted) return;
+    if (contexts.isEmpty) {
+      _message('Créez d’abord un contexte dans la bibliothèque.');
+      return;
+    }
+    final initial = await widget.contextUseCases.loadForItem(item.id);
+    if (!mounted) return;
+    final selected = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        final draft = initial.toSet();
+        return StatefulBuilder(
+          builder: (context, setSheetState) => SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                20 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Contextes — ${item.name}',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: contexts
+                        .map(
+                          (contextItem) => FilterChip(
+                            key: Key('context-choice-${contextItem.id}'),
+                            label: Text(contextItem.name),
+                            selected: draft.contains(contextItem.id),
+                            selectedColor: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
+                            onSelected: (value) => setSheetState(() {
+                              value
+                                  ? draft.add(contextItem.id)
+                                  : draft.remove(contextItem.id);
+                            }),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    key: const Key('context-save-item'),
+                    onPressed: () => Navigator.pop(context, draft),
+                    child: const Text('Enregistrer'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    if (selected != null) {
+      await widget.contextUseCases.saveForItem(item.id, selected);
     }
   }
 
@@ -255,6 +410,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return DestinationScaffold(
       title: 'Bibliothèque',
       actions: [
+        IconButton(
+          key: const Key('library-contexts'),
+          onPressed: _openContextCatalog,
+          tooltip: 'Gérer les contextes',
+          icon: const Icon(Icons.interests_outlined),
+        ),
         IconButton(
           key: const Key('library-import'),
           onPressed: widget.importViewModel.loading ? null : _pickBackup,
@@ -386,15 +547,22 @@ class _OwnerCard extends StatelessWidget {
               }
             } else if (action == 'delete') {
               await screen.widget.useCases.deleteOwner(owner.id);
+            } else if (action == 'link') {
+              await screen._linkPersonalOwner(owner);
             }
           },
-          itemBuilder: (context) => const [
-            PopupMenuItem(
+          itemBuilder: (context) => [
+            const PopupMenuItem(
               value: 'category',
               child: Text('Ajouter une catégorie'),
             ),
-            PopupMenuItem(value: 'rename', child: Text('Renommer')),
-            PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+            const PopupMenuItem(value: 'rename', child: Text('Renommer')),
+            if (owner.isPersonal)
+              const PopupMenuItem(
+                value: 'link',
+                child: Text('Associer à un membre'),
+              ),
+            const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
           ],
         ),
         children: [
@@ -452,6 +620,8 @@ class _CategoryTile extends StatelessWidget {
       children: [
         ...category.items.map(
           (item) => ListTile(
+            key: Key('library-item-${item.id}'),
+            onLongPress: () => screen._manageContexts(item),
             title: Text(item.name),
             subtitle: Text('Quantité par défaut : ${item.defaultQuantity}'),
             trailing: Wrap(
@@ -480,6 +650,128 @@ class _CategoryTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ContextCatalogSheet extends StatelessWidget {
+  const _ContextCatalogSheet({required this.useCases});
+
+  final ContextUseCases useCases;
+
+  Future<String?> _askName(
+    BuildContext context,
+    String title, {
+    String initial = '',
+  }) {
+    final controller = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          key: const Key('context-name-input'),
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Nom'),
+          onSubmitted: (_) => Navigator.pop(context, controller.text),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            key: const Key('context-name-submit'),
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.68,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Contextes / activités',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    key: const Key('context-create'),
+                    tooltip: 'Créer',
+                    onPressed: () async {
+                      final name = await _askName(context, 'Nouveau contexte');
+                      if (name != null) await useCases.create(name);
+                    },
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: StreamBuilder<List<ContextModel>>(
+                  stream: useCases.watchContexts(),
+                  builder: (context, snapshot) {
+                    final contexts = snapshot.data ?? const [];
+                    if (contexts.isEmpty) {
+                      return const Center(
+                        child: Text('Aucun contexte pour le moment.'),
+                      );
+                    }
+                    return ListView.builder(
+                      itemCount: contexts.length,
+                      itemBuilder: (context, index) {
+                        final activity = contexts[index];
+                        return ListTile(
+                          key: Key('context-row-${activity.id}'),
+                          leading: const Icon(Icons.interests_outlined),
+                          title: Text(activity.name),
+                          trailing: Wrap(
+                            children: [
+                              IconButton(
+                                tooltip: 'Renommer',
+                                onPressed: () async {
+                                  final name = await _askName(
+                                    context,
+                                    'Renommer le contexte',
+                                    initial: activity.name,
+                                  );
+                                  if (name != null) {
+                                    await useCases.rename(activity.id, name);
+                                  }
+                                },
+                                icon: const Icon(Icons.edit_outlined),
+                              ),
+                              IconButton(
+                                tooltip: 'Supprimer',
+                                onPressed: () => useCases.delete(activity.id),
+                                icon: const Icon(Icons.delete_outline),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -515,6 +807,12 @@ class _ItemDraft {
   const _ItemDraft(this.name, this.quantity);
   final String name;
   final int quantity;
+}
+
+class _LinkChoice {
+  const _LinkChoice(this.participantOwnerId);
+
+  final String? participantOwnerId;
 }
 
 String _roleLabel(LibraryOwnerModel owner) {

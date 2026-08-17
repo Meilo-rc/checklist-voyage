@@ -4,16 +4,34 @@ enum GenerationRole { general, essential, participant, transport, lodging }
 
 enum TripItemStatus { todo, checked, done }
 
+enum GenerationReasonKind {
+  essential,
+  participant,
+  transport,
+  lodging,
+  context,
+  legacy,
+}
+
+class ContextModel {
+  const ContextModel({required this.id, required this.name});
+
+  final String id;
+  final String name;
+}
+
 class LibraryItemModel {
   const LibraryItemModel({
     required this.id,
     required this.name,
     required this.defaultQuantity,
+    required this.logicalSourceId,
   });
 
   final String id;
   final String name;
   final int defaultQuantity;
+  final String logicalSourceId;
 }
 
 class LibraryCategoryModel {
@@ -34,6 +52,7 @@ class LibraryOwnerModel {
     required this.name,
     required this.kind,
     required this.generationRole,
+    required this.linkedParticipantOwnerId,
     required this.categories,
   });
 
@@ -41,6 +60,7 @@ class LibraryOwnerModel {
   final String name;
   final LibraryOwnerKind kind;
   final GenerationRole generationRole;
+  final String? linkedParticipantOwnerId;
   final List<LibraryCategoryModel> categories;
 
   bool get isPersonal => kind == LibraryOwnerKind.personal;
@@ -55,6 +75,7 @@ class CreateTripRequest {
     required this.participantOwnerIds,
     required this.transportOwnerIds,
     required this.lodgingOwnerIds,
+    this.contextIds = const {},
     this.includeEssentials = true,
   });
 
@@ -65,7 +86,22 @@ class CreateTripRequest {
   final Set<String> participantOwnerIds;
   final Set<String> transportOwnerIds;
   final Set<String> lodgingOwnerIds;
+  final Set<String> contextIds;
   final bool includeEssentials;
+}
+
+class TripItemSourceModel {
+  const TripItemSourceModel({
+    required this.logicalSourceId,
+    required this.reasonKind,
+    required this.reasonId,
+    required this.contributingLibraryItemId,
+  });
+
+  final String logicalSourceId;
+  final GenerationReasonKind reasonKind;
+  final String reasonId;
+  final String? contributingLibraryItemId;
 }
 
 class TripItemModel {
@@ -74,14 +110,19 @@ class TripItemModel {
     required this.name,
     required this.quantity,
     required this.status,
-    required this.sourceLibraryItemIds,
+    required this.sources,
   });
 
   final String id;
   final String name;
   final int quantity;
   final TripItemStatus status;
-  final List<String> sourceLibraryItemIds;
+  final List<TripItemSourceModel> sources;
+
+  List<String> get sourceLibraryItemIds => sources
+      .map((source) => source.logicalSourceId)
+      .toSet()
+      .toList(growable: false);
 }
 
 class TripCategoryModel {
@@ -117,6 +158,7 @@ class TripDetailModel {
     required this.destination,
     required this.startDate,
     required this.endDate,
+    required this.selectedContextIds,
     required this.members,
   });
 
@@ -125,6 +167,7 @@ class TripDetailModel {
   final String destination;
   final DateTime? startDate;
   final DateTime? endDate;
+  final Set<String> selectedContextIds;
   final List<TripMemberModel> members;
 }
 

@@ -1,4 +1,4 @@
--- Contrat de schéma V1, mis à jour avec le schéma Drift utilisé au lot 4.
+-- Contrat de schéma V1, mis à jour avec le schéma Drift utilisé au lot 5.
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE library_owners (
@@ -8,6 +8,7 @@ CREATE TABLE library_owners (
   generation_role TEXT NOT NULL DEFAULT 'general' CHECK (generation_role IN ('general', 'essential', 'participant', 'transport', 'lodging')),
   name TEXT NOT NULL,
   icon TEXT,
+  linked_participant_owner_id TEXT,
   created_at TEXT NOT NULL,
   updated_at_local TEXT NOT NULL,
   deleted_at TEXT
@@ -28,6 +29,7 @@ CREATE TABLE library_items (
   category_id TEXT NOT NULL REFERENCES library_categories(id),
   name TEXT NOT NULL,
   default_quantity INTEGER NOT NULL DEFAULT 1 CHECK (default_quantity BETWEEN 1 AND 99),
+  logical_source_id TEXT,
   created_at TEXT NOT NULL,
   updated_at_local TEXT NOT NULL,
   deleted_at TEXT
@@ -45,7 +47,10 @@ CREATE TABLE contexts (
 CREATE TABLE library_item_contexts (
   item_id TEXT NOT NULL REFERENCES library_items(id),
   context_id TEXT NOT NULL REFERENCES contexts(id),
+  association_id TEXT,
+  sync_scope TEXT NOT NULL DEFAULT 'shared_library' CHECK (sync_scope IN ('shared_library', 'personal_local')),
   created_at TEXT NOT NULL,
+  updated_at_local TEXT,
   deleted_at TEXT,
   PRIMARY KEY (item_id, context_id)
 );
@@ -105,8 +110,21 @@ CREATE TABLE trip_items (
 CREATE TABLE trip_item_sources (
   trip_item_id TEXT NOT NULL REFERENCES trip_items(id),
   source_library_item_id TEXT NOT NULL,
-  source_kind TEXT NOT NULL CHECK (source_kind IN ('essential', 'participant', 'transport', 'lodging', 'context', 'manual')),
+  source_kind TEXT NOT NULL,
+  reason_kind TEXT NOT NULL DEFAULT 'legacy' CHECK (reason_kind IN ('legacy', 'essential', 'participant', 'transport', 'lodging', 'context', 'manual')),
+  reason_id TEXT NOT NULL DEFAULT '',
+  contributing_library_item_id TEXT,
   PRIMARY KEY (trip_item_id, source_library_item_id, source_kind)
+);
+
+CREATE TABLE trip_generation_choices (
+  id TEXT PRIMARY KEY,
+  trip_id TEXT NOT NULL REFERENCES trips(id),
+  choice_kind TEXT NOT NULL CHECK (choice_kind IN ('participant', 'transport', 'lodging', 'context')),
+  choice_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  deleted_at TEXT,
+  UNIQUE (trip_id, choice_kind, choice_id)
 );
 
 CREATE TABLE quick_lists (

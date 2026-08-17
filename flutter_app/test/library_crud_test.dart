@@ -37,6 +37,7 @@ void main() {
       name: 'Objet privé renommé',
       defaultQuantity: 0,
     );
+    await repository.setLinkedParticipantOwner(personal, member);
 
     final rows = await database.select(database.libraryOwners).get();
     expect(
@@ -47,6 +48,10 @@ void main() {
     expect(
       rows.singleWhere((row) => row.id == personal).syncScope,
       'personal_local',
+    );
+    expect(
+      rows.singleWhere((row) => row.id == personal).linkedParticipantOwnerId,
+      member,
     );
     expect(
       rows.singleWhere((row) => row.id == general).generationRole,

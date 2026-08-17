@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:checklist_voyage_v1/app/app_dependencies.dart';
 import 'package:checklist_voyage_v1/app/checklist_app.dart';
 import 'package:checklist_voyage_v1/data/local/app_database.dart';
+import 'package:checklist_voyage_v1/data/repositories/drift_context_repository.dart';
 import 'package:checklist_voyage_v1/data/repositories/drift_library_repository.dart';
 
 import 'helpers/seed_reference_library.dart';
@@ -20,7 +21,10 @@ void main() {
 
       final database = AppDatabase(NativeDatabase.memory());
       final library = DriftLibraryRepository(database);
-      await seedReferenceLibrary(library);
+      final ids = await seedReferenceLibrary(library);
+      final contexts = DriftContextRepository(database);
+      final beach = await contexts.createContext('Plage');
+      await contexts.setItemContexts(ids.passportItem, {beach});
       final dependencies = await AppDependencies.create(database: database);
 
       await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
@@ -38,6 +42,7 @@ void main() {
         'Trajet - Train',
         'Logement - Hôtel',
         'Logement - Camping',
+        'Plage',
       ];
       for (var index = 0; index < choices.length; index++) {
         if (index > 0) {
@@ -63,6 +68,16 @@ void main() {
       expect(find.text('Trajet - Train'), findsOneWidget);
       expect(find.text('Logement - Hôtel'), findsOneWidget);
       expect(find.text('Logement - Camping'), findsOneWidget);
+      final contextChoices = await database
+          .select(database.tripGenerationChoices)
+          .get();
+      expect(
+        contextChoices.any(
+          (choice) =>
+              choice.choiceKind == 'context' && choice.choiceId == beach,
+        ),
+        isTrue,
+      );
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.text('Listes rapides').last);

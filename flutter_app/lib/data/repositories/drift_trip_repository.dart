@@ -54,18 +54,23 @@ class DriftTripRepository implements TripRepository {
             WHERE trip_id = ?
             UNION ALL
             SELECT 'source:' || tis.trip_item_id || ':' ||
-              tis.source_library_item_id, 0, NULL
+              tis.source_library_item_id || ':' || tis.source_kind, 0, NULL
             FROM trip_item_sources tis
             INNER JOIN trip_items ti ON ti.id = tis.trip_item_id
             WHERE ti.trip_id = ?
+            UNION ALL
+            SELECT 'choice:' || id, created_at, deleted_at
+            FROM trip_generation_choices
+            WHERE trip_id = ?
           ''',
-          variables: List.generate(5, (_) => Variable.withString(tripId)),
+          variables: List.generate(6, (_) => Variable.withString(tripId)),
           readsFrom: {
             _database.trips,
             _database.tripMembers,
             _database.tripCategories,
             _database.tripItems,
             _database.tripItemSources,
+            _database.tripGenerationChoices,
           },
         )
         .watch()
@@ -106,6 +111,11 @@ class DriftTripRepository implements TripRepository {
         : await (_database.select(
             _database.tripItemSources,
           )..where((row) => row.tripItemId.isIn(itemIds))).get();
+    final choices =
+        await (_database.select(_database.tripGenerationChoices)..where(
+              (row) => row.tripId.equals(tripId) & row.deletedAt.isNull(),
+            ))
+            .get();
 
     TripCategoryModel mapCategory(TripCategory category) {
       return TripCategoryModel(
@@ -119,9 +129,9 @@ class DriftTripRepository implements TripRepository {
                 name: item.name,
                 quantity: item.quantity,
                 status: _tripStatus(item.status),
-                sourceLibraryItemIds: sources
+                sources: sources
                     .where((source) => source.tripItemId == item.id)
-                    .map((source) => source.sourceLibraryItemId)
+                    .map(_sourceModel)
                     .toList(growable: false),
               ),
             )
@@ -164,6 +174,10 @@ class DriftTripRepository implements TripRepository {
       destination: _destinationName(trip.destinationJson),
       startDate: trip.startDate,
       endDate: trip.endDate,
+      selectedContextIds: choices
+          .where((choice) => choice.choiceKind == 'context')
+          .map((choice) => choice.choiceId)
+          .toSet(),
       members: mappedMembers,
     );
   }
@@ -178,6 +192,10 @@ class DriftTripRepository implements TripRepository {
     final tripId = _uuid.v4();
     final now = DateTime.now().toUtc();
     await _database.transaction(() async {
+      final snapshot = await _loadLibrarySnapshot();
+      _validateOwnerChoices(snapshot.owners, request);
+      await _validateContexts(request.contextIds);
+
       await _database
           .into(_database.trips)
           .insert(
@@ -198,42 +216,253 @@ class DriftTripRepository implements TripRepository {
               updatedAtLocal: now,
             ),
           );
+      await _storeChoices(tripId, request, now);
 
-      final owners = await (_database.select(
-        _database.libraryOwners,
-      )..where((row) => row.deletedAt.isNull())).get();
-      final selected =
-          owners.where((owner) {
-            if (request.includeEssentials &&
-                owner.generationRole == 'essential') {
-              return true;
-            }
-            if (owner.generationRole == 'participant') {
-              return request.participantOwnerIds.contains(owner.id) &&
-                  owner.kind == 'family_member';
-            }
-            if (owner.generationRole == 'transport') {
-              return request.transportOwnerIds.contains(owner.id);
-            }
-            if (owner.generationRole == 'lodging') {
-              return request.lodgingOwnerIds.contains(owner.id);
-            }
-            return false;
-          }).toList()..sort((a, b) {
-            final role = _roleRank(
-              a.generationRole,
-            ).compareTo(_roleRank(b.generationRole));
-            return role != 0 ? role : a.name.compareTo(b.name);
-          });
-
-      for (final owner in selected) {
-        await _copyOwnerIntoTrip(tripId, owner, now);
+      final contributions = _buildContributions(snapshot, request);
+      final compacted = <String, _CompactedItem>{};
+      for (final contribution in contributions) {
+        compacted
+            .putIfAbsent(
+              contribution.logicalSourceId,
+              () => _CompactedItem(contribution),
+            )
+            .addReason(contribution.reason);
       }
+      await _writeCompactedItems(tripId, compacted.values, now);
     });
     return tripId;
   }
 
-  Future<void> _copyOwnerIntoTrip(
+  Future<_LibrarySnapshot> _loadLibrarySnapshot() async {
+    final owners = await (_database.select(
+      _database.libraryOwners,
+    )..where((row) => row.deletedAt.isNull())).get();
+    final categories = await (_database.select(
+      _database.libraryCategories,
+    )..where((row) => row.deletedAt.isNull())).get();
+    final items = await (_database.select(
+      _database.libraryItems,
+    )..where((row) => row.deletedAt.isNull())).get();
+    final associations = await (_database.select(
+      _database.libraryItemContexts,
+    )..where((row) => row.deletedAt.isNull())).get();
+    return _LibrarySnapshot(owners, categories, items, associations);
+  }
+
+  void _validateOwnerChoices(
+    List<LibraryOwner> owners,
+    CreateTripRequest request,
+  ) {
+    final byId = {for (final owner in owners) owner.id: owner};
+
+    bool valid(Set<String> ids, bool Function(LibraryOwner) accepts) =>
+        ids.every((id) => byId[id] != null && accepts(byId[id]!));
+
+    if (!valid(
+      request.participantOwnerIds,
+      (owner) =>
+          owner.kind == 'family_member' &&
+          owner.generationRole == 'participant',
+    )) {
+      throw ArgumentError('Participant invalide.');
+    }
+    if (!valid(
+      request.transportOwnerIds,
+      (owner) => owner.generationRole == 'transport',
+    )) {
+      throw ArgumentError('Transport invalide.');
+    }
+    if (!valid(
+      request.lodgingOwnerIds,
+      (owner) => owner.generationRole == 'lodging',
+    )) {
+      throw ArgumentError('Logement invalide.');
+    }
+  }
+
+  Future<void> _validateContexts(Set<String> contextIds) async {
+    if (contextIds.isEmpty) return;
+    final contexts = await (_database.select(
+      _database.contexts,
+    )..where((row) => row.id.isIn(contextIds) & row.deletedAt.isNull())).get();
+    if (contexts.length != contextIds.length) {
+      throw ArgumentError('Contexte invalide.');
+    }
+  }
+
+  Future<void> _storeChoices(
+    String tripId,
+    CreateTripRequest request,
+    DateTime now,
+  ) async {
+    for (final entry in <MapEntry<String, Set<String>>>[
+      MapEntry('participant', request.participantOwnerIds),
+      MapEntry('transport', request.transportOwnerIds),
+      MapEntry('lodging', request.lodgingOwnerIds),
+      MapEntry('context', request.contextIds),
+    ]) {
+      for (final choiceId in entry.value.toList()..sort()) {
+        await _database
+            .into(_database.tripGenerationChoices)
+            .insert(
+              TripGenerationChoicesCompanion.insert(
+                id: _uuid.v4(),
+                tripId: tripId,
+                choiceKind: entry.key,
+                choiceId: choiceId,
+                createdAt: now,
+              ),
+            );
+      }
+    }
+  }
+
+  List<_Contribution> _buildContributions(
+    _LibrarySnapshot snapshot,
+    CreateTripRequest request,
+  ) {
+    final result = <_Contribution>[];
+    final owners =
+        snapshot.owners.where((owner) {
+          if (request.includeEssentials &&
+              owner.generationRole == 'essential') {
+            return true;
+          }
+          if (owner.generationRole == 'participant') {
+            return owner.kind == 'family_member' &&
+                request.participantOwnerIds.contains(owner.id);
+          }
+          if (owner.generationRole == 'transport') {
+            return request.transportOwnerIds.contains(owner.id);
+          }
+          if (owner.generationRole == 'lodging') {
+            return request.lodgingOwnerIds.contains(owner.id);
+          }
+          return false;
+        }).toList()..sort((a, b) {
+          final role = _roleRank(
+            a.generationRole,
+          ).compareTo(_roleRank(b.generationRole));
+          return role != 0 ? role : a.name.compareTo(b.name);
+        });
+
+    for (final owner in owners) {
+      final reasonKind = _reasonKindForRole(owner.generationRole);
+      for (final item in snapshot.itemsForOwner(owner.id)) {
+        result.add(
+          snapshot.contribution(
+            item: item,
+            targetOwner: owner,
+            reason: _Reason(reasonKind, owner.id, item.id),
+          ),
+        );
+      }
+    }
+
+    if (request.contextIds.isEmpty) return result;
+    final contextAssociations =
+        snapshot.associations
+            .where(
+              (association) =>
+                  request.contextIds.contains(association.contextId),
+            )
+            .toList()
+          ..sort((a, b) {
+            final context = a.contextId.compareTo(b.contextId);
+            return context != 0 ? context : a.itemId.compareTo(b.itemId);
+          });
+    for (final association in contextAssociations) {
+      final item = snapshot.itemById[association.itemId];
+      if (item == null) continue;
+      final category = snapshot.categoryById[item.categoryId];
+      if (category == null) continue;
+      final owner = snapshot.ownerById[category.ownerId];
+      if (owner == null) continue;
+
+      LibraryOwner? targetOwner;
+      if (owner.kind == 'family_member') {
+        if (request.participantOwnerIds.contains(owner.id)) {
+          targetOwner = owner;
+        }
+      } else if (owner.kind == 'personal') {
+        final linkedId = owner.linkedParticipantOwnerId;
+        if (linkedId != null &&
+            request.participantOwnerIds.contains(linkedId)) {
+          targetOwner = snapshot.ownerById[linkedId];
+        }
+      } else {
+        targetOwner = owner;
+      }
+      if (targetOwner == null) continue;
+
+      result.add(
+        snapshot.contribution(
+          item: item,
+          targetOwner: targetOwner,
+          reason: _Reason('context', association.contextId, item.id),
+        ),
+      );
+    }
+    return result;
+  }
+
+  Future<void> _writeCompactedItems(
+    String tripId,
+    Iterable<_CompactedItem> compacted,
+    DateTime now,
+  ) async {
+    final memberIds = <String, String>{};
+    final categoryIds = <String, String>{};
+    for (final compactedItem in compacted) {
+      final contribution = compactedItem.first;
+      final owner = contribution.targetOwner;
+      final memberId = memberIds[owner.id] ??= await _insertMember(
+        tripId,
+        owner,
+        now,
+      );
+      final categoryKey = '${owner.id}:${contribution.category.id}';
+      final categoryId = categoryIds[categoryKey] ??= await _insertCategory(
+        tripId,
+        memberId,
+        contribution.category,
+        now,
+      );
+      final tripItemId = _uuid.v4();
+      await _database
+          .into(_database.tripItems)
+          .insert(
+            TripItemsCompanion.insert(
+              id: tripItemId,
+              tripId: tripId,
+              categoryId: categoryId,
+              name: contribution.item.name,
+              quantity: Value(contribution.item.defaultQuantity.clamp(1, 99)),
+              status: const Value('todo'),
+              createdAt: now,
+              updatedAtLocal: now,
+            ),
+          );
+      for (final reason in compactedItem.reasons) {
+        await _database
+            .into(_database.tripItemSources)
+            .insert(
+              TripItemSourcesCompanion.insert(
+                tripItemId: tripItemId,
+                sourceLibraryItemId: contribution.logicalSourceId,
+                sourceKind: '${reason.kind}:${reason.id}',
+                reasonKind: Value(reason.kind),
+                reasonId: Value(reason.id),
+                contributingLibraryItemId: Value(
+                  reason.contributingLibraryItemId,
+                ),
+              ),
+            );
+      }
+    }
+  }
+
+  Future<String> _insertMember(
     String tripId,
     LibraryOwner owner,
     DateTime now,
@@ -253,65 +482,31 @@ class DriftTripRepository implements TripRepository {
             updatedAtLocal: now,
           ),
         );
-    final categories =
-        await (_database.select(_database.libraryCategories)
-              ..where(
-                (row) => row.ownerId.equals(owner.id) & row.deletedAt.isNull(),
-              )
-              ..orderBy([(row) => OrderingTerm.asc(row.name)]))
-            .get();
-    for (final sourceCategory in categories) {
-      final categoryId = _uuid.v4();
-      await _database
-          .into(_database.tripCategories)
-          .insert(
-            TripCategoriesCompanion.insert(
-              id: categoryId,
-              tripId: tripId,
-              memberId: Value(memberId),
-              sourceCategoryId: Value(sourceCategory.id),
-              name: sourceCategory.name,
-              icon: Value(sourceCategory.icon),
-              createdAt: now,
-              updatedAtLocal: now,
-            ),
-          );
-      final sourceItems =
-          await (_database.select(_database.libraryItems)
-                ..where(
-                  (row) =>
-                      row.categoryId.equals(sourceCategory.id) &
-                      row.deletedAt.isNull(),
-                )
-                ..orderBy([(row) => OrderingTerm.asc(row.name)]))
-              .get();
-      for (final sourceItem in sourceItems) {
-        final itemId = _uuid.v4();
-        await _database
-            .into(_database.tripItems)
-            .insert(
-              TripItemsCompanion.insert(
-                id: itemId,
-                tripId: tripId,
-                categoryId: categoryId,
-                name: sourceItem.name,
-                quantity: Value(sourceItem.defaultQuantity.clamp(1, 99)),
-                status: const Value('todo'),
-                createdAt: now,
-                updatedAtLocal: now,
-              ),
-            );
-        await _database
-            .into(_database.tripItemSources)
-            .insert(
-              TripItemSourcesCompanion.insert(
-                tripItemId: itemId,
-                sourceLibraryItemId: sourceItem.id,
-                sourceKind: _sourceKind(owner.generationRole),
-              ),
-            );
-      }
-    }
+    return memberId;
+  }
+
+  Future<String> _insertCategory(
+    String tripId,
+    String memberId,
+    LibraryCategory category,
+    DateTime now,
+  ) async {
+    final categoryId = _uuid.v4();
+    await _database
+        .into(_database.tripCategories)
+        .insert(
+          TripCategoriesCompanion.insert(
+            id: categoryId,
+            tripId: tripId,
+            memberId: Value(memberId),
+            sourceCategoryId: Value(category.id),
+            name: category.name,
+            icon: Value(category.icon),
+            createdAt: now,
+            updatedAtLocal: now,
+          ),
+        );
+    return categoryId;
   }
 
   @override
@@ -398,13 +593,113 @@ class DriftTripRepository implements TripRepository {
   }
 }
 
+class _LibrarySnapshot {
+  _LibrarySnapshot(this.owners, this.categories, this.items, this.associations)
+    : ownerById = {for (final owner in owners) owner.id: owner},
+      categoryById = {for (final category in categories) category.id: category},
+      itemById = {for (final item in items) item.id: item};
+
+  final List<LibraryOwner> owners;
+  final List<LibraryCategory> categories;
+  final List<LibraryItem> items;
+  final List<LibraryItemContext> associations;
+  final Map<String, LibraryOwner> ownerById;
+  final Map<String, LibraryCategory> categoryById;
+  final Map<String, LibraryItem> itemById;
+
+  Iterable<LibraryItem> itemsForOwner(String ownerId) {
+    final categoryIds = categories
+        .where((category) => category.ownerId == ownerId)
+        .map((category) => category.id)
+        .toSet();
+    return items.where((item) => categoryIds.contains(item.categoryId));
+  }
+
+  _Contribution contribution({
+    required LibraryItem item,
+    required LibraryOwner targetOwner,
+    required _Reason reason,
+  }) {
+    return _Contribution(
+      item: item,
+      category: categoryById[item.categoryId]!,
+      targetOwner: targetOwner,
+      logicalSourceId: item.logicalSourceId ?? item.id,
+      reason: reason,
+    );
+  }
+}
+
+class _Contribution {
+  const _Contribution({
+    required this.item,
+    required this.category,
+    required this.targetOwner,
+    required this.logicalSourceId,
+    required this.reason,
+  });
+
+  final LibraryItem item;
+  final LibraryCategory category;
+  final LibraryOwner targetOwner;
+  final String logicalSourceId;
+  final _Reason reason;
+}
+
+class _CompactedItem {
+  _CompactedItem(this.first);
+
+  final _Contribution first;
+  final List<_Reason> reasons = [];
+
+  void addReason(_Reason reason) {
+    if (reasons.any(
+      (existing) => existing.kind == reason.kind && existing.id == reason.id,
+    )) {
+      return;
+    }
+    reasons.add(reason);
+  }
+}
+
+class _Reason {
+  const _Reason(this.kind, this.id, this.contributingLibraryItemId);
+
+  final String kind;
+  final String id;
+  final String contributingLibraryItemId;
+}
+
+TripItemSourceModel _sourceModel(TripItemSource source) {
+  final legacyKind = source.reasonKind == 'legacy'
+      ? _legacyReasonKind(source.sourceKind)
+      : source.reasonKind;
+  return TripItemSourceModel(
+    logicalSourceId: source.sourceLibraryItemId,
+    reasonKind: _reasonKind(legacyKind),
+    reasonId: source.reasonId,
+    contributingLibraryItemId: source.contributingLibraryItemId,
+  );
+}
+
+GenerationReasonKind _reasonKind(String value) => switch (value) {
+  'essential' => GenerationReasonKind.essential,
+  'participant' => GenerationReasonKind.participant,
+  'transport' => GenerationReasonKind.transport,
+  'lodging' => GenerationReasonKind.lodging,
+  'context' => GenerationReasonKind.context,
+  _ => GenerationReasonKind.legacy,
+};
+
+String _legacyReasonKind(String value) => value.split(':').first;
+
 TripItemStatus _tripStatus(String value) => switch (value) {
   'checked' => TripItemStatus.checked,
   'done' => TripItemStatus.done,
   _ => TripItemStatus.todo,
 };
 
-String _sourceKind(String role) => switch (role) {
+String _reasonKindForRole(String role) => switch (role) {
   'essential' => 'essential',
   'transport' => 'transport',
   'lodging' => 'lodging',

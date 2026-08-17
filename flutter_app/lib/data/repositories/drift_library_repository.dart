@@ -79,6 +79,7 @@ class DriftLibraryRepository implements LibraryRepository {
             name: owner.name,
             kind: _ownerKind(owner.kind),
             generationRole: _generationRole(owner.generationRole),
+            linkedParticipantOwnerId: owner.linkedParticipantOwnerId,
             categories: categories
                 .where((category) => category.ownerId == owner.id)
                 .map(
@@ -92,6 +93,7 @@ class DriftLibraryRepository implements LibraryRepository {
                             id: item.id,
                             name: item.name,
                             defaultQuantity: item.defaultQuantity,
+                            logicalSourceId: item.logicalSourceId ?? item.id,
                           ),
                         )
                         .toList(growable: false),
@@ -108,25 +110,47 @@ class DriftLibraryRepository implements LibraryRepository {
     required String name,
     required LibraryOwnerKind kind,
     required GenerationRole generationRole,
+    String? linkedParticipantOwnerId,
   }) async {
     final cleanName = _requiredName(name);
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
-    await _database
-        .into(_database.libraryOwners)
-        .insert(
-          LibraryOwnersCompanion.insert(
-            id: id,
-            kind: _ownerKindValue(kind),
-            syncScope: kind == LibraryOwnerKind.personal
-                ? 'personal_local'
-                : 'shared_library',
-            generationRole: Value(_generationRoleValue(kind, generationRole)),
-            name: cleanName,
-            createdAt: now,
-            updatedAtLocal: now,
-          ),
-        );
+    await _database.transaction(() async {
+      if (linkedParticipantOwnerId != null) {
+        final linked =
+            await (_database.select(_database.libraryOwners)..where(
+                  (row) =>
+                      row.id.equals(linkedParticipantOwnerId) &
+                      row.kind.equals('family_member') &
+                      row.deletedAt.isNull(),
+                ))
+                .getSingle();
+        if (kind != LibraryOwnerKind.personal ||
+            linked.kind != 'family_member') {
+          throw ArgumentError('Le lien Personnel doit cibler un membre.');
+        }
+      }
+      await _database
+          .into(_database.libraryOwners)
+          .insert(
+            LibraryOwnersCompanion.insert(
+              id: id,
+              kind: _ownerKindValue(kind),
+              syncScope: kind == LibraryOwnerKind.personal
+                  ? 'personal_local'
+                  : 'shared_library',
+              generationRole: Value(_generationRoleValue(kind, generationRole)),
+              name: cleanName,
+              linkedParticipantOwnerId: Value(
+                kind == LibraryOwnerKind.personal
+                    ? linkedParticipantOwnerId
+                    : null,
+              ),
+              createdAt: now,
+              updatedAtLocal: now,
+            ),
+          );
+    });
     return id;
   }
 
@@ -140,6 +164,39 @@ class DriftLibraryRepository implements LibraryRepository {
         updatedAtLocal: Value(DateTime.now().toUtc()),
       ),
     );
+  }
+
+  @override
+  Future<void> setLinkedParticipantOwner(
+    String ownerId,
+    String? participantOwnerId,
+  ) async {
+    await _database.transaction(() async {
+      await (_database.select(_database.libraryOwners)..where(
+            (row) =>
+                row.id.equals(ownerId) &
+                row.kind.equals('personal') &
+                row.deletedAt.isNull(),
+          ))
+          .getSingle();
+      if (participantOwnerId != null) {
+        await (_database.select(_database.libraryOwners)..where(
+              (row) =>
+                  row.id.equals(participantOwnerId) &
+                  row.kind.equals('family_member') &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingle();
+      }
+      await (_database.update(
+        _database.libraryOwners,
+      )..where((row) => row.id.equals(ownerId))).write(
+        LibraryOwnersCompanion(
+          linkedParticipantOwnerId: Value(participantOwnerId),
+          updatedAtLocal: Value(DateTime.now().toUtc()),
+        ),
+      );
+    });
   }
 
   @override
@@ -185,6 +242,7 @@ class DriftLibraryRepository implements LibraryRepository {
           ),
         );
       }
+      await _softDeleteContextAssociations(items.map((item) => item.id), now);
       if (owner.syncScope == 'shared_library') {
         await _trackTombstone('library_owner', ownerId, now);
         for (final category in categories) {
@@ -261,6 +319,7 @@ class DriftLibraryRepository implements LibraryRepository {
           updatedAtLocal: Value(now),
         ),
       );
+      await _softDeleteContextAssociations(items.map((item) => item.id), now);
       if (owner.syncScope == 'shared_library') {
         await _trackTombstone('library_category', categoryId, now);
         for (final item in items) {
@@ -275,6 +334,7 @@ class DriftLibraryRepository implements LibraryRepository {
     required String categoryId,
     required String name,
     required int defaultQuantity,
+    String? logicalSourceId,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
@@ -291,6 +351,7 @@ class DriftLibraryRepository implements LibraryRepository {
               categoryId: categoryId,
               name: _requiredName(name),
               defaultQuantity: Value(_quantity(defaultQuantity)),
+              logicalSourceId: Value(logicalSourceId ?? id),
               createdAt: now,
               updatedAtLocal: now,
             ),
@@ -337,10 +398,40 @@ class DriftLibraryRepository implements LibraryRepository {
           updatedAtLocal: Value(now),
         ),
       );
+      await _softDeleteContextAssociations([itemId], now);
       if (owner.syncScope == 'shared_library') {
         await _trackTombstone('library_item', itemId, now);
       }
     });
+  }
+
+  Future<void> _softDeleteContextAssociations(
+    Iterable<String> itemIds,
+    DateTime now,
+  ) async {
+    final ids = itemIds.toSet();
+    if (ids.isEmpty) return;
+    final associations = await (_database.select(
+      _database.libraryItemContexts,
+    )..where((row) => row.itemId.isIn(ids) & row.deletedAt.isNull())).get();
+    await (_database.update(
+      _database.libraryItemContexts,
+    )..where((row) => row.itemId.isIn(ids) & row.deletedAt.isNull())).write(
+      LibraryItemContextsCompanion(
+        deletedAt: Value(now),
+        updatedAtLocal: Value(now),
+      ),
+    );
+    for (final association in associations) {
+      if (association.syncScope == 'shared_library' &&
+          association.associationId != null) {
+        await _trackTombstone(
+          'context_association',
+          association.associationId!,
+          now,
+        );
+      }
+    }
   }
 
   Future<void> _trackTombstone(

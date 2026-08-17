@@ -40,7 +40,7 @@ Statut : modèle local implémenté dans Flutter/Drift. Les collections PocketBa
 
 ### Bibliothèque
 
-`library_owners` représente un groupe général, un membre familial ou un espace personnel. Une catégorie appartient à un propriétaire, et un item appartient à une catégorie. `generation_role` qualifie explicitement les groupes utilisés comme Essentiels, participant, transport ou logement ; l'identité et la sélection V1 reposent ensuite sur les UUID, jamais sur le libellé.
+`library_owners` représente un groupe général, un membre familial ou un espace personnel. Une catégorie appartient à un propriétaire, et un item appartient à une catégorie. `generation_role` qualifie explicitement les groupes utilisés comme Essentiels, participant, transport ou logement ; l'identité et la sélection V1 reposent ensuite sur les UUID, jamais sur le libellé. Un propriétaire Personnel peut référencer explicitement son membre participant par `linked_participant_owner_id`.
 
 Les tables préparées sont :
 
@@ -50,7 +50,7 @@ Les tables préparées sont :
 - `contexts` ;
 - `library_item_contexts`.
 
-Les contextes et leur table d'association sont réservés dans le modèle, mais leur comportement n'est pas encore implémenté au lot 4.
+Un contexte est un critère transversal et non une catégorie. La même identité de contexte peut être associée à des items Général, Famille et Personnel. Chaque ligne `library_item_contexts` possède son propre UUID et sa propre portée : partagée pour Général/Famille, locale pour Personnel.
 
 ### Voyages
 
@@ -59,8 +59,9 @@ Les contextes et leur table d'association sont réservés dans le modèle, mais 
 - `trip_categories` : copie de catégorie, rattachée à Général ou à un membre.
 - `trip_items` : nom, quantité et état indépendants de la bibliothèque.
 - `trip_item_sources` : une ou plusieurs références stables ayant produit l'item.
+- `trip_generation_choices` : participants, transports, logements et contextes explicitement sélectionnés, y compris lorsqu'un choix ne produit aucun item.
 
-`trip_item_sources` prépare la compaction future. Le même item source sélectionné par plusieurs chemins ne crée qu'une instance de voyage. Deux items différents portant le même nom restent distincts.
+`library_items.logical_source_id` vaut l'UUID de l'item lui-même par défaut et peut relier explicitement des représentations historiques d'une même source. La compaction utilise uniquement cette identité. Chaque ligne `trip_item_sources` conserve en plus le type de raison, l'UUID du choix déclencheur et l'item contributeur. Deux items portant le même nom restent distincts si leurs identités logiques diffèrent.
 
 ### Listes rapides
 
@@ -104,6 +105,8 @@ Pour la bibliothèque :
 - les mutations `shared_library` entrent automatiquement dans l'outbox ;
 - les mutations `personal_local` n'y entrent jamais ;
 - une contrainte applicative et des tests doivent empêcher toute fuite de Personnel.
+
+Ces règles décrivent le protocole cible. Au lot 5, aucun client distant n'est actif et aucune mutation n'est encore ajoutée à l'outbox.
 
 ## 6. Dates et révisions
 
