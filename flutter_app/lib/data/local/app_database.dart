@@ -99,6 +99,7 @@ class Trips extends Table {
   TextColumn get destinationJson => text().nullable()();
   DateTimeColumn get startDate => dateTime().nullable()();
   DateTimeColumn get endDate => dateTime().nullable()();
+  DateTimeColumn get archivedAt => dateTime().nullable()();
   TextColumn get shareState => text().withDefault(const Constant('local'))();
   TextColumn get remoteRecordId => text().nullable().unique()();
   TextColumn get shareCode => text().nullable().unique()();
@@ -196,6 +197,7 @@ class QuickLists extends Table {
   TextColumn get remoteRecordId => text().nullable().unique()();
   TextColumn get shareCode => text().nullable().unique()();
   IntColumn get remoteRevision => integer().nullable()();
+  DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAtLocal => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -367,7 +369,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -485,6 +487,18 @@ class AppDatabase extends _$AppDatabase {
             migrator,
             syncDocuments,
             syncDocuments.pullCursor,
+          );
+        }
+      }
+      if (from < 7) {
+        if (await _tableExists('trips')) {
+          await _addColumnIfMissing(migrator, trips, trips.archivedAt);
+        }
+        if (await _tableExists('quick_lists')) {
+          await _addColumnIfMissing(
+            migrator,
+            quickLists,
+            quickLists.archivedAt,
           );
         }
       }

@@ -29,6 +29,7 @@ class DriftQuickListRepository implements QuickListRepository {
             (row) => QuickListSummary(
               id: row.id,
               name: row.name,
+              archivedAt: row.archivedAt,
               shared: row.shareState == 'shared',
             ),
           )
@@ -90,6 +91,7 @@ class DriftQuickListRepository implements QuickListRepository {
             ),
           )
           .toList(growable: false),
+      archivedAt: list.archivedAt,
       shared: list.shareState == 'shared',
       v1ShareReady: syncDocument?.capabilityToken?.isNotEmpty ?? false,
       shareCode: syncDocument?.shareCode,
@@ -114,6 +116,83 @@ class DriftQuickListRepository implements QuickListRepository {
           ),
         );
     return id;
+  }
+
+  @override
+  Future<String> duplicateQuickList(String listId) async {
+    final duplicateId = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      final source =
+          await (_database.select(
+                _database.quickLists,
+              )..where((row) => row.id.equals(listId) & row.deletedAt.isNull()))
+              .getSingle();
+      final items =
+          await (_database.select(_database.quickListItems)..where(
+                (row) =>
+                    row.quickListId.equals(listId) & row.deletedAt.isNull(),
+              ))
+              .get();
+      await _database
+          .into(_database.quickLists)
+          .insert(
+            QuickListsCompanion.insert(
+              id: duplicateId,
+              name: '${source.name} — copie',
+              shareState: const Value('local'),
+              remoteRecordId: const Value(null),
+              shareCode: const Value(null),
+              archivedAt: const Value(null),
+              createdAt: now,
+              updatedAtLocal: now,
+            ),
+          );
+      for (final item in items) {
+        await _database
+            .into(_database.quickListItems)
+            .insert(
+              QuickListItemsCompanion.insert(
+                id: _uuid.v4(),
+                quickListId: duplicateId,
+                name: item.name,
+                quantity: Value(item.quantity),
+                isChecked: const Value(false),
+                createdAt: now,
+                updatedAtLocal: now,
+              ),
+            );
+      }
+    });
+    return duplicateId;
+  }
+
+  @override
+  Future<void> archiveQuickList(String listId) => _setArchived(listId, true);
+
+  @override
+  Future<void> restoreQuickList(String listId) => _setArchived(listId, false);
+
+  Future<void> _setArchived(String listId, bool archived) async {
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      final list =
+          await (_database.select(
+                _database.quickLists,
+              )..where((row) => row.id.equals(listId) & row.deletedAt.isNull()))
+              .getSingle();
+      await (_database.update(
+        _database.quickLists,
+      )..where((row) => row.id.equals(listId))).write(
+        QuickListsCompanion(
+          archivedAt: Value(archived ? now : null),
+          updatedAtLocal: Value(now),
+        ),
+      );
+      if (list.shareState == 'shared') {
+        await _sync.recordUpsert(listId, 'quick_list', listId);
+      }
+    });
   }
 
   @override

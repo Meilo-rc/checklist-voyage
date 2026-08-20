@@ -26,6 +26,7 @@ class QuickListsScreen extends StatefulWidget {
 
 class _QuickListsScreenState extends State<QuickListsScreen> {
   String? _selectedListId;
+  bool _showArchives = false;
 
   Future<void> _join() async {
     final sharing = widget.sharedDocuments;
@@ -88,6 +89,23 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
     }
   }
 
+  Future<void> _duplicate(String sourceId) async {
+    try {
+      final id = await widget.useCases.duplicate(sourceId);
+      if (mounted) {
+        setState(() {
+          _showArchives = false;
+          _selectedListId = id;
+        });
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = _selectedListId;
@@ -96,6 +114,7 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
         listId: selected,
         useCases: widget.useCases,
         onBack: () => setState(() => _selectedListId = null),
+        onDuplicate: _duplicate,
         askName: _askName,
         sharedDocuments: widget.sharedDocuments,
       );
@@ -121,27 +140,53 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
         stream: widget.watchQuickLists(),
         builder: (context, snapshot) {
           final lists = snapshot.data ?? const [];
-          if (lists.isEmpty) {
-            return const EmptyDestination(
-              icon: Icons.checklist_outlined,
-              title: 'Aucune liste rapide',
-              message: 'Créez une liste utilisable entièrement hors ligne.',
-            );
-          }
+          final visible = lists
+              .where((list) => (list.archivedAt != null) == _showArchives)
+              .toList(growable: false);
           return Column(
-            children: lists
-                .map(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SegmentedButton<bool>(
+                key: const Key('quick-archive-tabs'),
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Mes listes')),
+                  ButtonSegment(value: true, label: Text('Archives')),
+                ],
+                selected: {_showArchives},
+                onSelectionChanged: (selection) =>
+                    setState(() => _showArchives = selection.single),
+              ),
+              const SizedBox(height: 16),
+              if (visible.isEmpty)
+                EmptyDestination(
+                  icon: _showArchives
+                      ? Icons.archive_outlined
+                      : Icons.checklist_outlined,
+                  title: _showArchives
+                      ? 'Aucune liste archivée'
+                      : 'Aucune liste rapide',
+                  message: _showArchives
+                      ? 'Les listes archivées resteront accessibles ici.'
+                      : 'Créez une liste utilisable entièrement hors ligne.',
+                )
+              else
+                ...visible.map(
                   (list) => Card(
+                    key: Key('quick-summary-${list.id}'),
                     child: ListTile(
-                      leading: const Icon(Icons.checklist_outlined),
+                      leading: Icon(
+                        _showArchives
+                            ? Icons.archive_outlined
+                            : Icons.checklist_outlined,
+                      ),
                       title: Text(list.name),
                       subtitle: Text(list.shared ? 'Partagée' : 'Locale'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => setState(() => _selectedListId = list.id),
                     ),
                   ),
-                )
-                .toList(growable: false),
+                ),
+            ],
           );
         },
       ),
@@ -154,6 +199,7 @@ class _QuickListDetail extends StatelessWidget {
     required this.listId,
     required this.useCases,
     required this.onBack,
+    required this.onDuplicate,
     required this.askName,
     required this.sharedDocuments,
   });
@@ -161,6 +207,7 @@ class _QuickListDetail extends StatelessWidget {
   final String listId;
   final QuickListUseCases useCases;
   final VoidCallback onBack;
+  final Future<void> Function(String) onDuplicate;
   final Future<String?> Function(String, {String initial}) askName;
   final SharedDocumentUseCases? sharedDocuments;
 
@@ -217,6 +264,8 @@ class _QuickListDetail extends StatelessWidget {
                     },
                   ),
                 PopupMenuButton<String>(
+                  key: const Key('quick-actions'),
+                  position: PopupMenuPosition.under,
                   onSelected: (action) async {
                     if (action == 'rename') {
                       final name = await askName(
@@ -226,15 +275,44 @@ class _QuickListDetail extends StatelessWidget {
                       if (name != null) await useCases.rename(list.id, name);
                     } else if (action == 'reset') {
                       await useCases.reset(list.id);
+                    } else if (action == 'duplicate') {
+                      await onDuplicate(list.id);
+                    } else if (action == 'archive') {
+                      await useCases.archive(list.id);
+                    } else if (action == 'restore') {
+                      await useCases.restore(list.id);
                     } else if (action == 'delete') {
                       await useCases.delete(list.id);
                       onBack();
                     }
                   },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(value: 'rename', child: Text('Renommer')),
-                    PopupMenuItem(value: 'reset', child: Text('Tout décocher')),
-                    PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'rename',
+                      child: Text('Renommer'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'reset',
+                      child: Text('Tout décocher'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'duplicate',
+                      child: Text('Dupliquer'),
+                    ),
+                    if (list.archivedAt == null)
+                      const PopupMenuItem(
+                        value: 'archive',
+                        child: Text('Archiver'),
+                      )
+                    else
+                      const PopupMenuItem(
+                        value: 'restore',
+                        child: Text('Restaurer'),
+                      ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Supprimer'),
+                    ),
                   ],
                 ),
               ],

@@ -10,6 +10,12 @@ abstract interface class QuickListRepository {
 
   Future<String> createQuickList(String name);
 
+  Future<String> duplicateQuickList(String listId);
+
+  Future<void> archiveQuickList(String listId);
+
+  Future<void> restoreQuickList(String listId);
+
   Future<void> renameQuickList(String listId, String name);
 
   Future<void> deleteQuickList(String listId);

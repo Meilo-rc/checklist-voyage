@@ -22,20 +22,57 @@ class DriftTripRepository implements TripRepository {
 
   @override
   Stream<List<TripSummary>> watchTrips() {
-    final query = _database.select(_database.trips)
-      ..where((row) => row.deletedAt.isNull())
-      ..orderBy([(row) => OrderingTerm.desc(row.updatedAtLocal)]);
-    return query.watch().map(
-      (rows) => rows
-          .map(
-            (row) => TripSummary(
-              id: row.id,
-              name: row.name,
-              shared: row.shareState == 'shared',
-            ),
-          )
-          .toList(growable: false),
-    );
+    return _database
+        .customSelect(
+          '''
+            SELECT 'trip:' || id AS entity_key, updated_at_local, deleted_at
+            FROM trips
+            UNION ALL
+            SELECT 'member:' || id, updated_at_local, deleted_at
+            FROM trip_members
+          ''',
+          readsFrom: {_database.trips, _database.tripMembers},
+        )
+        .watch()
+        .asyncMap((_) => _loadTripSummaries());
+  }
+
+  Future<List<TripSummary>> _loadTripSummaries() async {
+    final trips =
+        await (_database.select(_database.trips)
+              ..where((row) => row.deletedAt.isNull())
+              ..orderBy([(row) => OrderingTerm.desc(row.updatedAtLocal)]))
+            .get();
+    if (trips.isEmpty) return const [];
+    final tripIds = trips.map((trip) => trip.id).toList(growable: false);
+    final participants =
+        await (_database.select(_database.tripMembers)
+              ..where(
+                (row) =>
+                    row.tripId.isIn(tripIds) &
+                    row.groupKind.equals('family') &
+                    row.deletedAt.isNull(),
+              )
+              ..orderBy([(row) => OrderingTerm.asc(row.name)]))
+            .get();
+    return trips
+        .map(
+          (trip) => TripSummary(
+            id: trip.id,
+            name: trip.name,
+            destination: _destinationName(trip.destinationJson),
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+            archivedAt: trip.archivedAt,
+            updatedAt: trip.updatedAtLocal,
+            participantNames: participants
+                .where((member) => member.tripId == trip.id)
+                .map((member) => member.name)
+                .toList(growable: false),
+            shared: trip.shareState == 'shared',
+          ),
+        )
+        .toList(growable: false);
   }
 
   @override
@@ -192,6 +229,7 @@ class DriftTripRepository implements TripRepository {
           .map((choice) => choice.choiceId)
           .toSet(),
       members: mappedMembers,
+      archivedAt: trip.archivedAt,
       shared: trip.shareState == 'shared',
       v1ShareReady: syncDocument?.capabilityToken?.isNotEmpty ?? false,
       shareCode: syncDocument?.shareCode,
@@ -247,6 +285,207 @@ class DriftTripRepository implements TripRepository {
       await _writeCompactedItems(tripId, compacted.values, now);
     });
     return tripId;
+  }
+
+  @override
+  Future<String> duplicateTrip(DuplicateTripRequest request) async {
+    final cleanName = request.name.trim();
+    if (cleanName.isEmpty) {
+      throw ArgumentError.value(request.name, 'name', 'Nom requis');
+    }
+    if (request.endDate.isBefore(request.startDate)) {
+      throw ArgumentError('La date de fin précède la date de début.');
+    }
+    final duplicateId = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      await (_database.select(_database.trips)..where(
+            (row) =>
+                row.id.equals(request.sourceTripId) & row.deletedAt.isNull(),
+          ))
+          .getSingle();
+      final members =
+          await (_database.select(_database.tripMembers)..where(
+                (row) =>
+                    row.tripId.equals(request.sourceTripId) &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+      final categories =
+          await (_database.select(_database.tripCategories)..where(
+                (row) =>
+                    row.tripId.equals(request.sourceTripId) &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+      final items =
+          await (_database.select(_database.tripItems)..where(
+                (row) =>
+                    row.tripId.equals(request.sourceTripId) &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+      final itemIds = items.map((item) => item.id).toList(growable: false);
+      final sources = itemIds.isEmpty
+          ? <TripItemSource>[]
+          : await (_database.select(
+              _database.tripItemSources,
+            )..where((row) => row.tripItemId.isIn(itemIds))).get();
+      final choices =
+          await (_database.select(_database.tripGenerationChoices)..where(
+                (row) =>
+                    row.tripId.equals(request.sourceTripId) &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+
+      await _database
+          .into(_database.trips)
+          .insert(
+            TripsCompanion.insert(
+              id: duplicateId,
+              name: cleanName,
+              destinationJson: Value(
+                request.destination.trim().isEmpty
+                    ? null
+                    : jsonEncode({'name': request.destination.trim()}),
+              ),
+              startDate: Value(request.startDate.toUtc()),
+              endDate: Value(request.endDate.toUtc()),
+              shareState: const Value('local'),
+              remoteRecordId: const Value(null),
+              shareCode: const Value(null),
+              archivedAt: const Value(null),
+              createdAt: now,
+              updatedAtLocal: now,
+            ),
+          );
+
+      final memberIds = <String, String>{};
+      for (final member in members) {
+        final newId = _uuid.v4();
+        memberIds[member.id] = newId;
+        await _database
+            .into(_database.tripMembers)
+            .insert(
+              TripMembersCompanion.insert(
+                id: newId,
+                tripId: duplicateId,
+                sourceOwnerId: Value(member.sourceOwnerId),
+                groupKind: member.groupKind,
+                name: member.name,
+                icon: Value(member.icon),
+                createdAt: now,
+                updatedAtLocal: now,
+              ),
+            );
+      }
+
+      final categoryIds = <String, String>{};
+      for (final category in categories) {
+        final newId = _uuid.v4();
+        categoryIds[category.id] = newId;
+        await _database
+            .into(_database.tripCategories)
+            .insert(
+              TripCategoriesCompanion.insert(
+                id: newId,
+                tripId: duplicateId,
+                memberId: Value(
+                  category.memberId == null
+                      ? null
+                      : memberIds[category.memberId],
+                ),
+                sourceCategoryId: Value(category.sourceCategoryId),
+                name: category.name,
+                icon: Value(category.icon),
+                createdAt: now,
+                updatedAtLocal: now,
+              ),
+            );
+      }
+
+      for (final item in items) {
+        final categoryId = categoryIds[item.categoryId];
+        if (categoryId == null) continue;
+        final newId = _uuid.v4();
+        await _database
+            .into(_database.tripItems)
+            .insert(
+              TripItemsCompanion.insert(
+                id: newId,
+                tripId: duplicateId,
+                categoryId: categoryId,
+                name: item.name,
+                quantity: Value(item.quantity),
+                status: const Value('todo'),
+                createdAt: now,
+                updatedAtLocal: now,
+              ),
+            );
+        for (final source in sources.where(
+          (source) => source.tripItemId == item.id,
+        )) {
+          await _database
+              .into(_database.tripItemSources)
+              .insert(
+                TripItemSourcesCompanion.insert(
+                  tripItemId: newId,
+                  sourceLibraryItemId: source.sourceLibraryItemId,
+                  sourceKind: source.sourceKind,
+                  reasonKind: Value(source.reasonKind),
+                  reasonId: Value(source.reasonId),
+                  contributingLibraryItemId: Value(
+                    source.contributingLibraryItemId,
+                  ),
+                ),
+              );
+        }
+      }
+
+      for (final choice in choices) {
+        await _database
+            .into(_database.tripGenerationChoices)
+            .insert(
+              TripGenerationChoicesCompanion.insert(
+                id: _uuid.v4(),
+                tripId: duplicateId,
+                choiceKind: choice.choiceKind,
+                choiceId: choice.choiceId,
+                createdAt: now,
+              ),
+            );
+      }
+    });
+    return duplicateId;
+  }
+
+  @override
+  Future<void> archiveTrip(String tripId) => _setArchived(tripId, true);
+
+  @override
+  Future<void> restoreTrip(String tripId) => _setArchived(tripId, false);
+
+  Future<void> _setArchived(String tripId, bool archived) async {
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      final trip =
+          await (_database.select(
+                _database.trips,
+              )..where((row) => row.id.equals(tripId) & row.deletedAt.isNull()))
+              .getSingle();
+      await (_database.update(
+        _database.trips,
+      )..where((row) => row.id.equals(tripId))).write(
+        TripsCompanion(
+          archivedAt: Value(archived ? now : null),
+          updatedAtLocal: Value(now),
+        ),
+      );
+      if (trip.shareState == 'shared') {
+        await _sync.recordUpsert(tripId, 'trip', tripId);
+      }
+    });
   }
 
   Future<_LibrarySnapshot> _loadLibrarySnapshot() async {

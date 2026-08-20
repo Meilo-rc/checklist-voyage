@@ -329,6 +329,7 @@ class SharedDocumentSyncStore {
           'destination_json': row.destinationJson,
           'start_date': row.startDate?.toIso8601String(),
           'end_date': row.endDate?.toIso8601String(),
+          'archived_at': row.archivedAt?.toIso8601String(),
         };
       case 'trip_member':
         final row = await (database.select(
@@ -378,7 +379,10 @@ class SharedDocumentSyncStore {
         final row = await (database.select(
           database.quickLists,
         )..where((entry) => entry.id.equals(entityId))).getSingle();
-        return {'name': row.name};
+        return {
+          'name': row.name,
+          'archived_at': row.archivedAt?.toIso8601String(),
+        };
       case 'quick_list_item':
         final row = await (database.select(
           database.quickListItems,
@@ -585,6 +589,7 @@ class SharedDocumentSyncStore {
                 destinationJson: Value(p['destination_json'] as String?),
                 startDate: Value(_date(p['start_date'])),
                 endDate: Value(_date(p['end_date'])),
+                archivedAt: Value(_date(p['archived_at'])),
                 shareState: const Value('shared'),
                 remoteRecordId: Value(op.libraryId),
                 shareCode: Value(document.shareCode),
@@ -682,6 +687,7 @@ class SharedDocumentSyncStore {
               QuickListsCompanion.insert(
                 id: op.entityId,
                 name: p['name']! as String,
+                archivedAt: Value(_date(p['archived_at'])),
                 shareState: const Value('shared'),
                 remoteRecordId: Value(op.libraryId),
                 shareCode: Value(document.shareCode),

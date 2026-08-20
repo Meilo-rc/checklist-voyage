@@ -90,6 +90,22 @@ class CreateTripRequest {
   final bool includeEssentials;
 }
 
+class DuplicateTripRequest {
+  const DuplicateTripRequest({
+    required this.sourceTripId,
+    required this.name,
+    required this.destination,
+    required this.startDate,
+    required this.endDate,
+  });
+
+  final String sourceTripId;
+  final String name;
+  final String destination;
+  final DateTime startDate;
+  final DateTime endDate;
+}
+
 class TripItemSourceModel {
   const TripItemSourceModel({
     required this.logicalSourceId,
@@ -164,6 +180,7 @@ class TripDetailModel {
     required this.endDate,
     required this.selectedContextIds,
     required this.members,
+    this.archivedAt,
     this.shared = false,
     this.v1ShareReady = false,
     this.shareCode,
@@ -176,6 +193,7 @@ class TripDetailModel {
   final DateTime? endDate;
   final Set<String> selectedContextIds;
   final List<TripMemberModel> members;
+  final DateTime? archivedAt;
   final bool shared;
   final bool v1ShareReady;
   final String? shareCode;
@@ -200,6 +218,7 @@ class QuickListDetailModel {
     required this.id,
     required this.name,
     required this.items,
+    this.archivedAt,
     this.shared = false,
     this.v1ShareReady = false,
     this.shareCode,
@@ -208,6 +227,7 @@ class QuickListDetailModel {
   final String id;
   final String name;
   final List<QuickListItemModel> items;
+  final DateTime? archivedAt;
   final bool shared;
   final bool v1ShareReady;
   final String? shareCode;

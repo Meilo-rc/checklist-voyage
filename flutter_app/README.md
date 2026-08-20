@@ -1,7 +1,7 @@
 # Checklist Voyage V1 — application Android locale
 
 Ce dossier contient l'application Flutter Android locale-first construite aux
-lots 3 à 8. La PWA 2.63 située à la racine du dépôt reste indépendante et
+lots 3 à 9. La PWA 2.63 située à la racine du dépôt reste indépendante et
 inchangée.
 
 Le moteur local permet de construire la bibliothèque, générer un voyage avec
@@ -12,6 +12,8 @@ ces opérations s'exécutent dans Drift/SQLite sans réseau.
 Les lots 5 à 7 ajoutent les contextes, la compaction, la synchronisation de la
 bibliothèque et le partage explicite des voyages/listes rapides. Le lot 8 ajoute
 les filtres locaux de voyage par état et participant, sans écriture distante.
+Le lot 9 ajoute les archives réversibles et la duplication locale des voyages
+et listes rapides.
 
 ## Commandes Windows
 
@@ -24,11 +26,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\flutter_window
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\flutter_windows.ps1 -FlutterArgs "build apk --debug --no-pub"
 ```
 
-## Limites volontaires après le lot 8
+## Limites volontaires après le lot 9
 
 - aucun passage `shared → local` ;
 - aucune révocation ou rotation de capacité ;
-- aucune archive ni duplication de voyage ;
 - aucune modification/régénération automatique des choix d'un voyage existant ;
 - interface de validation fonctionnelle, sans refonte UX finale.
 
@@ -37,4 +38,4 @@ export Web local `checklist-voyage-backup-v1` ou l'export PocketBase complet
 `checklist-voyage-pocketbase-full-v1`.
 
 Le rapport technique du lot courant est dans
-`docs/v1/LOT_8_FILTRES_VOYAGE.md`.
+`docs/v1/LOT_9_ARCHIVES_DUPLICATION.md`.

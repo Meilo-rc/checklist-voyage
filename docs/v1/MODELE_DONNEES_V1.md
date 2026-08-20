@@ -54,7 +54,7 @@ Un contexte est un critère transversal et non une catégorie. La même identit�
 
 ### Voyages
 
-- `trips` : identité, destination, dates, état de partage et informations distantes.
+- `trips` : identité, destination, dates, archivage manuel, état de partage et informations distantes.
 - `trip_members` : copie du membre au moment de la génération, avec référence source facultative.
 - `trip_categories` : copie de catégorie, rattachée à Général ou à un membre.
 - `trip_items` : nom, quantité et état indépendants de la bibliothèque.
@@ -65,7 +65,7 @@ Un contexte est un critère transversal et non une catégorie. La même identit�
 
 ### Listes rapides
 
-- `quick_lists` : identité, nom et état de partage.
+- `quick_lists` : identité, nom, archivage manuel et état de partage.
 - `quick_list_items` : quantité et état binaire.
 
 ### Synchronisation et migration
@@ -106,7 +106,7 @@ Pour la bibliothèque :
 - les mutations `personal_local` n'y entrent jamais ;
 - une contrainte applicative et des tests doivent empêcher toute fuite de Personnel.
 
-Ces règles décrivent le protocole cible. Au lot 5, aucun client distant n'est actif et aucune mutation n'est encore ajoutée à l'outbox.
+Depuis le lot 7, les documents explicitement partagés utilisent ce protocole. Le lot 9 transporte également `archived_at` dans la mutation racine sans modifier les routes PocketBase.
 
 ## 6. Dates et révisions
 
@@ -115,6 +115,7 @@ Ces règles décrivent le protocole cible. Au lot 5, aucun client distant n'est 
 - `remote_revision` détermine l'ordre canonique des opérations partagées.
 - L'heure du téléphone ne tranche pas seule un conflit distant.
 - `deleted_at` représente un tombstone ; aucune disparition physique avant acquittement.
+- `archived_at` est réversible et ne représente jamais une suppression.
 
 ## 7. Schéma SQL de référence
 

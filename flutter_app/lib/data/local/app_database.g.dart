@@ -3281,6 +3281,17 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _shareStateMeta = const VerificationMeta(
     'shareState',
   );
@@ -3369,6 +3380,7 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
     destinationJson,
     startDate,
     endDate,
+    archivedAt,
     shareState,
     remoteRecordId,
     shareCode,
@@ -3421,6 +3433,12 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
       context.handle(
         _endDateMeta,
         endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
       );
     }
     if (data.containsKey('share_state')) {
@@ -3507,6 +3525,10 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, Trip> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}end_date'],
       ),
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
       shareState: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}share_state'],
@@ -3550,6 +3572,7 @@ class Trip extends DataClass implements Insertable<Trip> {
   final String? destinationJson;
   final DateTime? startDate;
   final DateTime? endDate;
+  final DateTime? archivedAt;
   final String shareState;
   final String? remoteRecordId;
   final String? shareCode;
@@ -3563,6 +3586,7 @@ class Trip extends DataClass implements Insertable<Trip> {
     this.destinationJson,
     this.startDate,
     this.endDate,
+    this.archivedAt,
     required this.shareState,
     this.remoteRecordId,
     this.shareCode,
@@ -3584,6 +3608,9 @@ class Trip extends DataClass implements Insertable<Trip> {
     }
     if (!nullToAbsent || endDate != null) {
       map['end_date'] = Variable<DateTime>(endDate);
+    }
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
     }
     map['share_state'] = Variable<String>(shareState);
     if (!nullToAbsent || remoteRecordId != null) {
@@ -3616,6 +3643,9 @@ class Trip extends DataClass implements Insertable<Trip> {
       endDate: endDate == null && nullToAbsent
           ? const Value.absent()
           : Value(endDate),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
       shareState: Value(shareState),
       remoteRecordId: remoteRecordId == null && nullToAbsent
           ? const Value.absent()
@@ -3645,6 +3675,7 @@ class Trip extends DataClass implements Insertable<Trip> {
       destinationJson: serializer.fromJson<String?>(json['destinationJson']),
       startDate: serializer.fromJson<DateTime?>(json['startDate']),
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       shareState: serializer.fromJson<String>(json['shareState']),
       remoteRecordId: serializer.fromJson<String?>(json['remoteRecordId']),
       shareCode: serializer.fromJson<String?>(json['shareCode']),
@@ -3663,6 +3694,7 @@ class Trip extends DataClass implements Insertable<Trip> {
       'destinationJson': serializer.toJson<String?>(destinationJson),
       'startDate': serializer.toJson<DateTime?>(startDate),
       'endDate': serializer.toJson<DateTime?>(endDate),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'shareState': serializer.toJson<String>(shareState),
       'remoteRecordId': serializer.toJson<String?>(remoteRecordId),
       'shareCode': serializer.toJson<String?>(shareCode),
@@ -3679,6 +3711,7 @@ class Trip extends DataClass implements Insertable<Trip> {
     Value<String?> destinationJson = const Value.absent(),
     Value<DateTime?> startDate = const Value.absent(),
     Value<DateTime?> endDate = const Value.absent(),
+    Value<DateTime?> archivedAt = const Value.absent(),
     String? shareState,
     Value<String?> remoteRecordId = const Value.absent(),
     Value<String?> shareCode = const Value.absent(),
@@ -3694,6 +3727,7 @@ class Trip extends DataClass implements Insertable<Trip> {
         : this.destinationJson,
     startDate: startDate.present ? startDate.value : this.startDate,
     endDate: endDate.present ? endDate.value : this.endDate,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     shareState: shareState ?? this.shareState,
     remoteRecordId: remoteRecordId.present
         ? remoteRecordId.value
@@ -3715,6 +3749,9 @@ class Trip extends DataClass implements Insertable<Trip> {
           : this.destinationJson,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
       endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
       shareState: data.shareState.present
           ? data.shareState.value
           : this.shareState,
@@ -3741,6 +3778,7 @@ class Trip extends DataClass implements Insertable<Trip> {
           ..write('destinationJson: $destinationJson, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('shareState: $shareState, ')
           ..write('remoteRecordId: $remoteRecordId, ')
           ..write('shareCode: $shareCode, ')
@@ -3759,6 +3797,7 @@ class Trip extends DataClass implements Insertable<Trip> {
     destinationJson,
     startDate,
     endDate,
+    archivedAt,
     shareState,
     remoteRecordId,
     shareCode,
@@ -3776,6 +3815,7 @@ class Trip extends DataClass implements Insertable<Trip> {
           other.destinationJson == this.destinationJson &&
           other.startDate == this.startDate &&
           other.endDate == this.endDate &&
+          other.archivedAt == this.archivedAt &&
           other.shareState == this.shareState &&
           other.remoteRecordId == this.remoteRecordId &&
           other.shareCode == this.shareCode &&
@@ -3791,6 +3831,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
   final Value<String?> destinationJson;
   final Value<DateTime?> startDate;
   final Value<DateTime?> endDate;
+  final Value<DateTime?> archivedAt;
   final Value<String> shareState;
   final Value<String?> remoteRecordId;
   final Value<String?> shareCode;
@@ -3805,6 +3846,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     this.destinationJson = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.shareState = const Value.absent(),
     this.remoteRecordId = const Value.absent(),
     this.shareCode = const Value.absent(),
@@ -3820,6 +3862,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     this.destinationJson = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.shareState = const Value.absent(),
     this.remoteRecordId = const Value.absent(),
     this.shareCode = const Value.absent(),
@@ -3838,6 +3881,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     Expression<String>? destinationJson,
     Expression<DateTime>? startDate,
     Expression<DateTime>? endDate,
+    Expression<DateTime>? archivedAt,
     Expression<String>? shareState,
     Expression<String>? remoteRecordId,
     Expression<String>? shareCode,
@@ -3853,6 +3897,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
       if (destinationJson != null) 'destination_json': destinationJson,
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
+      if (archivedAt != null) 'archived_at': archivedAt,
       if (shareState != null) 'share_state': shareState,
       if (remoteRecordId != null) 'remote_record_id': remoteRecordId,
       if (shareCode != null) 'share_code': shareCode,
@@ -3870,6 +3915,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     Value<String?>? destinationJson,
     Value<DateTime?>? startDate,
     Value<DateTime?>? endDate,
+    Value<DateTime?>? archivedAt,
     Value<String>? shareState,
     Value<String?>? remoteRecordId,
     Value<String?>? shareCode,
@@ -3885,6 +3931,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
       destinationJson: destinationJson ?? this.destinationJson,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      archivedAt: archivedAt ?? this.archivedAt,
       shareState: shareState ?? this.shareState,
       remoteRecordId: remoteRecordId ?? this.remoteRecordId,
       shareCode: shareCode ?? this.shareCode,
@@ -3913,6 +3960,9 @@ class TripsCompanion extends UpdateCompanion<Trip> {
     }
     if (endDate.present) {
       map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
     if (shareState.present) {
       map['share_state'] = Variable<String>(shareState.value);
@@ -3949,6 +3999,7 @@ class TripsCompanion extends UpdateCompanion<Trip> {
           ..write('destinationJson: $destinationJson, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('shareState: $shareState, ')
           ..write('remoteRecordId: $remoteRecordId, ')
           ..write('shareCode: $shareCode, ')
@@ -6626,6 +6677,17 @@ class $QuickListsTable extends QuickLists
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -6668,6 +6730,7 @@ class $QuickListsTable extends QuickLists
     remoteRecordId,
     shareCode,
     remoteRevision,
+    archivedAt,
     createdAt,
     updatedAtLocal,
     deletedAt,
@@ -6725,6 +6788,12 @@ class $QuickListsTable extends QuickLists
           data['remote_revision']!,
           _remoteRevisionMeta,
         ),
+      );
+    }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -6785,6 +6854,10 @@ class $QuickListsTable extends QuickLists
         DriftSqlType.int,
         data['${effectivePrefix}remote_revision'],
       ),
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -6813,6 +6886,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
   final String? remoteRecordId;
   final String? shareCode;
   final int? remoteRevision;
+  final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAtLocal;
   final DateTime? deletedAt;
@@ -6823,6 +6897,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     this.remoteRecordId,
     this.shareCode,
     this.remoteRevision,
+    this.archivedAt,
     required this.createdAt,
     required this.updatedAtLocal,
     this.deletedAt,
@@ -6841,6 +6916,9 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     }
     if (!nullToAbsent || remoteRevision != null) {
       map['remote_revision'] = Variable<int>(remoteRevision);
+    }
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at_local'] = Variable<DateTime>(updatedAtLocal);
@@ -6864,6 +6942,9 @@ class QuickList extends DataClass implements Insertable<QuickList> {
       remoteRevision: remoteRevision == null && nullToAbsent
           ? const Value.absent()
           : Value(remoteRevision),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
       createdAt: Value(createdAt),
       updatedAtLocal: Value(updatedAtLocal),
       deletedAt: deletedAt == null && nullToAbsent
@@ -6884,6 +6965,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
       remoteRecordId: serializer.fromJson<String?>(json['remoteRecordId']),
       shareCode: serializer.fromJson<String?>(json['shareCode']),
       remoteRevision: serializer.fromJson<int?>(json['remoteRevision']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAtLocal: serializer.fromJson<DateTime>(json['updatedAtLocal']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -6899,6 +6981,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
       'remoteRecordId': serializer.toJson<String?>(remoteRecordId),
       'shareCode': serializer.toJson<String?>(shareCode),
       'remoteRevision': serializer.toJson<int?>(remoteRevision),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAtLocal': serializer.toJson<DateTime>(updatedAtLocal),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -6912,6 +6995,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     Value<String?> remoteRecordId = const Value.absent(),
     Value<String?> shareCode = const Value.absent(),
     Value<int?> remoteRevision = const Value.absent(),
+    Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAtLocal,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -6926,6 +7010,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     remoteRevision: remoteRevision.present
         ? remoteRevision.value
         : this.remoteRevision,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -6944,6 +7029,9 @@ class QuickList extends DataClass implements Insertable<QuickList> {
       remoteRevision: data.remoteRevision.present
           ? data.remoteRevision.value
           : this.remoteRevision,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAtLocal: data.updatedAtLocal.present
           ? data.updatedAtLocal.value
@@ -6961,6 +7049,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
           ..write('remoteRecordId: $remoteRecordId, ')
           ..write('shareCode: $shareCode, ')
           ..write('remoteRevision: $remoteRevision, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAtLocal: $updatedAtLocal, ')
           ..write('deletedAt: $deletedAt')
@@ -6976,6 +7065,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     remoteRecordId,
     shareCode,
     remoteRevision,
+    archivedAt,
     createdAt,
     updatedAtLocal,
     deletedAt,
@@ -6990,6 +7080,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
           other.remoteRecordId == this.remoteRecordId &&
           other.shareCode == this.shareCode &&
           other.remoteRevision == this.remoteRevision &&
+          other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAtLocal == this.updatedAtLocal &&
           other.deletedAt == this.deletedAt);
@@ -7002,6 +7093,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
   final Value<String?> remoteRecordId;
   final Value<String?> shareCode;
   final Value<int?> remoteRevision;
+  final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAtLocal;
   final Value<DateTime?> deletedAt;
@@ -7013,6 +7105,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
     this.remoteRecordId = const Value.absent(),
     this.shareCode = const Value.absent(),
     this.remoteRevision = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAtLocal = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -7025,6 +7118,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
     this.remoteRecordId = const Value.absent(),
     this.shareCode = const Value.absent(),
     this.remoteRevision = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAtLocal,
     this.deletedAt = const Value.absent(),
@@ -7040,6 +7134,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
     Expression<String>? remoteRecordId,
     Expression<String>? shareCode,
     Expression<int>? remoteRevision,
+    Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAtLocal,
     Expression<DateTime>? deletedAt,
@@ -7052,6 +7147,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
       if (remoteRecordId != null) 'remote_record_id': remoteRecordId,
       if (shareCode != null) 'share_code': shareCode,
       if (remoteRevision != null) 'remote_revision': remoteRevision,
+      if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAtLocal != null) 'updated_at_local': updatedAtLocal,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -7066,6 +7162,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
     Value<String?>? remoteRecordId,
     Value<String?>? shareCode,
     Value<int?>? remoteRevision,
+    Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAtLocal,
     Value<DateTime?>? deletedAt,
@@ -7078,6 +7175,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
       remoteRecordId: remoteRecordId ?? this.remoteRecordId,
       shareCode: shareCode ?? this.shareCode,
       remoteRevision: remoteRevision ?? this.remoteRevision,
+      archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAtLocal: updatedAtLocal ?? this.updatedAtLocal,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -7106,6 +7204,9 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
     if (remoteRevision.present) {
       map['remote_revision'] = Variable<int>(remoteRevision.value);
     }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -7130,6 +7231,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
           ..write('remoteRecordId: $remoteRecordId, ')
           ..write('shareCode: $shareCode, ')
           ..write('remoteRevision: $remoteRevision, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAtLocal: $updatedAtLocal, ')
           ..write('deletedAt: $deletedAt, ')
@@ -14002,6 +14104,7 @@ typedef $$TripsTableCreateCompanionBuilder =
       Value<String?> destinationJson,
       Value<DateTime?> startDate,
       Value<DateTime?> endDate,
+      Value<DateTime?> archivedAt,
       Value<String> shareState,
       Value<String?> remoteRecordId,
       Value<String?> shareCode,
@@ -14018,6 +14121,7 @@ typedef $$TripsTableUpdateCompanionBuilder =
       Value<String?> destinationJson,
       Value<DateTime?> startDate,
       Value<DateTime?> endDate,
+      Value<DateTime?> archivedAt,
       Value<String> shareState,
       Value<String?> remoteRecordId,
       Value<String?> shareCode,
@@ -14142,6 +14246,11 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
 
   ColumnFilters<DateTime> get endDate => $composableBuilder(
     column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14316,6 +14425,11 @@ class $$TripsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get shareState => $composableBuilder(
     column: $table.shareState,
     builder: (column) => ColumnOrderings(column),
@@ -14377,6 +14491,11 @@ class $$TripsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get endDate =>
       $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get shareState => $composableBuilder(
     column: $table.shareState,
@@ -14547,6 +14666,7 @@ class $$TripsTableTableManager
                 Value<String?> destinationJson = const Value.absent(),
                 Value<DateTime?> startDate = const Value.absent(),
                 Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<String> shareState = const Value.absent(),
                 Value<String?> remoteRecordId = const Value.absent(),
                 Value<String?> shareCode = const Value.absent(),
@@ -14561,6 +14681,7 @@ class $$TripsTableTableManager
                 destinationJson: destinationJson,
                 startDate: startDate,
                 endDate: endDate,
+                archivedAt: archivedAt,
                 shareState: shareState,
                 remoteRecordId: remoteRecordId,
                 shareCode: shareCode,
@@ -14577,6 +14698,7 @@ class $$TripsTableTableManager
                 Value<String?> destinationJson = const Value.absent(),
                 Value<DateTime?> startDate = const Value.absent(),
                 Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<String> shareState = const Value.absent(),
                 Value<String?> remoteRecordId = const Value.absent(),
                 Value<String?> shareCode = const Value.absent(),
@@ -14591,6 +14713,7 @@ class $$TripsTableTableManager
                 destinationJson: destinationJson,
                 startDate: startDate,
                 endDate: endDate,
+                archivedAt: archivedAt,
                 shareState: shareState,
                 remoteRecordId: remoteRecordId,
                 shareCode: shareCode,
@@ -17121,6 +17244,7 @@ typedef $$QuickListsTableCreateCompanionBuilder =
       Value<String?> remoteRecordId,
       Value<String?> shareCode,
       Value<int?> remoteRevision,
+      Value<DateTime?> archivedAt,
       required DateTime createdAt,
       required DateTime updatedAtLocal,
       Value<DateTime?> deletedAt,
@@ -17134,6 +17258,7 @@ typedef $$QuickListsTableUpdateCompanionBuilder =
       Value<String?> remoteRecordId,
       Value<String?> shareCode,
       Value<int?> remoteRevision,
+      Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAtLocal,
       Value<DateTime?> deletedAt,
@@ -17199,6 +17324,11 @@ class $$QuickListsTableFilterComposer
 
   ColumnFilters<int> get remoteRevision => $composableBuilder(
     column: $table.remoteRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17282,6 +17412,11 @@ class $$QuickListsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -17328,6 +17463,11 @@ class $$QuickListsTableAnnotationComposer
 
   GeneratedColumn<int> get remoteRevision => $composableBuilder(
     column: $table.remoteRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => column,
   );
 
@@ -17402,6 +17542,7 @@ class $$QuickListsTableTableManager
                 Value<String?> remoteRecordId = const Value.absent(),
                 Value<String?> shareCode = const Value.absent(),
                 Value<int?> remoteRevision = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAtLocal = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -17413,6 +17554,7 @@ class $$QuickListsTableTableManager
                 remoteRecordId: remoteRecordId,
                 shareCode: shareCode,
                 remoteRevision: remoteRevision,
+                archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAtLocal: updatedAtLocal,
                 deletedAt: deletedAt,
@@ -17426,6 +17568,7 @@ class $$QuickListsTableTableManager
                 Value<String?> remoteRecordId = const Value.absent(),
                 Value<String?> shareCode = const Value.absent(),
                 Value<int?> remoteRevision = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAtLocal,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -17437,6 +17580,7 @@ class $$QuickListsTableTableManager
                 remoteRecordId: remoteRecordId,
                 shareCode: shareCode,
                 remoteRevision: remoteRevision,
+                archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAtLocal: updatedAtLocal,
                 deletedAt: deletedAt,

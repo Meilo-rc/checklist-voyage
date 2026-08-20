@@ -19,7 +19,7 @@ void main() {
     expect(find.text('Voyages'), findsWidgets);
     expect(find.text('Bibliothèque'), findsOneWidget);
     expect(find.text('Listes rapides'), findsOneWidget);
-    expect(find.text('Aucun voyage local'), findsOneWidget);
+    expect(find.text('Aucun voyage actif'), findsOneWidget);
 
     await tester.tap(find.text('Bibliothèque'));
     await tester.pumpAndSettle();

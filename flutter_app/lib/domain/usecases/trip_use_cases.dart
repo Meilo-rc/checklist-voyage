@@ -20,6 +20,13 @@ class TripUseCases {
   Future<String> createTrip(CreateTripRequest request) =>
       _trips.createTrip(request);
 
+  Future<String> duplicateTrip(DuplicateTripRequest request) =>
+      _trips.duplicateTrip(request);
+
+  Future<void> archiveTrip(String tripId) => _trips.archiveTrip(tripId);
+
+  Future<void> restoreTrip(String tripId) => _trips.restoreTrip(tripId);
+
   Future<void> cycleItemStatus(String itemId) => _trips.cycleItemStatus(itemId);
 
   Future<void> changeItemQuantity(String itemId, int delta) =>

@@ -11,6 +11,12 @@ class QuickListUseCases {
 
   Future<String> create(String name) => _repository.createQuickList(name);
 
+  Future<String> duplicate(String id) => _repository.duplicateQuickList(id);
+
+  Future<void> archive(String id) => _repository.archiveQuickList(id);
+
+  Future<void> restore(String id) => _repository.restoreQuickList(id);
+
   Future<void> rename(String id, String name) =>
       _repository.renameQuickList(id, name);
 

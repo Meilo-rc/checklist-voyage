@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
 import '../../domain/models/progress.dart';
+import '../../domain/models/trip_archive.dart';
 import '../../domain/models/trip_filters.dart';
 import '../../domain/usecases/trip_use_cases.dart';
 import '../../domain/usecases/shared_document_use_cases.dart';
@@ -27,6 +28,7 @@ class TripsScreen extends StatefulWidget {
 
 class _TripsScreenState extends State<TripsScreen> {
   String? _selectedTripId;
+  bool _showArchives = false;
 
   Future<void> _join() async {
     final sharing = widget.sharedDocuments;
@@ -68,6 +70,28 @@ class _TripsScreenState extends State<TripsScreen> {
     }
   }
 
+  Future<void> _duplicateTrip(TripDetailModel source) async {
+    final request = await showDialog<DuplicateTripRequest>(
+      context: context,
+      builder: (context) => _DuplicateTripDialog(source: source),
+    );
+    if (request == null) return;
+    try {
+      final id = await widget.useCases.duplicateTrip(request);
+      if (mounted) {
+        setState(() {
+          _showArchives = false;
+          _selectedTripId = id;
+        });
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = _selectedTripId;
@@ -76,6 +100,7 @@ class _TripsScreenState extends State<TripsScreen> {
         tripId: selected,
         useCases: widget.useCases,
         onBack: () => setState(() => _selectedTripId = null),
+        onDuplicate: _duplicateTrip,
         sharedDocuments: widget.sharedDocuments,
       );
     }
@@ -100,29 +125,139 @@ class _TripsScreenState extends State<TripsScreen> {
         stream: widget.watchTrips(),
         builder: (context, snapshot) {
           final trips = snapshot.data ?? const [];
-          if (trips.isEmpty) {
-            return const EmptyDestination(
-              icon: Icons.luggage_outlined,
-              title: 'Aucun voyage local',
-              message: 'Créez un voyage depuis votre bibliothèque.',
-            );
-          }
+          final now = DateTime.now();
+          final upcoming = trips
+              .where(
+                (trip) =>
+                    TripArchiveClassifier.classify(trip, now) ==
+                    TripCollection.upcoming,
+              )
+              .toList(growable: false);
+          final ongoing = trips
+              .where(
+                (trip) =>
+                    TripArchiveClassifier.classify(trip, now) ==
+                    TripCollection.ongoing,
+              )
+              .toList(growable: false);
+          final archives =
+              trips
+                  .where(
+                    (trip) =>
+                        TripArchiveClassifier.classify(trip, now) ==
+                        TripCollection.archived,
+                  )
+                  .toList()
+                ..sort(
+                  (a, b) => TripArchiveClassifier.archiveSortDate(
+                    b,
+                  ).compareTo(TripArchiveClassifier.archiveSortDate(a)),
+                );
+          final hasActive = upcoming.isNotEmpty || ongoing.isNotEmpty;
           return Column(
-            children: trips
-                .map(
-                  (trip) => Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.luggage_outlined),
-                      title: Text(trip.name),
-                      subtitle: Text(trip.shared ? 'Partagé' : 'Local'),
-                      trailing: const Icon(Icons.chevron_right),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SegmentedButton<bool>(
+                key: const Key('trip-archive-tabs'),
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Voyages')),
+                  ButtonSegment(value: true, label: Text('Archives')),
+                ],
+                selected: {_showArchives},
+                onSelectionChanged: (selection) =>
+                    setState(() => _showArchives = selection.single),
+              ),
+              const SizedBox(height: 16),
+              if (_showArchives)
+                if (archives.isEmpty)
+                  const EmptyDestination(
+                    icon: Icons.archive_outlined,
+                    title: 'Aucune archive',
+                    message: 'Les voyages terminés apparaîtront ici.',
+                  )
+                else
+                  ...archives.map(
+                    (trip) => _TripSummaryCard(
+                      trip: trip,
+                      archived: true,
+                      onTap: () => setState(() => _selectedTripId = trip.id),
+                    ),
+                  )
+              else if (!hasActive)
+                const EmptyDestination(
+                  icon: Icons.luggage_outlined,
+                  title: 'Aucun voyage actif',
+                  message: 'Créez un voyage depuis votre bibliothèque.',
+                )
+              else ...[
+                if (upcoming.isNotEmpty) ...[
+                  Text(
+                    'À venir',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  ...upcoming.map(
+                    (trip) => _TripSummaryCard(
+                      trip: trip,
+                      archived: false,
                       onTap: () => setState(() => _selectedTripId = trip.id),
                     ),
                   ),
-                )
-                .toList(growable: false),
+                ],
+                if (ongoing.isNotEmpty) ...[
+                  if (upcoming.isNotEmpty) const SizedBox(height: 12),
+                  Text(
+                    'En cours',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  ...ongoing.map(
+                    (trip) => _TripSummaryCard(
+                      trip: trip,
+                      archived: false,
+                      onTap: () => setState(() => _selectedTripId = trip.id),
+                    ),
+                  ),
+                ],
+              ],
+            ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _TripSummaryCard extends StatelessWidget {
+  const _TripSummaryCard({
+    required this.trip,
+    required this.archived,
+    required this.onTap,
+  });
+
+  final TripSummary trip;
+  final bool archived;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final details = <String>[
+      if (trip.destination.isNotEmpty) trip.destination,
+      if (trip.startDate != null || trip.endDate != null)
+        _dateRangeLabel(trip.startDate, trip.endDate),
+      if (trip.participantNames.isNotEmpty) trip.participantNames.join(', '),
+      if (trip.shared) 'Partagé',
+    ];
+    return Card(
+      key: Key('trip-summary-${trip.id}'),
+      child: ListTile(
+        leading: Icon(
+          archived ? Icons.archive_outlined : Icons.luggage_outlined,
+        ),
+        title: Text(trip.name),
+        subtitle: details.isEmpty ? null : Text(details.join(' · ')),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
     );
   }
@@ -294,6 +429,156 @@ class _CreateTripDialogState extends State<_CreateTripDialog> {
   }
 }
 
+class _DuplicateTripDialog extends StatefulWidget {
+  const _DuplicateTripDialog({required this.source});
+
+  final TripDetailModel source;
+
+  @override
+  State<_DuplicateTripDialog> createState() => _DuplicateTripDialogState();
+}
+
+class _DuplicateTripDialogState extends State<_DuplicateTripDialog> {
+  late final TextEditingController _name;
+  late final TextEditingController _destination;
+  DateTime? _startDate;
+  DateTime? _endDate;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: 'Copie de ${widget.source.name}');
+    _destination = TextEditingController(text: widget.source.destination);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _destination.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickStart() async {
+    final date = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDate: _startDate ?? DateTime.now(),
+    );
+    if (date != null) setState(() => _startDate = date);
+  }
+
+  Future<void> _pickEnd() async {
+    final date = await showDatePicker(
+      context: context,
+      firstDate: _startDate ?? DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDate: _endDate ?? _startDate ?? DateTime.now(),
+    );
+    if (date != null) setState(() => _endDate = date);
+  }
+
+  void _submit() {
+    if (_name.text.trim().isEmpty || _startDate == null || _endDate == null) {
+      setState(() => _error = 'Nom et nouvelles dates requis.');
+      return;
+    }
+    if (_endDate!.isBefore(_startDate!)) {
+      setState(() => _error = 'La date de fin précède la date de début.');
+      return;
+    }
+    Navigator.pop(
+      context,
+      DuplicateTripRequest(
+        sourceTripId: widget.source.id,
+        name: _name.text,
+        destination: _destination.text,
+        startDate: _startDate!,
+        endDate: _endDate!,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sections = widget.source.members
+        .map((member) => member.name)
+        .join(', ');
+    return AlertDialog(
+      title: const Text('Dupliquer le voyage'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                key: const Key('trip-duplicate-name'),
+                controller: _name,
+                decoration: const InputDecoration(labelText: 'Nom'),
+              ),
+              TextField(
+                key: const Key('trip-duplicate-destination'),
+                controller: _destination,
+                decoration: const InputDecoration(labelText: 'Destination'),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    key: const Key('trip-duplicate-start'),
+                    onPressed: _pickStart,
+                    icon: const Icon(Icons.calendar_today_outlined),
+                    label: Text(_dateLabel(_startDate, 'Nouveau départ')),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('trip-duplicate-end'),
+                    onPressed: _pickEnd,
+                    icon: const Icon(Icons.event_outlined),
+                    label: Text(_dateLabel(_endDate, 'Nouveau retour')),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('Structure conservée : $sections'),
+              if (widget.source.selectedContextIds.isNotEmpty)
+                Text(
+                  '${widget.source.selectedContextIds.length} activité(s) conservée(s)',
+                ),
+              const SizedBox(height: 4),
+              const Text(
+                'La checklist affinée et les quantités seront copiées. Tous les états repartiront à À préparer.',
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  key: const Key('trip-duplicate-error'),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          key: const Key('trip-duplicate-submit'),
+          onPressed: _submit,
+          child: const Text('Créer la copie'),
+        ),
+      ],
+    );
+  }
+}
+
 class _ContextChoiceGroup extends StatelessWidget {
   const _ContextChoiceGroup({
     required this.contexts,
@@ -381,12 +666,14 @@ class _TripDetail extends StatefulWidget {
     required this.tripId,
     required this.useCases,
     required this.onBack,
+    required this.onDuplicate,
     required this.sharedDocuments,
   });
 
   final String tripId;
   final TripUseCases useCases;
   final VoidCallback onBack;
+  final Future<void> Function(TripDetailModel) onDuplicate;
   final SharedDocumentUseCases? sharedDocuments;
 
   @override
@@ -462,6 +749,38 @@ class _TripDetailState extends State<_TripDetail> {
                       }
                     },
                   ),
+                PopupMenuButton<String>(
+                  key: const Key('trip-actions'),
+                  position: PopupMenuPosition.under,
+                  onSelected: (action) async {
+                    if (action == 'duplicate') {
+                      await widget.onDuplicate(trip);
+                    } else if (action == 'archive') {
+                      await widget.useCases.archiveTrip(trip.id);
+                    } else if (action == 'restore') {
+                      await widget.useCases.restoreTrip(trip.id);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'duplicate',
+                      child: Text('Dupliquer'),
+                    ),
+                    if (trip.archivedAt != null)
+                      const PopupMenuItem(
+                        value: 'restore',
+                        child: Text('Restaurer'),
+                      )
+                    else if (!TripArchiveClassifier.isFinished(
+                      trip.endDate,
+                      DateTime.now(),
+                    ))
+                      const PopupMenuItem(
+                        value: 'archive',
+                        child: Text('Archiver'),
+                      ),
+                  ],
+                ),
               ],
             ),
             SliverPadding(
@@ -825,4 +1144,11 @@ String _dateLabel(DateTime? value, String fallback) {
   if (value == null) return fallback;
   return '${value.day.toString().padLeft(2, '0')}/'
       '${value.month.toString().padLeft(2, '0')}/${value.year}';
+}
+
+String _dateRangeLabel(DateTime? start, DateTime? end) {
+  if (start == null && end == null) return '';
+  if (start == null) return 'jusqu’au ${_dateLabel(end, '')}';
+  if (end == null) return 'dès le ${_dateLabel(start, '')}';
+  return '${_dateLabel(start, '')}–${_dateLabel(end, '')}';
 }
