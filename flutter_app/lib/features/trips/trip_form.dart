@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/checklist_models.dart';
+import '../shared/date_range_label.dart';
 import '../shared/selection_chip_group.dart';
 
 class TripFormInitialData {
@@ -244,7 +245,10 @@ class _TripFormState extends State<TripForm> {
                               child: Text(
                                 _startDate == null || _endDate == null
                                     ? 'Dates aller et retour'
-                                    : _dateRangeLabel(_startDate!, _endDate!),
+                                    : compactDateRangeLabel(
+                                        _startDate,
+                                        _endDate,
+                                      ),
                               ),
                             ),
                           ],
@@ -346,10 +350,3 @@ class _TripFormState extends State<TripForm> {
   SelectionChoice _choice(LibraryOwnerModel owner) =>
       SelectionChoice(id: owner.id, label: owner.name);
 }
-
-String _dateRangeLabel(DateTime start, DateTime end) =>
-    '${_dateLabel(start)} – ${_dateLabel(end)}';
-
-String _dateLabel(DateTime value) =>
-    '${value.day.toString().padLeft(2, '0')}/'
-    '${value.month.toString().padLeft(2, '0')}/${value.year}';

@@ -9,6 +9,7 @@ import '../../domain/models/trip_filters.dart';
 import '../../domain/usecases/trip_use_cases.dart';
 import '../../domain/usecases/shared_document_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
+import '../shared/date_range_label.dart';
 import '../shared/destination_scaffold.dart';
 import 'trip_form.dart';
 
@@ -156,6 +157,34 @@ class _TripsScreenState extends State<TripsScreen> {
     }
   }
 
+  Future<void> _handleCardAction(
+    TripSummary summary,
+    _TripCardAction action,
+  ) async {
+    try {
+      if (action == _TripCardAction.archive) {
+        await widget.useCases.archiveTrip(summary.id);
+        return;
+      }
+      if (action == _TripCardAction.restore) {
+        await widget.useCases.restoreTrip(summary.id);
+        return;
+      }
+      final trip = await widget.useCases.watchTrip(summary.id).first;
+      if (trip == null) return;
+      if (action == _TripCardAction.edit) {
+        await _editTrip(trip);
+      } else if (action == _TripCardAction.duplicate) {
+        await _duplicateTrip(trip);
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = _selectedTripId;
@@ -258,6 +287,7 @@ class _TripsScreenState extends State<TripsScreen> {
                         trip: trip,
                         archived: true,
                         onTap: () => setState(() => _selectedTripId = trip.id),
+                        onAction: (action) => _handleCardAction(trip, action),
                       ),
                     ),
                   )
@@ -281,6 +311,7 @@ class _TripsScreenState extends State<TripsScreen> {
                         trip: trip,
                         archived: false,
                         onTap: () => setState(() => _selectedTripId = trip.id),
+                        onAction: (action) => _handleCardAction(trip, action),
                       ),
                     ),
                   ),
@@ -299,6 +330,7 @@ class _TripsScreenState extends State<TripsScreen> {
                         trip: trip,
                         archived: false,
                         onTap: () => setState(() => _selectedTripId = trip.id),
+                        onAction: (action) => _handleCardAction(trip, action),
                       ),
                     ),
                   ),
@@ -317,16 +349,20 @@ class _TripSummaryCard extends StatelessWidget {
     required this.trip,
     required this.archived,
     required this.onTap,
+    required this.onAction,
   });
 
   final TripSummary trip;
   final bool archived;
   final VoidCallback onTap;
+  final Future<void> Function(_TripCardAction action) onAction;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final title = trip.name;
+    final title = trip.destination.trim().isEmpty
+        ? trip.name
+        : trip.destination;
     final journey = [...trip.transportNames, ...trip.lodgingNames].join(' · ');
     return Card(
       key: Key('trip-summary-${trip.id}'),
@@ -350,23 +386,49 @@ class _TripSummaryCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  _TemporalLabel(trip: trip, archived: archived),
+                  const SizedBox(width: AppSpacing.xs),
+                  PopupMenuButton<_TripCardAction>(
+                    key: Key('trip-summary-actions-${trip.id}'),
+                    tooltip: 'Actions du voyage',
+                    position: PopupMenuPosition.under,
+                    padding: EdgeInsets.zero,
+                    iconSize: 20,
+                    constraints: const BoxConstraints(
+                      minWidth: 40,
+                      minHeight: 40,
+                    ),
+                    onSelected: onAction,
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: _TripCardAction.edit,
+                        child: Text('Modifier'),
+                      ),
+                      const PopupMenuItem(
+                        value: _TripCardAction.duplicate,
+                        child: Text('Dupliquer'),
+                      ),
+                      if (trip.archivedAt != null)
+                        const PopupMenuItem(
+                          value: _TripCardAction.restore,
+                          child: Text('Restaurer'),
+                        )
+                      else if (!archived &&
+                          !TripArchiveClassifier.isFinished(
+                            trip.endDate,
+                            DateTime.now(),
+                          ))
+                        const PopupMenuItem(
+                          value: _TripCardAction.archive,
+                          child: Text('Archiver'),
+                        ),
+                    ],
+                  ),
                 ],
               ),
-              if (trip.destination.isNotEmpty && trip.destination != title) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  trip.destination,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
               if (trip.startDate != null || trip.endDate != null) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  _dateRangeLabel(trip.startDate, trip.endDate),
+                  compactDateRangeLabel(trip.startDate, trip.endDate),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: colors.onSurfaceVariant,
                   ),
@@ -374,22 +436,14 @@ class _TripSummaryCard extends StatelessWidget {
               ],
               if (trip.participantNames.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  trip.participantNames.join(', '),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                _SummaryLine(
+                  icon: Icons.people_outline,
+                  label: trip.participantNames.join(', '),
                 ),
               ],
               if (!archived && journey.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  journey,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
+                _SummaryLine(icon: Icons.route_outlined, label: journey),
               ],
               if (!archived) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -405,23 +459,32 @@ class _TripSummaryCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
-              if (trip.shared) ...[
+              if (_temporalLabel(trip, DateTime.now(), archived) != null ||
+                  trip.shared) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.sm,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Icon(
-                      Icons.people_outline,
-                      size: 16,
-                      color: colors.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      'Partagé',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: colors.onSurfaceVariant,
+                    _TemporalLabel(trip: trip, archived: archived),
+                    if (trip.shared)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.people_outline,
+                            size: 16,
+                            color: colors.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            'Partagé',
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(color: colors.onSurfaceVariant),
+                          ),
+                        ],
                       ),
-                    ),
                   ],
                 ),
               ],
@@ -429,6 +492,36 @@ class _TripSummaryCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+enum _TripCardAction { edit, duplicate, archive, restore }
+
+class _SummaryLine extends StatelessWidget {
+  const _SummaryLine({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: colors.onSurfaceVariant),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1103,13 +1196,6 @@ String _dateLabel(DateTime? value, String fallback) {
   if (value == null) return fallback;
   return '${value.day.toString().padLeft(2, '0')}/'
       '${value.month.toString().padLeft(2, '0')}/${value.year}';
-}
-
-String _dateRangeLabel(DateTime? start, DateTime? end) {
-  if (start == null && end == null) return '';
-  if (start == null) return 'jusqu’au ${_dateLabel(end, '')}';
-  if (end == null) return 'dès le ${_dateLabel(start, '')}';
-  return '${_dateLabel(start, '')}–${_dateLabel(end, '')}';
 }
 
 String? _temporalLabel(TripSummary trip, DateTime now, bool archived) {

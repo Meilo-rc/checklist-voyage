@@ -62,7 +62,7 @@ void main() {
 
       await tester.pumpWidget(ChecklistApp(dependencies: dependenciesB));
       await tester.pump(const Duration(milliseconds: 500));
-      await tester.tap(find.text('Voyage filtré'));
+      await tester.tap(find.byKey(Key('trip-summary-$tripId')));
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -280));

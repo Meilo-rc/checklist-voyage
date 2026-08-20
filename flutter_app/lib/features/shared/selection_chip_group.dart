@@ -29,6 +29,7 @@ class SelectionChipGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -42,29 +43,56 @@ class SelectionChipGroup extends StatelessWidget {
             ),
           )
         else
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: choices
-                .map((choice) {
-                  final selected = selectedIds.contains(choice.id);
-                  return ChoiceChip(
-                    key: Key('trip-choice-${choice.id}'),
-                    label: Text(choice.label),
-                    selected: selected,
-                    showCheckmark: false,
-                    onSelected: enabled
-                        ? (value) {
-                            final next = Set<String>.of(selectedIds);
-                            value
-                                ? next.add(choice.id)
-                                : next.remove(choice.id);
-                            onChanged(next);
-                          }
-                        : null,
-                  );
-                })
-                .toList(growable: false),
+          LayoutBuilder(
+            builder: (context, constraints) => Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: choices
+                  .map((choice) {
+                    final selected = selectedIds.contains(choice.id);
+                    return ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: constraints.maxWidth,
+                      ),
+                      child: ChoiceChip(
+                        key: Key('trip-choice-${choice.id}'),
+                        label: Text(
+                          choice.label,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        selected: selected,
+                        showCheckmark: false,
+                        selectedColor: colors.primaryContainer,
+                        backgroundColor: colors.surfaceContainerLowest,
+                        side: BorderSide(
+                          color: selected
+                              ? colors.primary
+                              : colors.outlineVariant,
+                          width: selected ? 1.5 : 1,
+                        ),
+                        labelStyle: TextStyle(
+                          color: selected
+                              ? colors.onPrimaryContainer
+                              : colors.onSurfaceVariant,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                        onSelected: enabled
+                            ? (value) {
+                                final next = Set<String>.of(selectedIds);
+                                value
+                                    ? next.add(choice.id)
+                                    : next.remove(choice.id);
+                                onChanged(next);
+                              }
+                            : null,
+                      ),
+                    );
+                  })
+                  .toList(growable: false),
+            ),
           ),
       ],
     );
