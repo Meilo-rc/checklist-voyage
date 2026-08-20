@@ -187,7 +187,7 @@ void main() {
 
       await tester.tap(find.byKey(Key('trip-summary-$ongoingId')));
       await _pumpData(tester);
-      expect(find.text('Séjour familial'), findsWidgets);
+      expect(find.byKey(const Key('trip-overview')), findsOneWidget);
       await tester.tap(find.byIcon(Icons.arrow_back));
       await _pumpData(tester);
 

@@ -11,6 +11,7 @@ import '../../domain/usecases/shared_document_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
 import '../shared/date_range_label.dart';
 import '../shared/destination_scaffold.dart';
+import '../shared/item_contexts_sheet.dart';
 import 'trip_form.dart';
 
 class TripsScreen extends StatefulWidget {
@@ -695,6 +696,8 @@ class _TripDetail extends StatefulWidget {
 
 class _TripDetailState extends State<_TripDetail> {
   TripFilter _filter = const TripFilter();
+  String? _selectedMemberId;
+  String? _selectedCategoryId;
   late final Stream<TripDetailModel?> _tripStream;
 
   @override
@@ -702,6 +705,80 @@ class _TripDetailState extends State<_TripDetail> {
     super.initState();
     _tripStream = widget.useCases.watchTrip(widget.tripId);
   }
+
+  void _goBack() {
+    if (_selectedCategoryId != null) {
+      setState(() => _selectedCategoryId = null);
+    } else if (_selectedMemberId != null) {
+      setState(() => _selectedMemberId = null);
+    } else {
+      widget.onBack();
+    }
+  }
+
+  Future<void> _share(TripDetailModel trip) async {
+    final sharing = widget.sharedDocuments;
+    if (sharing == null) return;
+    try {
+      final code = trip.v1ShareReady
+          ? trip.shareCode
+          : (await sharing.shareTrip(trip.id)).shareCode;
+      if (mounted && code != null) await _showCode(context, code);
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  List<Widget> _actions(TripDetailModel trip) => [
+    if (widget.sharedDocuments != null)
+      IconButton(
+        key: Key(trip.v1ShareReady ? 'trip-show-code' : 'trip-share'),
+        tooltip: trip.v1ShareReady ? 'Afficher le code' : 'Partager',
+        icon: const Icon(Icons.share_outlined),
+        onPressed: () => _share(trip),
+      ),
+    PopupMenuButton<String>(
+      key: const Key('trip-actions'),
+      position: PopupMenuPosition.under,
+      onSelected: (action) async {
+        if (action == 'edit') {
+          await widget.onEdit(trip);
+        } else if (action == 'duplicate') {
+          await widget.onDuplicate(trip);
+        } else if (action == 'archive') {
+          await widget.useCases.archiveTrip(trip.id);
+        } else if (action == 'restore') {
+          await widget.useCases.restoreTrip(trip.id);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(height: 44, value: 'edit', child: Text('Modifier')),
+        const PopupMenuItem(
+          height: 44,
+          value: 'duplicate',
+          child: Text('Dupliquer'),
+        ),
+        if (trip.archivedAt != null)
+          const PopupMenuItem(
+            height: 44,
+            value: 'restore',
+            child: Text('Restaurer'),
+          )
+        else if (!TripArchiveClassifier.isFinished(
+          trip.endDate,
+          DateTime.now(),
+        ))
+          const PopupMenuItem(
+            height: 44,
+            value: 'archive',
+            child: Text('Archiver'),
+          ),
+      ],
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -720,134 +797,318 @@ class _TripDetailState extends State<_TripDetail> {
             : const TripPersonFilter.all();
         final effectiveFilter = _filter.copyWith(person: effectivePerson);
         final visibleMembers = TripFilterEngine.apply(trip, effectiveFilter);
-        return CustomScrollView(
-          slivers: [
-            SliverAppBar.large(
-              leading: IconButton(
-                onPressed: widget.onBack,
-                icon: const Icon(Icons.arrow_back),
-              ),
-              title: Text(trip.name),
-              actions: [
-                if (trip.shared)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Center(child: Chip(label: Text('Partagé'))),
-                  ),
-                if (widget.sharedDocuments != null)
-                  IconButton(
-                    key: Key(
-                      trip.v1ShareReady ? 'trip-show-code' : 'trip-share',
-                    ),
-                    tooltip: trip.v1ShareReady
-                        ? 'Afficher le code'
-                        : 'Partager',
-                    icon: const Icon(Icons.share_outlined),
-                    onPressed: () async {
-                      try {
-                        final code = trip.v1ShareReady
-                            ? trip.shareCode
-                            : (await widget.sharedDocuments!.shareTrip(
-                                trip.id,
-                              )).shareCode;
-                        if (context.mounted && code != null) {
-                          await _showCode(context, code);
-                        }
-                      } on Object catch (error) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(error.toString())),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                PopupMenuButton<String>(
-                  key: const Key('trip-actions'),
-                  position: PopupMenuPosition.under,
-                  onSelected: (action) async {
-                    if (action == 'edit') {
-                      await widget.onEdit(trip);
-                    } else if (action == 'duplicate') {
-                      await widget.onDuplicate(trip);
-                    } else if (action == 'archive') {
-                      await widget.useCases.archiveTrip(trip.id);
-                    } else if (action == 'restore') {
-                      await widget.useCases.restoreTrip(trip.id);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Modifier')),
-                    const PopupMenuItem(
-                      value: 'duplicate',
-                      child: Text('Dupliquer'),
-                    ),
-                    if (trip.archivedAt != null)
-                      const PopupMenuItem(
-                        value: 'restore',
-                        child: Text('Restaurer'),
+        final member = visibleMembers
+            .where((candidate) => candidate.id == _selectedMemberId)
+            .firstOrNull;
+        final completeMember = trip.members
+            .where((candidate) => candidate.id == _selectedMemberId)
+            .firstOrNull;
+        final category = member?.categories
+            .where((candidate) => candidate.id == _selectedCategoryId)
+            .firstOrNull;
+        final completeCategory = completeMember?.categories
+            .where((candidate) => candidate.id == _selectedCategoryId)
+            .firstOrNull;
+
+        final Widget page;
+        if (_selectedCategoryId != null &&
+            category != null &&
+            completeCategory != null) {
+          page = _TripCategoryPage(
+            tripId: trip.id,
+            category: category,
+            completeCategory: completeCategory,
+            useCases: widget.useCases,
+            onBack: _goBack,
+          );
+        } else if (_selectedMemberId != null &&
+            member != null &&
+            completeMember != null) {
+          page = _TripMemberPage(
+            member: member,
+            completeMember: completeMember,
+            onBack: _goBack,
+            onCategorySelected: (id) =>
+                setState(() => _selectedCategoryId = id),
+          );
+        } else if (_selectedMemberId != null) {
+          page = _FilteredLevelEmpty(filter: effectiveFilter, onBack: _goBack);
+        } else {
+          page = _TripOverview(
+            trip: trip,
+            progress: progress,
+            filter: effectiveFilter,
+            personOptions: personOptions,
+            visibleMembers: visibleMembers,
+            onBack: _goBack,
+            actions: _actions(trip),
+            onStateChanged: (state) =>
+                setState(() => _filter = _filter.copyWith(state: state)),
+            onPersonChanged: (person) =>
+                setState(() => _filter = _filter.copyWith(person: person)),
+            onMemberSelected: (id) => setState(() {
+              _selectedMemberId = id;
+              _selectedCategoryId = null;
+            }),
+          );
+        }
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) _goBack();
+          },
+          child: page,
+        );
+      },
+    );
+  }
+}
+
+class _TripOverview extends StatelessWidget {
+  const _TripOverview({
+    required this.trip,
+    required this.progress,
+    required this.filter,
+    required this.personOptions,
+    required this.visibleMembers,
+    required this.onBack,
+    required this.actions,
+    required this.onStateChanged,
+    required this.onPersonChanged,
+    required this.onMemberSelected,
+  });
+
+  final TripDetailModel trip;
+  final ChecklistProgress progress;
+  final TripFilter filter;
+  final List<TripPersonOption> personOptions;
+  final List<TripMemberModel> visibleMembers;
+  final VoidCallback onBack;
+  final List<Widget> actions;
+  final ValueChanged<TripStateFilter> onStateChanged;
+  final ValueChanged<TripPersonFilter> onPersonChanged;
+  final ValueChanged<String> onMemberSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final general = visibleMembers
+        .where((member) => member.groupKind == TripMemberGroupKind.general)
+        .toList(growable: false);
+    final family = visibleMembers
+        .where((member) => member.groupKind == TripMemberGroupKind.family)
+        .toList(growable: false);
+    return CustomScrollView(
+      key: const Key('trip-overview'),
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          leading: IconButton(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back),
+          ),
+          title: Text(trip.destination.isEmpty ? trip.name : trip.destination),
+          actions: actions,
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
+          sliver: SliverList.list(
+            children: [
+              if (trip.startDate != null ||
+                  trip.endDate != null ||
+                  trip.v1ShareReady) ...[
+                Row(
+                  children: [
+                    if (trip.startDate != null || trip.endDate != null)
+                      Expanded(
+                        child: Text(
+                          compactTripPeriodLabel(trip.startDate, trip.endDate),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       )
-                    else if (!TripArchiveClassifier.isFinished(
-                      trip.endDate,
-                      DateTime.now(),
-                    ))
-                      const PopupMenuItem(
-                        value: 'archive',
-                        child: Text('Archiver'),
+                    else
+                      const Spacer(),
+                    if (trip.v1ShareReady)
+                      Text(
+                        'Partagé',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                   ],
                 ),
+                const SizedBox(height: AppSpacing.sm),
               ],
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              sliver: SliverList.list(
-                children: [
-                  if (trip.destination.isNotEmpty)
-                    Text(
-                      trip.destination,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(value: progress.percent / 100),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${progress.completed}/${progress.total} rangés · ${progress.percent}%',
-                  ),
-                  const SizedBox(height: 12),
-                  _TripFilters(
-                    filter: effectiveFilter,
-                    personOptions: personOptions,
-                    onStateChanged: (state) => setState(
-                      () => _filter = _filter.copyWith(state: state),
-                    ),
-                    onPersonChanged: (person) => setState(
-                      () => _filter = _filter.copyWith(person: person),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (visibleMembers.isEmpty)
-                    _EmptyTripFilter(
-                      filter: effectiveFilter,
-                      personOptions: personOptions,
-                    )
-                  else
-                    ...visibleMembers.map((member) {
-                      final completeMember = trip.members.singleWhere(
-                        (candidate) => candidate.id == member.id,
-                      );
-                      return _TripMemberCard(
-                        member: member,
-                        completeMember: completeMember,
-                        useCases: widget.useCases,
-                      );
-                    }),
-                ],
+              _CompactProgress(progress: progress),
+              const SizedBox(height: AppSpacing.md),
+              _TripFilters(
+                filter: filter,
+                personOptions: personOptions,
+                onStateChanged: onStateChanged,
+                onPersonChanged: onPersonChanged,
               ),
-            ),
-          ],
-        );
-      },
+              const SizedBox(height: AppSpacing.md),
+              if (visibleMembers.isEmpty)
+                _EmptyTripFilter(filter: filter, personOptions: personOptions)
+              else ...[
+                if (general.isNotEmpty)
+                  _TripLevelSection(
+                    title: 'Général',
+                    members: general,
+                    trip: trip,
+                    onSelected: onMemberSelected,
+                  ),
+                if (family.isNotEmpty)
+                  _TripLevelSection(
+                    title: 'Membres',
+                    members: family,
+                    trip: trip,
+                    onSelected: onMemberSelected,
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TripLevelSection extends StatelessWidget {
+  const _TripLevelSection({
+    required this.title,
+    required this.members,
+    required this.trip,
+    required this.onSelected,
+  });
+
+  final String title;
+  final List<TripMemberModel> members;
+  final TripDetailModel trip;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(
+            top: AppSpacing.sm,
+            bottom: AppSpacing.xs,
+          ),
+          child: Text(title, style: Theme.of(context).textTheme.titleSmall),
+        ),
+        ...members.map((member) {
+          final complete = trip.members.singleWhere(
+            (candidate) => candidate.id == member.id,
+          );
+          final progress = ProgressCalculator.forMember(complete);
+          return _TripNavigationRow(
+            key: Key('trip-member-${member.id}'),
+            title: member.name,
+            progress: progress,
+            onTap: () => onSelected(member.id),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _TripNavigationRow extends StatelessWidget {
+  const _TripNavigationRow({
+    super.key,
+    required this.title,
+    required this.progress,
+    required this.onTap,
+  });
+
+  final String title;
+  final ChecklistProgress progress;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      visualDensity: const VisualDensity(vertical: -2),
+      contentPadding: EdgeInsets.zero,
+      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('${progress.completed}/${progress.total}'),
+          const SizedBox(width: AppSpacing.xs),
+          const Icon(Icons.chevron_right, size: 20),
+        ],
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+class _CompactProgress extends StatelessWidget {
+  const _CompactProgress({required this.progress});
+
+  final ChecklistProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Expanded(child: LinearProgressIndicator(value: progress.percent / 100)),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          '${progress.completed}/${progress.total} · ${progress.percent} %',
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilteredLevelEmpty extends StatelessWidget {
+  const _FilteredLevelEmpty({required this.filter, required this.onBack});
+
+  final TripFilter filter;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = switch (filter.state) {
+      TripStateFilter.all => 'Aucun élément.',
+      TripStateFilter.todo => 'Aucun élément à préparer.',
+      TripStateFilter.checked => 'Aucun élément prêt.',
+      TripStateFilter.done => 'Aucun élément rangé.',
+    };
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          leading: IconButton(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back),
+          ),
+          title: const Text('Voyage'),
+        ),
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Text(message, key: const Key('trip-level-filter-empty')),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1007,126 +1268,576 @@ Future<void> _showCode(BuildContext context, String code) => showDialog<void>(
   ),
 );
 
-class _TripMemberCard extends StatelessWidget {
-  const _TripMemberCard({
+class _TripMemberPage extends StatelessWidget {
+  const _TripMemberPage({
     required this.member,
     required this.completeMember,
-    required this.useCases,
+    required this.onBack,
+    required this.onCategorySelected,
   });
 
   final TripMemberModel member;
   final TripMemberModel completeMember;
-  final TripUseCases useCases;
+  final VoidCallback onBack;
+  final ValueChanged<String> onCategorySelected;
 
   @override
   Widget build(BuildContext context) {
     final progress = ProgressCalculator.forMember(completeMember);
-    return Card(
-      key: Key('trip-member-${member.id}'),
-      child: ExpansionTile(
-        key: PageStorageKey<String>('trip-member-tile-${member.id}'),
-        maintainState: true,
-        title: Text(member.name),
-        subtitle: Text('${progress.completed}/${progress.total} rangés'),
-        children: member.categories
-            .map((category) {
-              final completeCategory = completeMember.categories.singleWhere(
-                (candidate) => candidate.id == category.id,
+    return CustomScrollView(
+      key: Key('trip-member-page-${member.id}'),
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          leading: IconButton(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back),
+          ),
+          title: Text(member.name),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
+          sliver: SliverList.list(
+            children: [
+              _CompactProgress(progress: progress),
+              const SizedBox(height: AppSpacing.sm),
+              ...member.categories.map((category) {
+                final completeCategory = completeMember.categories.singleWhere(
+                  (candidate) => candidate.id == category.id,
+                );
+                return _TripNavigationRow(
+                  key: Key('trip-category-${category.id}'),
+                  title: category.name,
+                  progress: ProgressCalculator.forCategory(completeCategory),
+                  onTap: () => onCategorySelected(category.id),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TripCategoryPage extends StatefulWidget {
+  const _TripCategoryPage({
+    required this.tripId,
+    required this.category,
+    required this.completeCategory,
+    required this.useCases,
+    required this.onBack,
+  });
+
+  final String tripId;
+  final TripCategoryModel category;
+  final TripCategoryModel completeCategory;
+  final TripUseCases useCases;
+  final VoidCallback onBack;
+
+  @override
+  State<_TripCategoryPage> createState() => _TripCategoryPageState();
+}
+
+class _TripCategoryPageState extends State<_TripCategoryPage> {
+  final _addController = TextEditingController();
+  final _addFocus = FocusNode();
+  final _editController = TextEditingController();
+  String? _editingItemId;
+  bool _adding = false;
+
+  @override
+  void dispose() {
+    _addController.dispose();
+    _addFocus.dispose();
+    _editController.dispose();
+    super.dispose();
+  }
+
+  void _message(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _addItem() async {
+    final name = _addController.text.trim();
+    if (name.isEmpty || _adding) return;
+    setState(() => _adding = true);
+    try {
+      await widget.useCases.addItem(widget.tripId, widget.category.id, name);
+      _addController.clear();
+      _addFocus.requestFocus();
+    } on Object catch (error) {
+      _message(error.toString());
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  void _startEditing(TripItemModel item) {
+    setState(() {
+      _editingItemId = item.id;
+      _editController.text = item.name;
+      _editController.selection = TextSelection.collapsed(
+        offset: _editController.text.length,
+      );
+    });
+  }
+
+  Future<void> _saveEditing(String itemId) async {
+    final name = _editController.text.trim();
+    if (name.isEmpty) return;
+    try {
+      await widget.useCases.renameItem(itemId, name);
+      if (mounted) setState(() => _editingItemId = null);
+    } on Object catch (error) {
+      _message(error.toString());
+    }
+  }
+
+  Future<bool> _handleSwipe(
+    TripItemModel item,
+    DismissDirection direction,
+  ) async {
+    if (direction == DismissDirection.startToEnd) {
+      _startEditing(item);
+      return false;
+    }
+    try {
+      await widget.useCases.removeItem(item.id);
+      return true;
+    } on Object catch (error) {
+      _message(error.toString());
+      return false;
+    }
+  }
+
+  Future<void> _manageContexts(TripItemModel item) async {
+    final sourceIds = item.sources
+        .map((source) => source.contributingLibraryItemId)
+        .whereType<String>()
+        .toSet();
+    if (sourceIds.length != 1) {
+      _message(
+        sourceIds.isEmpty
+            ? 'Cet item n’a pas de source dans la bibliothèque.'
+            : 'Cet item a plusieurs sources. Gérez ses contextes dans la bibliothèque.',
+      );
+      return;
+    }
+    final contexts = await widget.useCases.loadContexts();
+    if (!mounted) return;
+    if (contexts.isEmpty) {
+      _message('Créez d’abord un contexte dans la bibliothèque.');
+      return;
+    }
+    final sourceId = sourceIds.single;
+    final initial = await widget.useCases.loadContextIdsForLibraryItem(
+      sourceId,
+    );
+    if (!mounted) return;
+    final selected = await showItemContextsSheet(
+      context,
+      itemName: item.name,
+      contexts: contexts,
+      initialSelection: initial,
+    );
+    if (selected != null) {
+      await widget.useCases.saveContextIdsForLibraryItem(sourceId, selected);
+    }
+  }
+
+  Future<void> _renameCategory() async {
+    final controller = TextEditingController(text: widget.category.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Renommer la catégorie'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          onSubmitted: (value) => Navigator.pop(context, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name != null) {
+      await widget.useCases.renameCategory(widget.category.id, name);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = ProgressCalculator.forCategory(widget.completeCategory);
+    final items = widget.category.items;
+    return CustomScrollView(
+      key: Key('trip-category-page-${widget.category.id}'),
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          leading: IconButton(
+            onPressed: widget.onBack,
+            icon: const Icon(Icons.arrow_back),
+          ),
+          title: Text(widget.category.name),
+          actions: [
+            PopupMenuButton<String>(
+              key: const Key('trip-category-actions'),
+              onSelected: (action) async {
+                if (action == 'rename') {
+                  await _renameCategory();
+                } else if (action == 'remove') {
+                  await widget.useCases.removeCategory(widget.category.id);
+                  widget.onBack();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  height: 44,
+                  value: 'rename',
+                  child: Text('Renommer'),
+                ),
+                PopupMenuItem(
+                  height: 44,
+                  value: 'remove',
+                  child: Text('Retirer du voyage'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.sm,
+          ),
+          sliver: SliverToBoxAdapter(
+            child: _CompactProgress(progress: progress),
+          ),
+        ),
+        SliverList.builder(
+          itemCount: items.length + 1,
+          itemBuilder: (context, index) {
+            if (index == items.length) {
+              return _InlineTripItemAdder(
+                categoryId: widget.category.id,
+                controller: _addController,
+                focusNode: _addFocus,
+                adding: _adding,
+                onAdd: _addItem,
               );
-              return _TripCategoryTile(
-                category: category,
-                completeCategory: completeCategory,
-                useCases: useCases,
-              );
-            })
-            .toList(growable: false),
+            }
+            final item = items[index];
+            return _TripItemRow(
+              key: Key('trip-item-${item.id}'),
+              item: item,
+              editing: _editingItemId == item.id,
+              editController: _editController,
+              onCycle: () => widget.useCases.cycleItemStatus(item.id),
+              onDecrease: item.quantity <= 1
+                  ? null
+                  : () => widget.useCases.changeItemQuantity(item.id, -1),
+              onIncrease: item.quantity >= 99
+                  ? null
+                  : () => widget.useCases.changeItemQuantity(item.id, 1),
+              onRename: () => _saveEditing(item.id),
+              onCancelRename: () => setState(() => _editingItemId = null),
+              onLongPress: () => _manageContexts(item),
+              confirmDismiss: (direction) => _handleSwipe(item, direction),
+            );
+          },
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+      ],
+    );
+  }
+}
+
+class _TripItemRow extends StatelessWidget {
+  const _TripItemRow({
+    super.key,
+    required this.item,
+    required this.editing,
+    required this.editController,
+    required this.onCycle,
+    required this.onDecrease,
+    required this.onIncrease,
+    required this.onRename,
+    required this.onCancelRename,
+    required this.onLongPress,
+    required this.confirmDismiss,
+  });
+
+  final TripItemModel item;
+  final bool editing;
+  final TextEditingController editController;
+  final VoidCallback onCycle;
+  final VoidCallback? onDecrease;
+  final VoidCallback? onIncrease;
+  final VoidCallback onRename;
+  final VoidCallback onCancelRename;
+  final VoidCallback onLongPress;
+  final ConfirmDismissCallback confirmDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final checked = item.status == TripItemStatus.checked;
+    final done = item.status == TripItemStatus.done;
+    return Dismissible(
+      key: ValueKey('trip-item-dismiss-${item.id}'),
+      direction: editing ? DismissDirection.none : DismissDirection.horizontal,
+      confirmDismiss: confirmDismiss,
+      background: const _TripSwipeAction(
+        alignment: Alignment.centerLeft,
+        icon: Icons.edit_outlined,
+        label: 'Modifier',
+      ),
+      secondaryBackground: const _TripSwipeAction(
+        alignment: Alignment.centerRight,
+        icon: Icons.delete_outline,
+        label: 'Supprimer',
+        destructive: true,
+      ),
+      child: InkWell(
+        onLongPress: onLongPress,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Row(
+              children: [
+                IconButton(
+                  key: Key('trip-item-status-${item.id}'),
+                  tooltip: _statusLabel(item.status),
+                  constraints: const BoxConstraints.tightFor(
+                    width: 40,
+                    height: 40,
+                  ),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  color: done
+                      ? colors.primary
+                      : checked
+                      ? colors.onSurfaceVariant
+                      : colors.onSurface,
+                  onPressed: onCycle,
+                  icon: Icon(_statusIcon(item.status), size: 21),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: editing
+                      ? Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                key: Key('trip-item-edit-${item.id}'),
+                                controller: editController,
+                                autofocus: true,
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => onRename(),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                    vertical: AppSpacing.sm,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              key: Key('trip-item-edit-save-${item.id}'),
+                              tooltip: 'Enregistrer',
+                              onPressed: onRename,
+                              icon: const Icon(Icons.check, size: 20),
+                            ),
+                            IconButton(
+                              tooltip: 'Annuler',
+                              onPressed: onCancelRename,
+                              icon: const Icon(Icons.close, size: 20),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          item.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: checked
+                                    ? colors.onSurfaceVariant
+                                    : colors.onSurface,
+                                decoration: checked
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                fontWeight: done ? FontWeight.w700 : null,
+                              ),
+                        ),
+                ),
+                if (!editing) ...[
+                  _QuantityButton(
+                    key: Key('trip-item-decrease-${item.id}'),
+                    tooltip: 'Diminuer',
+                    icon: Icons.remove,
+                    onPressed: onDecrease,
+                  ),
+                  SizedBox(
+                    width: 24,
+                    child: Text(
+                      '${item.quantity}',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  _QuantityButton(
+                    key: Key('trip-item-increase-${item.id}'),
+                    tooltip: 'Augmenter',
+                    icon: Icons.add,
+                    onPressed: onIncrease,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _TripCategoryTile extends StatelessWidget {
-  const _TripCategoryTile({
-    required this.category,
-    required this.completeCategory,
-    required this.useCases,
+class _QuantityButton extends StatelessWidget {
+  const _QuantityButton({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
   });
 
-  final TripCategoryModel category;
-  final TripCategoryModel completeCategory;
-  final TripUseCases useCases;
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final progress = ProgressCalculator.forCategory(completeCategory);
-    return ExpansionTile(
-      key: PageStorageKey<String>('trip-category-${category.id}'),
-      maintainState: true,
-      title: Text(category.name),
-      subtitle: Text('${progress.completed}/${progress.total} rangés'),
-      children: category.items
-          .map(
-            (item) => Padding(
-              key: Key('trip-item-${item.id}'),
-              padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        tooltip: _statusLabel(item.status),
-                        onPressed: () => useCases.cycleItemStatus(item.id),
-                        icon: Icon(_statusIcon(item.status)),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(item.name),
-                            Text(
-                              _statusLabel(item.status),
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Retirer du voyage',
-                        onPressed: () => useCases.removeItem(item.id),
-                        icon: const Icon(Icons.delete_outline),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      const Text('Quantité'),
-                      IconButton(
-                        tooltip: 'Diminuer',
-                        onPressed: () =>
-                            useCases.changeItemQuantity(item.id, -1),
-                        icon: const Icon(Icons.remove),
-                      ),
-                      SizedBox(
-                        width: 32,
-                        child: Text(
-                          '${item.quantity}',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Augmenter',
-                        onPressed: () =>
-                            useCases.changeItemQuantity(item.id, 1),
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
-                ],
+    return IconButton(
+      tooltip: tooltip,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 20),
+    );
+  }
+}
+
+class _InlineTripItemAdder extends StatelessWidget {
+  const _InlineTripItemAdder({
+    required this.categoryId,
+    required this.controller,
+    required this.focusNode,
+    required this.adding,
+    required this.onAdd,
+  });
+
+  final String categoryId;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool adding;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              key: Key('trip-add-item-$categoryId'),
+              controller: controller,
+              focusNode: focusNode,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => onAdd(),
+              decoration: const InputDecoration(
+                hintText: 'Ajouter un item…',
+                isDense: true,
               ),
             ),
-          )
-          .toList(growable: false),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          IconButton.filledTonal(
+            key: Key('trip-add-item-submit-$categoryId'),
+            tooltip: 'Ajouter',
+            onPressed: adding ? null : onAdd,
+            icon: adding
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TripSwipeAction extends StatelessWidget {
+  const _TripSwipeAction({
+    required this.alignment,
+    required this.icon,
+    required this.label,
+    this.destructive = false,
+  });
+
+  final Alignment alignment;
+  final IconData icon;
+  final String label;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final foreground = destructive
+        ? colors.onErrorContainer
+        : colors.onPrimaryContainer;
+    return Container(
+      alignment: alignment,
+      color: destructive ? colors.errorContainer : colors.primaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20, color: foreground),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            label,
+            style: TextStyle(color: foreground, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 }

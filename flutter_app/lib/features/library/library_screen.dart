@@ -9,6 +9,7 @@ import '../../domain/usecases/library_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
 import '../import_data/import_view_model.dart';
 import '../shared/destination_scaffold.dart';
+import '../shared/item_contexts_sheet.dart';
 import '../../sync/library_sync_coordinator.dart';
 import '../../sync/sync_models.dart';
 
@@ -266,62 +267,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
     final initial = await widget.contextUseCases.loadForItem(item.id);
     if (!mounted) return;
-    final selected = await showModalBottomSheet<Set<String>>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        final draft = initial.toSet();
-        return StatefulBuilder(
-          builder: (context, setSheetState) => SafeArea(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                20,
-                20,
-                20 + MediaQuery.viewInsetsOf(context).bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Contextes — ${item.name}',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: contexts
-                        .map(
-                          (contextItem) => FilterChip(
-                            key: Key('context-choice-${contextItem.id}'),
-                            label: Text(contextItem.name),
-                            selected: draft.contains(contextItem.id),
-                            selectedColor: Theme.of(
-                              context,
-                            ).colorScheme.primaryContainer,
-                            onSelected: (value) => setSheetState(() {
-                              value
-                                  ? draft.add(contextItem.id)
-                                  : draft.remove(contextItem.id);
-                            }),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    key: const Key('context-save-item'),
-                    onPressed: () => Navigator.pop(context, draft),
-                    child: const Text('Enregistrer'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+    final selected = await showItemContextsSheet(
+      context,
+      itemName: item.name,
+      contexts: contexts,
+      initialSelection: initial,
     );
     if (selected != null) {
       await widget.contextUseCases.saveForItem(item.id, selected);

@@ -918,6 +918,29 @@ class DriftTripRepository implements TripRepository {
   }
 
   @override
+  Future<void> renameItem(String itemId, String name) async {
+    final clean = name.trim();
+    if (clean.isEmpty) throw ArgumentError.value(name, 'name', 'Nom requis');
+    await _database.transaction(() async {
+      final item =
+          await (_database.select(
+                _database.tripItems,
+              )..where((row) => row.id.equals(itemId) & row.deletedAt.isNull()))
+              .getSingle();
+      final now = DateTime.now().toUtc();
+      await (_database.update(
+        _database.tripItems,
+      )..where((row) => row.id.equals(itemId))).write(
+        TripItemsCompanion(name: Value(clean), updatedAtLocal: Value(now)),
+      );
+      await _touchTrip(item.tripId, now);
+      if (await _isShared(item.tripId)) {
+        await _sync.recordUpsert(item.tripId, 'trip_item', item.id);
+      }
+    });
+  }
+
+  @override
   Future<void> removeItem(String itemId) async {
     final now = DateTime.now().toUtc();
     await _database.transaction(() async {

@@ -75,40 +75,47 @@ void main() {
       expect(find.byKey(const Key('trip-person-all')), findsOneWidget);
       expect(find.byKey(const Key('trip-person-general')), findsOneWidget);
       expect(find.byKey(Key('trip-person-${alex.id}')), findsOneWidget);
-      expect(find.text('0/2 rangés · 0%'), findsOneWidget);
+      expect(find.text('0/2 · 0 %'), findsOneWidget);
 
       await tester.tap(find.byKey(Key('trip-person-${alex.id}')));
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byKey(Key('trip-member-${alex.id}')), findsOneWidget);
       expect(find.byKey(Key('trip-member-${essential.id}')), findsNothing);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byKey(Key('trip-member-${alex.id}')),
-          matching: find.byType(ExpansionTile),
-        ),
+      await tester.tap(find.byKey(Key('trip-member-${alex.id}')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(Key('trip-member-page-${alex.id}')), findsOneWidget);
+      await tester.tap(find.byKey(Key('trip-category-${alexCategory.id}')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(Key('trip-category-page-${alexCategory.id}')),
+        findsOneWidget,
       );
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.ensureVisible(
-        find.byKey(PageStorageKey<String>('trip-category-${alexCategory.id}')),
-      );
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.tap(
-        find.byKey(PageStorageKey<String>('trip-category-${alexCategory.id}')),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
       expect(find.text('T-shirt'), findsOneWidget);
 
-      await tester.ensureVisible(find.byKey(const Key('trip-state-done')));
+      await tester.tap(find.byIcon(Icons.arrow_back).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.arrow_back).first);
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const Key('trip-state-all')),
+        const Offset(-180, 0),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('trip-state-done')));
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byKey(const Key('trip-filter-empty')), findsOneWidget);
       expect(find.text('Aucun élément rangé pour Alex.'), findsOneWidget);
-      expect(find.text('0/2 rangés · 0%'), findsOneWidget);
+      expect(find.text('0/2 · 0 %'), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('trip-person-general')));
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byKey(const Key('trip-filter-empty')), findsOneWidget);
+      await tester.drag(
+        find.byKey(const Key('trip-state-done')),
+        const Offset(180, 0),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('trip-state-todo')));
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byKey(Key('trip-member-${essential.id}')), findsOneWidget);
@@ -167,7 +174,7 @@ void main() {
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -280));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('0/120 rangés · 0%'), findsOneWidget);
+    expect(find.text('0/120 · 0 %'), findsOneWidget);
     expect(find.byKey(const Key('trip-state-todo')), findsOneWidget);
     expect(find.byKey(const Key('trip-person-filters')), findsOneWidget);
     expect(tester.takeException(), isNull);

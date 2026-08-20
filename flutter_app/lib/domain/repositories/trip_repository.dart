@@ -22,6 +22,8 @@ abstract interface class TripRepository {
 
   Future<void> changeItemQuantity(String itemId, int delta);
 
+  Future<void> renameItem(String itemId, String name);
+
   Future<void> removeItem(String itemId);
 
   Future<String> addItem({

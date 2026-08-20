@@ -35,7 +35,18 @@ class TripUseCases {
   Future<void> changeItemQuantity(String itemId, int delta) =>
       _trips.changeItemQuantity(itemId, delta);
 
+  Future<void> renameItem(String itemId, String name) =>
+      _trips.renameItem(itemId, name);
+
   Future<void> removeItem(String itemId) => _trips.removeItem(itemId);
+
+  Future<Set<String>> loadContextIdsForLibraryItem(String itemId) =>
+      _contexts.loadContextIdsForItem(itemId);
+
+  Future<void> saveContextIdsForLibraryItem(
+    String itemId,
+    Set<String> contextIds,
+  ) => _contexts.setItemContexts(itemId, contextIds);
 
   Future<String> addItem(
     String tripId,
