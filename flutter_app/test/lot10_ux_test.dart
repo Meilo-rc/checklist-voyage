@@ -20,6 +20,8 @@ void main() {
     tester,
   ) async {
     await _narrowScreen(tester);
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
     final database = AppDatabase(NativeDatabase.memory());
     final dependencies = await AppDependencies.create(
       database: database,
@@ -36,6 +38,35 @@ void main() {
     expect(find.byKey(const Key('trip-archive-tabs')), findsOneWidget);
     expect(find.text('Bibliothèque'), findsOneWidget);
     expect(find.text('Listes rapides'), findsOneWidget);
+    expect(
+      Theme.of(tester.element(find.text('Aucun voyage actif'))).brightness,
+      Brightness.light,
+    );
+    expect(tester.takeException(), isNull);
+
+    await _dispose(tester, dependencies);
+  });
+
+  testWidgets('le thème sombre global reste lisible et stable à 360 px', (
+    tester,
+  ) async {
+    await _narrowScreen(tester);
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    final database = AppDatabase(NativeDatabase.memory());
+    final dependencies = await AppDependencies.create(
+      database: database,
+      autoSync: false,
+    );
+
+    await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
+    await _pumpData(tester);
+
+    final theme = Theme.of(tester.element(find.text('Aucun voyage actif')));
+    expect(theme.brightness, Brightness.dark);
+    expect(theme.colorScheme.surface.computeLuminance(), lessThan(0.05));
+    expect(find.text('Voyages'), findsWidgets);
+    expect(find.byKey(const Key('trip-create')), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await _dispose(tester, dependencies);
@@ -111,15 +142,35 @@ void main() {
         find.text('Une destination au nom volontairement très long'),
         findsOneWidget,
       );
-      expect(find.text('En cours'), findsNWidgets(2));
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.textContaining('Dans '), findsNothing);
+      expect(
+        find.text(
+          compactTripPeriodLabel(
+            today.subtract(const Duration(days: 1)),
+            today.add(const Duration(days: 2)),
+          ),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Partagé'), findsOneWidget);
       expect(find.textContaining('Trajet - Avion'), findsOneWidget);
       expect(
-        find.text('100% · ${items.length}/${items.length} rangés'),
+        find.text('${items.length}/${items.length} · 100 %'),
         findsOneWidget,
       );
-      expect(find.text('0% · 0/0 rangés'), findsOneWidget);
+      expect(find.text('0/0 · 0 %'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsWidgets);
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('${items.length}/${items.length} · 100 %'),
+            matching: find.byType(Row),
+          ),
+          matching: find.byType(LinearProgressIndicator),
+        ),
+        findsOneWidget,
+      );
       expect(
         find.byKey(Key('trip-summary-actions-$ongoingId')),
         findsOneWidget,
@@ -148,7 +199,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byKey(Key('trip-summary-$pastId')), findsOneWidget);
-      expect(find.text('Terminé'), findsOneWidget);
+      expect(find.text('Terminé'), findsNothing);
       expect(tester.takeException(), isNull);
 
       await _dispose(tester, dependencies);
@@ -195,6 +246,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(TripForm), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
       expect(find.byKey(const Key('trip-destination')), findsOneWidget);
       expect(find.byKey(const Key('trip-date-range')), findsOneWidget);
       expect(find.byType(CheckboxListTile), findsNothing);
@@ -336,6 +388,76 @@ void main() {
       await _dispose(tester, dependencies);
     },
   );
+
+  testWidgets('l’ajout d’item reste inline et les actions passent par swipe', (
+    tester,
+  ) async {
+    await _narrowScreen(tester);
+    final database = AppDatabase(NativeDatabase.memory());
+    final library = DriftLibraryRepository(database);
+    final ownerId = await library.createOwner(
+      name: 'Général compact',
+      kind: LibraryOwnerKind.general,
+      generationRole: GenerationRole.general,
+    );
+    final categoryId = await library.createCategory(ownerId, 'Accessoires');
+    final dependencies = await AppDependencies.create(
+      database: database,
+      autoSync: false,
+    );
+
+    await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
+    await _pumpData(tester);
+    await tester.tap(find.text('Bibliothèque'));
+    await _pumpData(tester);
+    await tester.ensureVisible(find.text('Général compact'));
+    await tester.tap(find.text('Général compact'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Accessoires'));
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(Key('library-add-item-$categoryId'));
+    expect(field, findsOneWidget);
+    expect(find.text('Ajouter un item'), findsNothing);
+    await tester.enterText(field, 'Lunettes de soleil');
+    await tester.tap(find.byKey(Key('library-add-item-submit-$categoryId')));
+    await tester.pumpAndSettle();
+
+    final stored = await database.select(database.libraryItems).getSingle();
+    expect(stored.name, 'Lunettes de soleil');
+    expect(stored.defaultQuantity, 1);
+    expect(find.byType(AlertDialog), findsNothing);
+    final itemRow = find.byKey(Key('library-item-${stored.id}'));
+    expect(itemRow, findsOneWidget);
+
+    await tester.drag(itemRow, const Offset(260, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Modifier l’item'), findsOneWidget);
+    final editField = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(editField, 'Lunettes polarisées');
+    await tester.tap(find.text('Valider'));
+    await tester.pumpAndSettle();
+    expect(
+      (await database.select(database.libraryItems).getSingle()).name,
+      'Lunettes polarisées',
+    );
+
+    await tester.drag(
+      find.byKey(Key('library-item-${stored.id}')),
+      const Offset(-320, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      (await database.select(database.libraryItems).getSingle()).deletedAt,
+      isNotNull,
+    );
+    expect(tester.takeException(), isNull);
+
+    await _dispose(tester, dependencies);
+  });
 }
 
 Future<void> _pumpData(WidgetTester tester) async {

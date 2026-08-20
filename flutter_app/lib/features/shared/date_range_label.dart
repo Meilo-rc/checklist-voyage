@@ -18,6 +18,13 @@ String compactDateRangeLabel(DateTime? start, DateTime? end) {
   return '${_fullDate(localStart)} — ${_fullDate(localEnd)}';
 }
 
+String compactTripPeriodLabel(DateTime? start, DateTime? end) {
+  final range = compactDateRangeLabel(start, end);
+  if (start == null || end == null || end.isBefore(start)) return range;
+  final nights = _dateOnly(end).difference(_dateOnly(start)).inDays;
+  return '$range · ${nights + 1}j / ${nights}n';
+}
+
 const _months = [
   'janv.',
   'févr.',
@@ -41,3 +48,6 @@ bool _isSameDay(DateTime left, DateTime right) =>
     left.year == right.year &&
     left.month == right.month &&
     left.day == right.day;
+
+DateTime _dateOnly(DateTime value) =>
+    DateTime(value.year, value.month, value.day);

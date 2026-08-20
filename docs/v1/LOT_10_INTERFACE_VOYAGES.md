@@ -16,10 +16,23 @@ rapides conservent leur interface antérieure.
   multisélections sans coche décorative ;
 - chips contraintes à la largeur disponible, y compris pour les libellés longs.
 
+## Ajustements de compacité
+
+- espacements, cartes, champs, menus et navigation globalement resserrés tout
+  en conservant des cibles tactiles adaptées ;
+- dates et durée réunies (`26 oct. — 4 nov. · 11j / 10n`) sans badge temporel ;
+- progression réunie sur une ligne avec barre, compteur et pourcentage ;
+- thème sombre global suivant le réglage Android, avec la même palette de
+  marque et des surfaces neutres adaptées ;
+- création et modification d’un voyage ouvertes comme de vraies pages ;
+- ajout d’un item directement en fin de catégorie, avec quantité 1 par défaut ;
+- modification et suppression des items par swipe, appui long réservé aux
+  contextes.
+
 ## Validation
 
 - `flutter analyze --no-pub` : aucun problème ;
-- `flutter test --no-pub` : 73 tests réussis, 4 tests réels ignorés faute de
+- `flutter test --no-pub` : 75 tests réussis, 4 tests réels ignorés faute de
   variables externes ;
 - rendu widget validé à 360 × 800 px avec quatre participants, plusieurs
   transports, logements et activités, ainsi que des libellés longs ;

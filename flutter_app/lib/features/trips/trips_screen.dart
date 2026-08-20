@@ -56,15 +56,14 @@ class _TripsScreenState extends State<TripsScreen> {
     final owners = await widget.useCases.loadGenerationChoices();
     final contexts = await widget.useCases.loadContexts();
     if (!mounted) return;
-    final result = await showModalBottomSheet<TripFormResult>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => TripForm(
-        title: 'Nouveau voyage',
-        submitLabel: 'Créer le voyage',
-        owners: owners,
-        contexts: contexts,
+    final result = await Navigator.of(context).push<TripFormResult>(
+      MaterialPageRoute(
+        builder: (context) => TripForm(
+          title: 'Nouveau voyage',
+          submitLabel: 'Créer le voyage',
+          owners: owners,
+          contexts: contexts,
+        ),
       ),
     );
     if (result == null) return;
@@ -94,25 +93,24 @@ class _TripsScreenState extends State<TripsScreen> {
     final owners = await widget.useCases.loadGenerationChoices();
     final contexts = await widget.useCases.loadContexts();
     if (!mounted) return;
-    final result = await showModalBottomSheet<TripFormResult>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => TripForm(
-        title: 'Modifier le voyage',
-        submitLabel: 'Enregistrer',
-        owners: owners,
-        contexts: contexts,
-        selectionsEditable: false,
-        initialData: TripFormInitialData(
-          name: trip.name,
-          destination: trip.destination,
-          startDate: trip.startDate,
-          endDate: trip.endDate,
-          participantOwnerIds: trip.selectedParticipantOwnerIds,
-          transportOwnerIds: trip.selectedTransportOwnerIds,
-          lodgingOwnerIds: trip.selectedLodgingOwnerIds,
-          contextIds: trip.selectedContextIds,
+    final result = await Navigator.of(context).push<TripFormResult>(
+      MaterialPageRoute(
+        builder: (context) => TripForm(
+          title: 'Modifier le voyage',
+          submitLabel: 'Enregistrer',
+          owners: owners,
+          contexts: contexts,
+          selectionsEditable: false,
+          initialData: TripFormInitialData(
+            name: trip.name,
+            destination: trip.destination,
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+            participantOwnerIds: trip.selectedParticipantOwnerIds,
+            transportOwnerIds: trip.selectedTransportOwnerIds,
+            lodgingOwnerIds: trip.selectedLodgingOwnerIds,
+            contextIds: trip.selectedContextIds,
+          ),
         ),
       ),
     );
@@ -386,6 +384,21 @@ class _TripSummaryCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
+                  if (trip.shared) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    Icon(
+                      Icons.people_outline,
+                      size: 14,
+                      color: colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      'Partagé',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                   const SizedBox(width: AppSpacing.xs),
                   PopupMenuButton<_TripCardAction>(
                     key: Key('trip-summary-actions-${trip.id}'),
@@ -400,15 +413,18 @@ class _TripSummaryCard extends StatelessWidget {
                     onSelected: onAction,
                     itemBuilder: (context) => [
                       const PopupMenuItem(
+                        height: 44,
                         value: _TripCardAction.edit,
                         child: Text('Modifier'),
                       ),
                       const PopupMenuItem(
+                        height: 44,
                         value: _TripCardAction.duplicate,
                         child: Text('Dupliquer'),
                       ),
                       if (trip.archivedAt != null)
                         const PopupMenuItem(
+                          height: 44,
                           value: _TripCardAction.restore,
                           child: Text('Restaurer'),
                         )
@@ -418,6 +434,7 @@ class _TripSummaryCard extends StatelessWidget {
                             DateTime.now(),
                           ))
                         const PopupMenuItem(
+                          height: 44,
                           value: _TripCardAction.archive,
                           child: Text('Archiver'),
                         ),
@@ -428,63 +445,45 @@ class _TripSummaryCard extends StatelessWidget {
               if (trip.startDate != null || trip.endDate != null) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  compactDateRangeLabel(trip.startDate, trip.endDate),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  compactTripPeriodLabel(trip.startDate, trip.endDate),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colors.onSurfaceVariant,
                   ),
                 ),
               ],
-              if (trip.participantNames.isNotEmpty) ...[
+              if (trip.participantNames.isNotEmpty ||
+                  (!archived && journey.isNotEmpty)) ...[
                 const SizedBox(height: AppSpacing.sm),
                 _SummaryLine(
-                  icon: Icons.people_outline,
-                  label: trip.participantNames.join(', '),
+                  label: [
+                    if (trip.participantNames.isNotEmpty)
+                      trip.participantNames.join(', '),
+                    if (!archived && journey.isNotEmpty) journey,
+                  ].join(' · '),
                 ),
-              ],
-              if (!archived && journey.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.xs),
-                _SummaryLine(icon: Icons.route_outlined, label: journey),
               ],
               if (!archived) ...[
-                const SizedBox(height: AppSpacing.md),
-                LinearProgressIndicator(
-                  value: trip.progress.percent / 100,
-                  semanticsLabel: 'Progression du voyage',
-                  semanticsValue: '${trip.progress.percent} %',
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${trip.progress.percent}% · '
-                  '${trip.progress.completed}/${trip.progress.total} rangés',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-              if (_temporalLabel(trip, DateTime.now(), archived) != null ||
-                  trip.shared) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.md,
-                  runSpacing: AppSpacing.sm,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                Row(
                   children: [
-                    _TemporalLabel(trip: trip, archived: archived),
-                    if (trip.shared)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.people_outline,
-                            size: 16,
-                            color: colors.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            'Partagé',
-                            style: Theme.of(context).textTheme.labelMedium
-                                ?.copyWith(color: colors.onSurfaceVariant),
-                          ),
-                        ],
+                    Expanded(
+                      child: LinearProgressIndicator(
+                        value: trip.progress.percent / 100,
+                        semanticsLabel: 'Progression du voyage',
+                        semanticsValue: '${trip.progress.percent} %',
                       ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      '${trip.progress.completed}/${trip.progress.total} · '
+                      '${trip.progress.percent} %',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -499,9 +498,8 @@ class _TripSummaryCard extends StatelessWidget {
 enum _TripCardAction { edit, duplicate, archive, restore }
 
 class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({required this.icon, required this.label});
+  const _SummaryLine({required this.label});
 
-  final IconData icon;
   final String label;
 
   @override
@@ -509,8 +507,6 @@ class _SummaryLine extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Icon(icon, size: 16, color: colors.onSurfaceVariant),
-        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             label,
@@ -522,38 +518,6 @@ class _SummaryLine extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _TemporalLabel extends StatelessWidget {
-  const _TemporalLabel({required this.trip, required this.archived});
-
-  final TripSummary trip;
-  final bool archived;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = _temporalLabel(trip, DateTime.now(), archived);
-    if (label == null) return const SizedBox.shrink();
-    final colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: archived
-            ? colors.surfaceContainerHigh
-            : colors.secondaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: archived
-              ? colors.onSurfaceVariant
-              : colors.onSecondaryContainer,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
     );
   }
 }
@@ -1196,24 +1160,4 @@ String _dateLabel(DateTime? value, String fallback) {
   if (value == null) return fallback;
   return '${value.day.toString().padLeft(2, '0')}/'
       '${value.month.toString().padLeft(2, '0')}/${value.year}';
-}
-
-String? _temporalLabel(TripSummary trip, DateTime now, bool archived) {
-  if (archived) return trip.archivedAt == null ? 'Terminé' : 'Archivé';
-  final today = DateUtils.dateOnly(now);
-  final start = trip.startDate == null
-      ? null
-      : DateUtils.dateOnly(trip.startDate!.toLocal());
-  final end = trip.endDate == null
-      ? null
-      : DateUtils.dateOnly(trip.endDate!.toLocal());
-  if (start != null && start.isAfter(today)) {
-    final days = start.difference(today).inDays;
-    return days == 1 ? 'Demain' : 'Dans $days j';
-  }
-  if ((start == null || !start.isAfter(today)) &&
-      (end == null || !end.isBefore(today))) {
-    return 'En cours';
-  }
-  return null;
 }

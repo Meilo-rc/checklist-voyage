@@ -1,6 +1,7 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/repositories/local_data_repository.dart';
 import '../../domain/usecases/context_use_cases.dart';
@@ -576,7 +577,11 @@ class _OwnerCard extends StatelessWidget {
           if (owner.categories.isEmpty)
             const ListTile(title: Text('Aucune catégorie')),
           ...owner.categories.map(
-            (category) => _CategoryTile(category: category, screen: screen),
+            (category) => _CategoryTile(
+              key: ValueKey('library-category-${category.id}'),
+              category: category,
+              screen: screen,
+            ),
           ),
         ],
       ),
@@ -584,11 +589,80 @@ class _OwnerCard extends StatelessWidget {
   }
 }
 
-class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({required this.category, required this.screen});
+class _CategoryTile extends StatefulWidget {
+  const _CategoryTile({
+    super.key,
+    required this.category,
+    required this.screen,
+  });
 
   final LibraryCategoryModel category;
   final _LibraryScreenState screen;
+
+  @override
+  State<_CategoryTile> createState() => _CategoryTileState();
+}
+
+class _CategoryTileState extends State<_CategoryTile> {
+  final _itemController = TextEditingController();
+  final _itemFocus = FocusNode();
+  bool _adding = false;
+
+  LibraryCategoryModel get category => widget.category;
+  _LibraryScreenState get screen => widget.screen;
+
+  @override
+  void dispose() {
+    _itemController.dispose();
+    _itemFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addItem() async {
+    final name = _itemController.text.trim();
+    if (name.isEmpty || _adding) return;
+    setState(() => _adding = true);
+    try {
+      await screen.widget.useCases.createItem(
+        categoryId: category.id,
+        name: name,
+        defaultQuantity: 1,
+      );
+      _itemController.clear();
+      _itemFocus.requestFocus();
+    } on Object catch (error) {
+      screen._message(error.toString());
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  Future<void> _editItem(LibraryItemModel item) async {
+    final draft = await screen._askItem(item: item);
+    if (draft == null) return;
+    await screen.widget.useCases.updateItem(
+      itemId: item.id,
+      name: draft.name,
+      defaultQuantity: draft.quantity,
+    );
+  }
+
+  Future<bool> _handleSwipe(
+    LibraryItemModel item,
+    DismissDirection direction,
+  ) async {
+    try {
+      if (direction == DismissDirection.startToEnd) {
+        await _editItem(item);
+        return false;
+      }
+      await screen.widget.useCases.deleteItem(item.id);
+      return true;
+    } on Object catch (error) {
+      screen._message(error.toString());
+      return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -597,16 +671,7 @@ class _CategoryTile extends StatelessWidget {
       title: Text(category.name),
       trailing: PopupMenuButton<String>(
         onSelected: (action) async {
-          if (action == 'item') {
-            final draft = await screen._askItem();
-            if (draft != null) {
-              await screen.widget.useCases.createItem(
-                categoryId: category.id,
-                name: draft.name,
-                defaultQuantity: draft.quantity,
-              );
-            }
-          } else if (action == 'rename') {
+          if (action == 'rename') {
             final name = await screen._askName(
               'Renommer la catégorie',
               initialValue: category.name,
@@ -619,44 +684,118 @@ class _CategoryTile extends StatelessWidget {
           }
         },
         itemBuilder: (context) => const [
-          PopupMenuItem(value: 'item', child: Text('Ajouter un item')),
-          PopupMenuItem(value: 'rename', child: Text('Renommer')),
-          PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+          PopupMenuItem(height: 44, value: 'rename', child: Text('Renommer')),
+          PopupMenuItem(height: 44, value: 'delete', child: Text('Supprimer')),
         ],
       ),
       children: [
         ...category.items.map(
-          (item) => ListTile(
-            key: Key('library-item-${item.id}'),
-            onLongPress: () => screen._manageContexts(item),
-            title: Text(item.name),
-            subtitle: Text('Quantité par défaut : ${item.defaultQuantity}'),
-            trailing: Wrap(
-              children: [
-                IconButton(
-                  tooltip: 'Modifier',
-                  onPressed: () async {
-                    final draft = await screen._askItem(item: item);
-                    if (draft != null) {
-                      await screen.widget.useCases.updateItem(
-                        itemId: item.id,
-                        name: draft.name,
-                        defaultQuantity: draft.quantity,
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Supprimer',
-                  onPressed: () => screen.widget.useCases.deleteItem(item.id),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
+          (item) => Dismissible(
+            key: ValueKey('library-item-dismiss-${item.id}'),
+            confirmDismiss: (direction) => _handleSwipe(item, direction),
+            background: const _SwipeAction(
+              alignment: Alignment.centerLeft,
+              icon: Icons.edit_outlined,
+              label: 'Modifier',
+            ),
+            secondaryBackground: _SwipeAction(
+              alignment: Alignment.centerRight,
+              icon: Icons.delete_outline,
+              label: 'Supprimer',
+              destructive: true,
+            ),
+            child: ListTile(
+              key: Key('library-item-${item.id}'),
+              dense: true,
+              visualDensity: const VisualDensity(vertical: -2),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+              ),
+              onLongPress: () => screen._manageContexts(item),
+              title: Text(item.name),
+              trailing: item.defaultQuantity == 1
+                  ? null
+                  : Text('×${item.defaultQuantity}'),
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.sm,
+            AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: Key('library-add-item-${category.id}'),
+                  controller: _itemController,
+                  focusNode: _itemFocus,
+                  textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _addItem(),
+                  decoration: const InputDecoration(
+                    hintText: 'Ajouter un item…',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              IconButton.filledTonal(
+                key: Key('library-add-item-submit-${category.id}'),
+                tooltip: 'Ajouter',
+                onPressed: _adding ? null : _addItem,
+                icon: _adding
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.add),
+              ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _SwipeAction extends StatelessWidget {
+  const _SwipeAction({
+    required this.alignment,
+    required this.icon,
+    required this.label,
+    this.destructive = false,
+  });
+
+  final Alignment alignment;
+  final IconData icon;
+  final String label;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final foreground = destructive
+        ? colors.onErrorContainer
+        : colors.onPrimaryContainer;
+    return Container(
+      alignment: alignment,
+      color: destructive ? colors.errorContainer : colors.primaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: foreground, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            label,
+            style: TextStyle(color: foreground, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 }

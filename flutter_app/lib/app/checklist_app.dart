@@ -15,6 +15,8 @@ class ChecklistApp extends StatelessWidget {
       title: 'Checklist Voyage',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
       home: HomeShell(dependencies: dependencies),
     );
   }

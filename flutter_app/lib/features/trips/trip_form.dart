@@ -172,176 +172,139 @@ class _TripFormState extends State<TripForm> {
         .where((owner) => owner.generationRole == GenerationRole.essential)
         .length;
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 150),
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: FractionallySizedBox(
-        heightFactor: 0.94,
-        child: SafeArea(
-          top: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                key: const Key('trip-form-scroll'),
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.md,
-                  0,
                   AppSpacing.sm,
-                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.lg,
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: Theme.of(context).textTheme.titleLarge,
+                    TextField(
+                      key: const Key('trip-destination'),
+                      controller: _destination,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Destination',
+                        hintText: 'Ex. Annecy',
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Fermer',
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
+                    const SizedBox(height: AppSpacing.md),
+                    OutlinedButton(
+                      key: const Key('trip-date-range'),
+                      onPressed: _pickDates,
+                      style: OutlinedButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: 14,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_month_outlined),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              _startDate == null || _endDate == null
+                                  ? 'Dates aller et retour'
+                                  : compactDateRangeLabel(_startDate, _endDate),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    if (essentialCount > 0) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'Les essentiels seront ajoutés automatiquement.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.lg),
+                    SelectionChipGroup(
+                      title: 'Participants',
+                      choices: participants,
+                      selectedIds: _participants,
+                      enabled: widget.selectionsEditable,
+                      onChanged: (value) =>
+                          setState(() => _participants = value),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    SelectionChipGroup(
+                      title: 'Transport',
+                      choices: transports,
+                      selectedIds: _transports,
+                      enabled: widget.selectionsEditable,
+                      onChanged: (value) => setState(() => _transports = value),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    SelectionChipGroup(
+                      title: 'Logement',
+                      choices: lodgings,
+                      selectedIds: _lodgings,
+                      enabled: widget.selectionsEditable,
+                      onChanged: (value) => setState(() => _lodgings = value),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    SelectionChipGroup(
+                      title: 'Activités',
+                      choices: contexts,
+                      selectedIds: _contexts,
+                      enabled: widget.selectionsEditable,
+                      onChanged: (value) => setState(() => _contexts = value),
+                    ),
+                    if (!widget.selectionsEditable) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'Les choix ayant généré la checklist sont affichés '
+                        'sans être régénérés.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        _error!,
+                        key: const Key('trip-form-error'),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  key: const Key('trip-form-scroll'),
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.sm,
-                    AppSpacing.md,
-                    AppSpacing.lg,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        key: const Key('trip-destination'),
-                        controller: _destination,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(
-                          labelText: 'Destination',
-                          hintText: 'Ex. Annecy',
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      OutlinedButton(
-                        key: const Key('trip-date-range'),
-                        onPressed: _pickDates,
-                        style: OutlinedButton.styleFrom(
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: 14,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_month_outlined),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Text(
-                                _startDate == null || _endDate == null
-                                    ? 'Dates aller et retour'
-                                    : compactDateRangeLabel(
-                                        _startDate,
-                                        _endDate,
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (essentialCount > 0) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          'Les essentiels seront ajoutés automatiquement.',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.lg),
-                      SelectionChipGroup(
-                        title: 'Participants',
-                        choices: participants,
-                        selectedIds: _participants,
-                        enabled: widget.selectionsEditable,
-                        onChanged: (value) =>
-                            setState(() => _participants = value),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      SelectionChipGroup(
-                        title: 'Transport',
-                        choices: transports,
-                        selectedIds: _transports,
-                        enabled: widget.selectionsEditable,
-                        onChanged: (value) =>
-                            setState(() => _transports = value),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      SelectionChipGroup(
-                        title: 'Logement',
-                        choices: lodgings,
-                        selectedIds: _lodgings,
-                        enabled: widget.selectionsEditable,
-                        onChanged: (value) => setState(() => _lodgings = value),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      SelectionChipGroup(
-                        title: 'Activités',
-                        choices: contexts,
-                        selectedIds: _contexts,
-                        enabled: widget.selectionsEditable,
-                        onChanged: (value) => setState(() => _contexts = value),
-                      ),
-                      if (!widget.selectionsEditable) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          'Les choix ayant généré la checklist sont affichés '
-                          'sans être régénérés.',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                      ],
-                      if (_error != null) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          _error!,
-                          key: const Key('trip-form-error'),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                AppSpacing.md,
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                  AppSpacing.md,
-                  AppSpacing.md,
-                ),
-                child: FilledButton(
-                  key: const Key('trip-submit'),
-                  onPressed: _submit,
-                  child: Text(widget.submitLabel),
-                ),
+              child: FilledButton(
+                key: const Key('trip-submit'),
+                onPressed: _submit,
+                child: Text(widget.submitLabel),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
