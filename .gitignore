@@ -5,6 +5,10 @@
 **/pocketbase-full*.sha256
 **/pocketbase-full*.report.json
 **/sauvegarde-checklist-voyage-*.json
+**/cv1-migration/
+**/cv1-migration-*.tar.gz
+**/cv1-migration-*.tgz
+**/cv1-export.sql
 
 # Secrets et configuration locale
 **/.env
