@@ -222,6 +222,9 @@ class SyncDocuments extends Table {
   TextColumn get documentId => text()();
   TextColumn get documentType => text()();
   TextColumn get remoteRecordId => text().nullable()();
+  TextColumn get shareCode => text().nullable()();
+  TextColumn get capabilityToken => text().nullable()();
+  IntColumn get pullCursor => integer().withDefault(const Constant(0))();
   IntColumn get confirmedRevision => integer().withDefault(const Constant(0))();
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
   TextColumn get lastError => text().nullable()();
@@ -364,7 +367,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -462,6 +465,27 @@ class AppDatabase extends _$AppDatabase {
         }
         if (!await _tableExists('sync_entity_states')) {
           await migrator.createTable(syncEntityStates);
+        }
+      }
+      if (from < 6) {
+        if (!await _tableExists('sync_documents')) {
+          await migrator.createTable(syncDocuments);
+        } else {
+          await _addColumnIfMissing(
+            migrator,
+            syncDocuments,
+            syncDocuments.shareCode,
+          );
+          await _addColumnIfMissing(
+            migrator,
+            syncDocuments,
+            syncDocuments.capabilityToken,
+          );
+          await _addColumnIfMissing(
+            migrator,
+            syncDocuments,
+            syncDocuments.pullCursor,
+          );
         }
       }
     },

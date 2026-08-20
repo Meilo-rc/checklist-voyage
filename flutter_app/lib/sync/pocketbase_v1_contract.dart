@@ -8,6 +8,10 @@ abstract final class PocketBaseV1Contract {
   static const deviceCollection = 'cv1_devices';
   static const pushPath = '/api/cv1/sync/push';
   static const pullPath = '/api/cv1/sync/pull';
+  static const documentSharePath = '/api/cv1/documents/share';
+  static const documentJoinPath = '/api/cv1/documents/join';
+  static const documentPushPath = '/api/cv1/documents/push';
+  static const documentPullPath = '/api/cv1/documents/pull';
 
   /// La collection historique est volontairement absente des collections V1.
   static const historicalCollectionForbidden = 'travel_checklists';

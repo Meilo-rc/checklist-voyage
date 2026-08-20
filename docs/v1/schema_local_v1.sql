@@ -1,4 +1,4 @@
--- Contrat de schéma V1, mis à jour avec le schéma Drift v5 utilisé au lot 6.
+-- Contrat de schéma V1, mis à jour avec le schéma Drift v6 utilisé au lot 7.
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE installation_settings (
@@ -169,6 +169,9 @@ CREATE TABLE sync_documents (
   document_id TEXT PRIMARY KEY,
   document_type TEXT NOT NULL CHECK (document_type IN ('library', 'trip', 'quick_list')),
   remote_record_id TEXT,
+  share_code TEXT,
+  capability_token TEXT,
+  pull_cursor INTEGER NOT NULL DEFAULT 0,
   confirmed_revision INTEGER NOT NULL DEFAULT 0,
   last_synced_at TEXT,
   last_error TEXT

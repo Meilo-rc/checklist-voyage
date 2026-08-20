@@ -7702,6 +7702,40 @@ class $SyncDocumentsTable extends SyncDocuments
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _shareCodeMeta = const VerificationMeta(
+    'shareCode',
+  );
+  @override
+  late final GeneratedColumn<String> shareCode = GeneratedColumn<String>(
+    'share_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _capabilityTokenMeta = const VerificationMeta(
+    'capabilityToken',
+  );
+  @override
+  late final GeneratedColumn<String> capabilityToken = GeneratedColumn<String>(
+    'capability_token',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pullCursorMeta = const VerificationMeta(
+    'pullCursor',
+  );
+  @override
+  late final GeneratedColumn<int> pullCursor = GeneratedColumn<int>(
+    'pull_cursor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _confirmedRevisionMeta = const VerificationMeta(
     'confirmedRevision',
   );
@@ -7741,6 +7775,9 @@ class $SyncDocumentsTable extends SyncDocuments
     documentId,
     documentType,
     remoteRecordId,
+    shareCode,
+    capabilityToken,
+    pullCursor,
     confirmedRevision,
     lastSyncedAt,
     lastError,
@@ -7783,6 +7820,27 @@ class $SyncDocumentsTable extends SyncDocuments
           data['remote_record_id']!,
           _remoteRecordIdMeta,
         ),
+      );
+    }
+    if (data.containsKey('share_code')) {
+      context.handle(
+        _shareCodeMeta,
+        shareCode.isAcceptableOrUnknown(data['share_code']!, _shareCodeMeta),
+      );
+    }
+    if (data.containsKey('capability_token')) {
+      context.handle(
+        _capabilityTokenMeta,
+        capabilityToken.isAcceptableOrUnknown(
+          data['capability_token']!,
+          _capabilityTokenMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pull_cursor')) {
+      context.handle(
+        _pullCursorMeta,
+        pullCursor.isAcceptableOrUnknown(data['pull_cursor']!, _pullCursorMeta),
       );
     }
     if (data.containsKey('confirmed_revision')) {
@@ -7830,6 +7888,18 @@ class $SyncDocumentsTable extends SyncDocuments
         DriftSqlType.string,
         data['${effectivePrefix}remote_record_id'],
       ),
+      shareCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}share_code'],
+      ),
+      capabilityToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}capability_token'],
+      ),
+      pullCursor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pull_cursor'],
+      )!,
       confirmedRevision: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}confirmed_revision'],
@@ -7855,6 +7925,9 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
   final String documentId;
   final String documentType;
   final String? remoteRecordId;
+  final String? shareCode;
+  final String? capabilityToken;
+  final int pullCursor;
   final int confirmedRevision;
   final DateTime? lastSyncedAt;
   final String? lastError;
@@ -7862,6 +7935,9 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
     required this.documentId,
     required this.documentType,
     this.remoteRecordId,
+    this.shareCode,
+    this.capabilityToken,
+    required this.pullCursor,
     required this.confirmedRevision,
     this.lastSyncedAt,
     this.lastError,
@@ -7874,6 +7950,13 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
     if (!nullToAbsent || remoteRecordId != null) {
       map['remote_record_id'] = Variable<String>(remoteRecordId);
     }
+    if (!nullToAbsent || shareCode != null) {
+      map['share_code'] = Variable<String>(shareCode);
+    }
+    if (!nullToAbsent || capabilityToken != null) {
+      map['capability_token'] = Variable<String>(capabilityToken);
+    }
+    map['pull_cursor'] = Variable<int>(pullCursor);
     map['confirmed_revision'] = Variable<int>(confirmedRevision);
     if (!nullToAbsent || lastSyncedAt != null) {
       map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
@@ -7891,6 +7974,13 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
       remoteRecordId: remoteRecordId == null && nullToAbsent
           ? const Value.absent()
           : Value(remoteRecordId),
+      shareCode: shareCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shareCode),
+      capabilityToken: capabilityToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(capabilityToken),
+      pullCursor: Value(pullCursor),
       confirmedRevision: Value(confirmedRevision),
       lastSyncedAt: lastSyncedAt == null && nullToAbsent
           ? const Value.absent()
@@ -7910,6 +8000,9 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
       documentId: serializer.fromJson<String>(json['documentId']),
       documentType: serializer.fromJson<String>(json['documentType']),
       remoteRecordId: serializer.fromJson<String?>(json['remoteRecordId']),
+      shareCode: serializer.fromJson<String?>(json['shareCode']),
+      capabilityToken: serializer.fromJson<String?>(json['capabilityToken']),
+      pullCursor: serializer.fromJson<int>(json['pullCursor']),
       confirmedRevision: serializer.fromJson<int>(json['confirmedRevision']),
       lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
       lastError: serializer.fromJson<String?>(json['lastError']),
@@ -7922,6 +8015,9 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
       'documentId': serializer.toJson<String>(documentId),
       'documentType': serializer.toJson<String>(documentType),
       'remoteRecordId': serializer.toJson<String?>(remoteRecordId),
+      'shareCode': serializer.toJson<String?>(shareCode),
+      'capabilityToken': serializer.toJson<String?>(capabilityToken),
+      'pullCursor': serializer.toJson<int>(pullCursor),
       'confirmedRevision': serializer.toJson<int>(confirmedRevision),
       'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
       'lastError': serializer.toJson<String?>(lastError),
@@ -7932,6 +8028,9 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
     String? documentId,
     String? documentType,
     Value<String?> remoteRecordId = const Value.absent(),
+    Value<String?> shareCode = const Value.absent(),
+    Value<String?> capabilityToken = const Value.absent(),
+    int? pullCursor,
     int? confirmedRevision,
     Value<DateTime?> lastSyncedAt = const Value.absent(),
     Value<String?> lastError = const Value.absent(),
@@ -7941,6 +8040,11 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
     remoteRecordId: remoteRecordId.present
         ? remoteRecordId.value
         : this.remoteRecordId,
+    shareCode: shareCode.present ? shareCode.value : this.shareCode,
+    capabilityToken: capabilityToken.present
+        ? capabilityToken.value
+        : this.capabilityToken,
+    pullCursor: pullCursor ?? this.pullCursor,
     confirmedRevision: confirmedRevision ?? this.confirmedRevision,
     lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
     lastError: lastError.present ? lastError.value : this.lastError,
@@ -7956,6 +8060,13 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
       remoteRecordId: data.remoteRecordId.present
           ? data.remoteRecordId.value
           : this.remoteRecordId,
+      shareCode: data.shareCode.present ? data.shareCode.value : this.shareCode,
+      capabilityToken: data.capabilityToken.present
+          ? data.capabilityToken.value
+          : this.capabilityToken,
+      pullCursor: data.pullCursor.present
+          ? data.pullCursor.value
+          : this.pullCursor,
       confirmedRevision: data.confirmedRevision.present
           ? data.confirmedRevision.value
           : this.confirmedRevision,
@@ -7972,6 +8083,9 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
           ..write('documentId: $documentId, ')
           ..write('documentType: $documentType, ')
           ..write('remoteRecordId: $remoteRecordId, ')
+          ..write('shareCode: $shareCode, ')
+          ..write('capabilityToken: $capabilityToken, ')
+          ..write('pullCursor: $pullCursor, ')
           ..write('confirmedRevision: $confirmedRevision, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('lastError: $lastError')
@@ -7984,6 +8098,9 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
     documentId,
     documentType,
     remoteRecordId,
+    shareCode,
+    capabilityToken,
+    pullCursor,
     confirmedRevision,
     lastSyncedAt,
     lastError,
@@ -7995,6 +8112,9 @@ class SyncDocument extends DataClass implements Insertable<SyncDocument> {
           other.documentId == this.documentId &&
           other.documentType == this.documentType &&
           other.remoteRecordId == this.remoteRecordId &&
+          other.shareCode == this.shareCode &&
+          other.capabilityToken == this.capabilityToken &&
+          other.pullCursor == this.pullCursor &&
           other.confirmedRevision == this.confirmedRevision &&
           other.lastSyncedAt == this.lastSyncedAt &&
           other.lastError == this.lastError);
@@ -8004,6 +8124,9 @@ class SyncDocumentsCompanion extends UpdateCompanion<SyncDocument> {
   final Value<String> documentId;
   final Value<String> documentType;
   final Value<String?> remoteRecordId;
+  final Value<String?> shareCode;
+  final Value<String?> capabilityToken;
+  final Value<int> pullCursor;
   final Value<int> confirmedRevision;
   final Value<DateTime?> lastSyncedAt;
   final Value<String?> lastError;
@@ -8012,6 +8135,9 @@ class SyncDocumentsCompanion extends UpdateCompanion<SyncDocument> {
     this.documentId = const Value.absent(),
     this.documentType = const Value.absent(),
     this.remoteRecordId = const Value.absent(),
+    this.shareCode = const Value.absent(),
+    this.capabilityToken = const Value.absent(),
+    this.pullCursor = const Value.absent(),
     this.confirmedRevision = const Value.absent(),
     this.lastSyncedAt = const Value.absent(),
     this.lastError = const Value.absent(),
@@ -8021,6 +8147,9 @@ class SyncDocumentsCompanion extends UpdateCompanion<SyncDocument> {
     required String documentId,
     required String documentType,
     this.remoteRecordId = const Value.absent(),
+    this.shareCode = const Value.absent(),
+    this.capabilityToken = const Value.absent(),
+    this.pullCursor = const Value.absent(),
     this.confirmedRevision = const Value.absent(),
     this.lastSyncedAt = const Value.absent(),
     this.lastError = const Value.absent(),
@@ -8031,6 +8160,9 @@ class SyncDocumentsCompanion extends UpdateCompanion<SyncDocument> {
     Expression<String>? documentId,
     Expression<String>? documentType,
     Expression<String>? remoteRecordId,
+    Expression<String>? shareCode,
+    Expression<String>? capabilityToken,
+    Expression<int>? pullCursor,
     Expression<int>? confirmedRevision,
     Expression<DateTime>? lastSyncedAt,
     Expression<String>? lastError,
@@ -8040,6 +8172,9 @@ class SyncDocumentsCompanion extends UpdateCompanion<SyncDocument> {
       if (documentId != null) 'document_id': documentId,
       if (documentType != null) 'document_type': documentType,
       if (remoteRecordId != null) 'remote_record_id': remoteRecordId,
+      if (shareCode != null) 'share_code': shareCode,
+      if (capabilityToken != null) 'capability_token': capabilityToken,
+      if (pullCursor != null) 'pull_cursor': pullCursor,
       if (confirmedRevision != null) 'confirmed_revision': confirmedRevision,
       if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
       if (lastError != null) 'last_error': lastError,
@@ -8051,6 +8186,9 @@ class SyncDocumentsCompanion extends UpdateCompanion<SyncDocument> {
     Value<String>? documentId,
     Value<String>? documentType,
     Value<String?>? remoteRecordId,
+    Value<String?>? shareCode,
+    Value<String?>? capabilityToken,
+    Value<int>? pullCursor,
     Value<int>? confirmedRevision,
     Value<DateTime?>? lastSyncedAt,
     Value<String?>? lastError,
@@ -8060,6 +8198,9 @@ class SyncDocumentsCompanion extends UpdateCompanion<SyncDocument> {
       documentId: documentId ?? this.documentId,
       documentType: documentType ?? this.documentType,
       remoteRecordId: remoteRecordId ?? this.remoteRecordId,
+      shareCode: shareCode ?? this.shareCode,
+      capabilityToken: capabilityToken ?? this.capabilityToken,
+      pullCursor: pullCursor ?? this.pullCursor,
       confirmedRevision: confirmedRevision ?? this.confirmedRevision,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       lastError: lastError ?? this.lastError,
@@ -8078,6 +8219,15 @@ class SyncDocumentsCompanion extends UpdateCompanion<SyncDocument> {
     }
     if (remoteRecordId.present) {
       map['remote_record_id'] = Variable<String>(remoteRecordId.value);
+    }
+    if (shareCode.present) {
+      map['share_code'] = Variable<String>(shareCode.value);
+    }
+    if (capabilityToken.present) {
+      map['capability_token'] = Variable<String>(capabilityToken.value);
+    }
+    if (pullCursor.present) {
+      map['pull_cursor'] = Variable<int>(pullCursor.value);
     }
     if (confirmedRevision.present) {
       map['confirmed_revision'] = Variable<int>(confirmedRevision.value);
@@ -8100,6 +8250,9 @@ class SyncDocumentsCompanion extends UpdateCompanion<SyncDocument> {
           ..write('documentId: $documentId, ')
           ..write('documentType: $documentType, ')
           ..write('remoteRecordId: $remoteRecordId, ')
+          ..write('shareCode: $shareCode, ')
+          ..write('capabilityToken: $capabilityToken, ')
+          ..write('pullCursor: $pullCursor, ')
           ..write('confirmedRevision: $confirmedRevision, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('lastError: $lastError, ')
@@ -17737,6 +17890,9 @@ typedef $$SyncDocumentsTableCreateCompanionBuilder =
       required String documentId,
       required String documentType,
       Value<String?> remoteRecordId,
+      Value<String?> shareCode,
+      Value<String?> capabilityToken,
+      Value<int> pullCursor,
       Value<int> confirmedRevision,
       Value<DateTime?> lastSyncedAt,
       Value<String?> lastError,
@@ -17747,6 +17903,9 @@ typedef $$SyncDocumentsTableUpdateCompanionBuilder =
       Value<String> documentId,
       Value<String> documentType,
       Value<String?> remoteRecordId,
+      Value<String?> shareCode,
+      Value<String?> capabilityToken,
+      Value<int> pullCursor,
       Value<int> confirmedRevision,
       Value<DateTime?> lastSyncedAt,
       Value<String?> lastError,
@@ -17774,6 +17933,21 @@ class $$SyncDocumentsTableFilterComposer
 
   ColumnFilters<String> get remoteRecordId => $composableBuilder(
     column: $table.remoteRecordId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shareCode => $composableBuilder(
+    column: $table.shareCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get capabilityToken => $composableBuilder(
+    column: $table.capabilityToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pullCursor => $composableBuilder(
+    column: $table.pullCursor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17817,6 +17991,21 @@ class $$SyncDocumentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get shareCode => $composableBuilder(
+    column: $table.shareCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get capabilityToken => $composableBuilder(
+    column: $table.capabilityToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pullCursor => $composableBuilder(
+    column: $table.pullCursor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get confirmedRevision => $composableBuilder(
     column: $table.confirmedRevision,
     builder: (column) => ColumnOrderings(column),
@@ -17854,6 +18043,19 @@ class $$SyncDocumentsTableAnnotationComposer
 
   GeneratedColumn<String> get remoteRecordId => $composableBuilder(
     column: $table.remoteRecordId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shareCode =>
+      $composableBuilder(column: $table.shareCode, builder: (column) => column);
+
+  GeneratedColumn<String> get capabilityToken => $composableBuilder(
+    column: $table.capabilityToken,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get pullCursor => $composableBuilder(
+    column: $table.pullCursor,
     builder: (column) => column,
   );
 
@@ -17905,6 +18107,9 @@ class $$SyncDocumentsTableTableManager
                 Value<String> documentId = const Value.absent(),
                 Value<String> documentType = const Value.absent(),
                 Value<String?> remoteRecordId = const Value.absent(),
+                Value<String?> shareCode = const Value.absent(),
+                Value<String?> capabilityToken = const Value.absent(),
+                Value<int> pullCursor = const Value.absent(),
                 Value<int> confirmedRevision = const Value.absent(),
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
@@ -17913,6 +18118,9 @@ class $$SyncDocumentsTableTableManager
                 documentId: documentId,
                 documentType: documentType,
                 remoteRecordId: remoteRecordId,
+                shareCode: shareCode,
+                capabilityToken: capabilityToken,
+                pullCursor: pullCursor,
                 confirmedRevision: confirmedRevision,
                 lastSyncedAt: lastSyncedAt,
                 lastError: lastError,
@@ -17923,6 +18131,9 @@ class $$SyncDocumentsTableTableManager
                 required String documentId,
                 required String documentType,
                 Value<String?> remoteRecordId = const Value.absent(),
+                Value<String?> shareCode = const Value.absent(),
+                Value<String?> capabilityToken = const Value.absent(),
+                Value<int> pullCursor = const Value.absent(),
                 Value<int> confirmedRevision = const Value.absent(),
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
@@ -17931,6 +18142,9 @@ class $$SyncDocumentsTableTableManager
                 documentId: documentId,
                 documentType: documentType,
                 remoteRecordId: remoteRecordId,
+                shareCode: shareCode,
+                capabilityToken: capabilityToken,
+                pullCursor: pullCursor,
                 confirmedRevision: confirmedRevision,
                 lastSyncedAt: lastSyncedAt,
                 lastError: lastError,

@@ -26,4 +26,22 @@ class TripUseCases {
       _trips.changeItemQuantity(itemId, delta);
 
   Future<void> removeItem(String itemId) => _trips.removeItem(itemId);
+
+  Future<String> addItem(
+    String tripId,
+    String categoryId,
+    String name, {
+    int quantity = 1,
+  }) => _trips.addItem(
+    tripId: tripId,
+    categoryId: categoryId,
+    name: name,
+    quantity: quantity,
+  );
+
+  Future<void> renameCategory(String categoryId, String name) =>
+      _trips.renameCategory(categoryId, name);
+
+  Future<void> removeCategory(String categoryId) =>
+      _trips.removeCategory(categoryId);
 }

@@ -248,9 +248,12 @@ class LibrarySyncStore {
   }
 
   Future<List<SyncOperation>> pendingOperations() async {
-    final rows = await (database.select(
-      database.syncOutbox,
-    )..orderBy([(row) => OrderingTerm.asc(row.clientSequence)])).get();
+    final settings = await this.settings();
+    final rows =
+        await (database.select(database.syncOutbox)
+              ..where((row) => row.documentId.equals(settings.libraryId))
+              ..orderBy([(row) => OrderingTerm.asc(row.clientSequence)]))
+            .get();
     final operations = <SyncOperation>[];
     for (final row in rows) {
       operations.add(

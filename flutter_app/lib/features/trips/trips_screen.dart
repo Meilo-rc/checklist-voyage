@@ -4,6 +4,7 @@ import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
 import '../../domain/models/progress.dart';
 import '../../domain/usecases/trip_use_cases.dart';
+import '../../domain/usecases/shared_document_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
 import '../shared/destination_scaffold.dart';
 
@@ -12,10 +13,12 @@ class TripsScreen extends StatefulWidget {
     super.key,
     required this.watchTrips,
     required this.useCases,
+    this.sharedDocuments,
   });
 
   final WatchTrips watchTrips;
   final TripUseCases useCases;
+  final SharedDocumentUseCases? sharedDocuments;
 
   @override
   State<TripsScreen> createState() => _TripsScreenState();
@@ -23,6 +26,25 @@ class TripsScreen extends StatefulWidget {
 
 class _TripsScreenState extends State<TripsScreen> {
   String? _selectedTripId;
+
+  Future<void> _join() async {
+    final sharing = widget.sharedDocuments;
+    if (sharing == null) return;
+    final code = await _askCode(context);
+    if (code == null) return;
+    try {
+      final access = await sharing.join(code);
+      if (access.documentType != SharedDocumentType.trip) {
+        throw StateError('Ce code correspond à une liste rapide.');
+      }
+      if (mounted) setState(() => _selectedTripId = access.documentId);
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
 
   Future<void> _createTrip() async {
     final owners = await widget.useCases.loadGenerationChoices();
@@ -53,11 +75,19 @@ class _TripsScreenState extends State<TripsScreen> {
         tripId: selected,
         useCases: widget.useCases,
         onBack: () => setState(() => _selectedTripId = null),
+        sharedDocuments: widget.sharedDocuments,
       );
     }
     return DestinationScaffold(
       title: 'Voyages',
       actions: [
+        if (widget.sharedDocuments != null)
+          IconButton(
+            key: const Key('trip-join'),
+            onPressed: _join,
+            tooltip: 'Rejoindre avec un code',
+            icon: const Icon(Icons.group_add_outlined),
+          ),
         IconButton(
           key: const Key('trip-create'),
           onPressed: _createTrip,
@@ -350,11 +380,13 @@ class _TripDetail extends StatelessWidget {
     required this.tripId,
     required this.useCases,
     required this.onBack,
+    required this.sharedDocuments,
   });
 
   final String tripId;
   final TripUseCases useCases;
   final VoidCallback onBack;
+  final SharedDocumentUseCases? sharedDocuments;
 
   @override
   Widget build(BuildContext context) {
@@ -374,6 +406,41 @@ class _TripDetail extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back),
               ),
               title: Text(trip.name),
+              actions: [
+                if (trip.shared)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Center(child: Chip(label: Text('Partagé'))),
+                  ),
+                if (sharedDocuments != null)
+                  IconButton(
+                    key: Key(
+                      trip.v1ShareReady ? 'trip-show-code' : 'trip-share',
+                    ),
+                    tooltip: trip.v1ShareReady
+                        ? 'Afficher le code'
+                        : 'Partager',
+                    icon: const Icon(Icons.share_outlined),
+                    onPressed: () async {
+                      try {
+                        final code = trip.v1ShareReady
+                            ? trip.shareCode
+                            : (await sharedDocuments!.shareTrip(
+                                trip.id,
+                              )).shareCode;
+                        if (context.mounted && code != null) {
+                          await _showCode(context, code);
+                        }
+                      } on Object catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(error.toString())),
+                          );
+                        }
+                      }
+                    },
+                  ),
+              ],
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -404,6 +471,53 @@ class _TripDetail extends StatelessWidget {
     );
   }
 }
+
+Future<String?> _askCode(BuildContext context) {
+  final controller = TextEditingController();
+  return showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Rejoindre avec un code'),
+      content: TextField(
+        key: const Key('share-code-input'),
+        controller: controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.characters,
+        decoration: const InputDecoration(labelText: 'Code à 8 caractères'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          key: const Key('share-code-submit'),
+          onPressed: () => Navigator.pop(context, controller.text),
+          child: const Text('Rejoindre'),
+        ),
+      ],
+    ),
+  ).whenComplete(controller.dispose);
+}
+
+Future<void> _showCode(BuildContext context, String code) => showDialog<void>(
+  context: context,
+  builder: (context) => AlertDialog(
+    title: const Text('Partager'),
+    content: SelectableText(
+      code,
+      key: const Key('shared-code'),
+      style: Theme.of(context).textTheme.headlineMedium,
+      textAlign: TextAlign.center,
+    ),
+    actions: [
+      FilledButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Fermer'),
+      ),
+    ],
+  ),
+);
 
 class _TripMemberCard extends StatelessWidget {
   const _TripMemberCard({required this.member, required this.useCases});

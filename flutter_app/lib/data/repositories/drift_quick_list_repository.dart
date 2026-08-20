@@ -5,12 +5,18 @@ import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
 import '../../domain/repositories/quick_list_repository.dart';
 import '../local/app_database.dart';
+import '../../sync/shared_document_sync_store.dart';
 
 class DriftQuickListRepository implements QuickListRepository {
-  DriftQuickListRepository(this._database, {this._uuid = const Uuid()});
+  DriftQuickListRepository(
+    this._database, {
+    SharedDocumentSyncStore? syncStore,
+    this._uuid = const Uuid(),
+  }) : _sync = syncStore ?? SharedDocumentSyncStore(_database, enabled: false);
 
   final AppDatabase _database;
   final Uuid _uuid;
+  final SharedDocumentSyncStore _sync;
 
   @override
   Stream<List<QuickListSummary>> watchQuickLists() {
@@ -57,6 +63,9 @@ class DriftQuickListRepository implements QuickListRepository {
               ..where((row) => row.id.equals(listId) & row.deletedAt.isNull()))
             .getSingleOrNull();
     if (list == null) return null;
+    final syncDocument = await (_database.select(
+      _database.syncDocuments,
+    )..where((row) => row.documentId.equals(listId))).getSingleOrNull();
     final items =
         await (_database.select(_database.quickListItems)
               ..where(
@@ -81,6 +90,9 @@ class DriftQuickListRepository implements QuickListRepository {
             ),
           )
           .toList(growable: false),
+      shared: list.shareState == 'shared',
+      v1ShareReady: syncDocument?.capabilityToken?.isNotEmpty ?? false,
+      shareCode: syncDocument?.shareCode,
     );
   }
 
@@ -106,14 +118,19 @@ class DriftQuickListRepository implements QuickListRepository {
 
   @override
   Future<void> renameQuickList(String listId, String name) async {
-    await (_database.update(
-      _database.quickLists,
-    )..where((row) => row.id.equals(listId) & row.deletedAt.isNull())).write(
-      QuickListsCompanion(
-        name: Value(_requiredName(name)),
-        updatedAtLocal: Value(DateTime.now().toUtc()),
-      ),
-    );
+    await _database.transaction(() async {
+      await (_database.update(
+        _database.quickLists,
+      )..where((row) => row.id.equals(listId) & row.deletedAt.isNull())).write(
+        QuickListsCompanion(
+          name: Value(_requiredName(name)),
+          updatedAtLocal: Value(DateTime.now().toUtc()),
+        ),
+      );
+      if (await _isShared(listId)) {
+        await _sync.recordUpsert(listId, 'quick_list', listId);
+      }
+    });
   }
 
   @override
@@ -137,7 +154,15 @@ class DriftQuickListRepository implements QuickListRepository {
         ),
       );
       if (list.shareState == 'shared') {
+        final items = await (_database.select(
+          _database.quickListItems,
+        )..where((row) => row.quickListId.equals(listId))).get();
+        for (final item in items) {
+          await _trackTombstone('quick_list_item', item.id, now);
+          await _sync.recordDelete(listId, 'quick_list_item', item.id);
+        }
         await _trackTombstone('quick_list', listId, now);
+        await _sync.recordDelete(listId, 'quick_list', listId);
       }
     });
   }
@@ -167,6 +192,9 @@ class DriftQuickListRepository implements QuickListRepository {
             ),
           );
       await _touchList(listId, now);
+      if (await _isShared(listId)) {
+        await _sync.recordUpsert(listId, 'quick_list_item', id);
+      }
     });
     return id;
   }
@@ -194,6 +222,9 @@ class DriftQuickListRepository implements QuickListRepository {
         ),
       );
       await _touchList(item.quickListId, now);
+      if (await _isShared(item.quickListId)) {
+        await _sync.recordUpsert(item.quickListId, 'quick_list_item', item.id);
+      }
     });
   }
 
@@ -215,6 +246,9 @@ class DriftQuickListRepository implements QuickListRepository {
         ),
       );
       await _touchList(item.quickListId, now);
+      if (await _isShared(item.quickListId)) {
+        await _sync.recordUpsert(item.quickListId, 'quick_list_item', item.id);
+      }
     });
   }
 
@@ -236,6 +270,9 @@ class DriftQuickListRepository implements QuickListRepository {
         ),
       );
       await _touchList(item.quickListId, now);
+      if (await _isShared(item.quickListId)) {
+        await _sync.recordUpsert(item.quickListId, 'quick_list_item', item.id);
+      }
     });
   }
 
@@ -262,6 +299,7 @@ class DriftQuickListRepository implements QuickListRepository {
       await _touchList(item.quickListId, now);
       if (list.shareState == 'shared') {
         await _trackTombstone('quick_list_item', itemId, now);
+        await _sync.recordDelete(item.quickListId, 'quick_list_item', itemId);
       }
     });
   }
@@ -280,6 +318,17 @@ class DriftQuickListRepository implements QuickListRepository {
             ),
           );
       await _touchList(listId, now);
+      if (await _isShared(listId)) {
+        final items =
+            await (_database.select(_database.quickListItems)..where(
+                  (row) =>
+                      row.quickListId.equals(listId) & row.deletedAt.isNull(),
+                ))
+                .get();
+        for (final item in items) {
+          await _sync.recordUpsert(listId, 'quick_list_item', item.id);
+        }
+      }
     });
   }
 
@@ -287,6 +336,13 @@ class DriftQuickListRepository implements QuickListRepository {
     return (_database.update(_database.quickLists)
           ..where((row) => row.id.equals(listId)))
         .write(QuickListsCompanion(updatedAtLocal: Value(now)));
+  }
+
+  Future<bool> _isShared(String listId) async {
+    final list = await (_database.select(
+      _database.quickLists,
+    )..where((row) => row.id.equals(listId))).getSingle();
+    return list.shareState == 'shared';
   }
 
   Future<void> _trackTombstone(

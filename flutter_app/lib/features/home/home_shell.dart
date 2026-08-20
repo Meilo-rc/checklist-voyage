@@ -44,6 +44,7 @@ class _HomeShellState extends State<HomeShell> {
       TripsScreen(
         watchTrips: widget.dependencies.watchTrips,
         useCases: widget.dependencies.trips,
+        sharedDocuments: widget.dependencies.sharedDocuments,
       ),
       LibraryScreen(
         watchOwners: widget.dependencies.watchLibraryOwners,
@@ -56,6 +57,7 @@ class _HomeShellState extends State<HomeShell> {
       QuickListsScreen(
         watchQuickLists: widget.dependencies.watchQuickLists,
         useCases: widget.dependencies.quickLists,
+        sharedDocuments: widget.dependencies.sharedDocuments,
       ),
     ];
     return Scaffold(

@@ -14,10 +14,15 @@ import '../domain/usecases/library_use_cases.dart';
 import '../domain/usecases/quick_list_use_cases.dart';
 import '../domain/usecases/trip_use_cases.dart';
 import '../domain/usecases/watch_destinations.dart';
+import '../domain/usecases/shared_document_use_cases.dart';
 import '../sync/library_sync_coordinator.dart';
 import '../sync/library_sync_store.dart';
 import '../sync/pocketbase_sync_remote.dart';
 import '../sync/sync_remote_gateway.dart';
+import '../sync/pocketbase_shared_document_remote.dart';
+import '../sync/shared_document_remote.dart';
+import '../sync/shared_document_sync_coordinator.dart';
+import '../sync/shared_document_sync_store.dart';
 
 class AppDependencies {
   AppDependencies._({
@@ -32,6 +37,7 @@ class AppDependencies {
     required this.quickLists,
     required this.contexts,
     required this.librarySync,
+    required this.sharedDocuments,
   });
 
   final AppDatabase database;
@@ -45,24 +51,34 @@ class AppDependencies {
   final QuickListUseCases quickLists;
   final ContextUseCases contexts;
   final LibrarySyncCoordinator librarySync;
+  final SharedDocumentUseCases sharedDocuments;
 
   static Future<AppDependencies> create({
     AppDatabase? database,
     SyncRemoteGateway? syncRemote,
+    SharedDocumentRemoteGateway? documentRemote,
     bool? autoSync,
   }) async {
     final db = database ?? AppDatabase.open();
     final localData = DriftLocalDataRepository(db);
     await localData.ensureInstallationId();
     final syncStore = LibrarySyncStore(db);
+    final documentStore = SharedDocumentSyncStore(db);
     final librarySync = LibrarySyncCoordinator(
       syncStore,
       syncRemote ?? PocketBaseSyncRemote(),
     );
-    final tripRepository = DriftTripRepository(db);
+    final documentSync = SharedDocumentSyncCoordinator(
+      documentStore,
+      documentRemote ?? PocketBaseSharedDocumentRemote(),
+    );
+    final tripRepository = DriftTripRepository(db, syncStore: documentStore);
     final libraryRepository = DriftLibraryRepository(db, syncStore: syncStore);
     final contextRepository = DriftContextRepository(db, syncStore: syncStore);
-    final quickListRepository = DriftQuickListRepository(db);
+    final quickListRepository = DriftQuickListRepository(
+      db,
+      syncStore: documentStore,
+    );
     final dependencies = AppDependencies._(
       database: db,
       localData: localData,
@@ -75,8 +91,12 @@ class AppDependencies {
       quickLists: QuickListUseCases(quickListRepository),
       contexts: ContextUseCases(contextRepository),
       librarySync: librarySync,
+      sharedDocuments: SharedDocumentUseCases(documentSync),
     );
-    if (autoSync ?? database == null) unawaited(librarySync.syncNow());
+    if (autoSync ?? database == null) {
+      unawaited(librarySync.syncNow());
+      unawaited(documentSync.syncAll());
+    }
     return dependencies;
   }
 

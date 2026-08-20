@@ -1,9 +1,10 @@
 # Stratégie PocketBase V1 séparée
 
-> Mise à jour lot 6 : la bibliothèque partagée est désormais implémentée avec
+> Mise à jour lots 6 et 7 : la bibliothèque partagée est implémentée avec
 > `cv1_libraries`, `cv1_library_entities`, `cv1_operations` et `cv1_devices`.
-> Le protocole réellement déployé est décrit dans `LOT_6_SYNC_BIBLIOTHEQUE.md`.
-> Les sections relatives aux futurs documents voyage/liste restent prospectives.
+> Les documents partagés utilisent `cv1_documents`, `cv1_document_access`,
+> `cv1_document_entities` et `cv1_document_operations`. Les protocoles déployés
+> sont décrits dans `LOT_6_SYNC_BIBLIOTHEQUE.md` et `LOT_7_PARTAGE_DOCUMENTS.md`.
 
 Statut : arbitrages validés, sans création ni modification distante pendant le lot 3.
 
@@ -24,7 +25,7 @@ Ces collections utiliseront l'instance PocketBase actuelle. La séparation repos
 
 Un record représente la partie partagée Général + Famille d'une bibliothèque.
 
-Champs proposés :
+Champs réellement déployés :
 
 - `library_uuid` : texte UUID, index unique ;
 - `schema_version` : entier ;
@@ -42,15 +43,17 @@ Un record par voyage partagé ou liste rapide partagée.
 Champs proposés :
 
 - `document_uuid` : texte UUID, index unique ;
-- `type` : `trip` ou `quick_list` ;
+- `document_type` : `trip` ou `quick_list` ;
 - `share_code` : texte unique, créé uniquement lors du partage ;
-- `schema_version` : entier ;
 - `revision` : entier ;
-- `data` : JSON canonique de l'agrégat ;
-- `deleted_at` : date/tombstone facultatif ;
+- `created_by_device` : installation créatrice ;
+- `future_user_uuid` : compatibilité future ;
 - champs PocketBase `created` et `updated`.
 
-Un document local n'existe pas dans cette collection.
+Un document local n'existe pas dans cette collection. Les capacités propres aux
+installations sont verrouillées dans `cv1_document_access`. L'état canonique et
+le journal incrémental sont séparés dans `cv1_document_entities` et
+`cv1_document_operations`.
 
 ## 4. `cv1_operations`
 
@@ -73,8 +76,10 @@ La route de synchronisation devra appliquer l'opération et l'incrément de rév
 ## 5. Migration des données historiques
 
 - `PARAMS` alimente `cv1_libraries` après validation.
-- Chaque voyage et liste rapide legacy devient un `cv1_document` avec état local `shared` dans Flutter.
-- Les identifiants et codes historiques sont conservés quand ils sont uniques.
+- Chaque voyage et liste rapide legacy garde l'état local `shared` dans Flutter.
+- Les identifiants et codes historiques sont conservés pour audit, mais le code
+  actif V1 n'est créé qu'au premier passage par l'action Partager. Aucune copie
+  distante réelle n'est lancée automatiquement pendant l'import.
 - Les records ambigus sont signalés, jamais fusionnés par nom.
 - Aucun record legacy n'est supprimé après import.
 

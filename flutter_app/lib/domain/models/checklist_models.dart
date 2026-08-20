@@ -160,6 +160,9 @@ class TripDetailModel {
     required this.endDate,
     required this.selectedContextIds,
     required this.members,
+    this.shared = false,
+    this.v1ShareReady = false,
+    this.shareCode,
   });
 
   final String id;
@@ -169,6 +172,9 @@ class TripDetailModel {
   final DateTime? endDate;
   final Set<String> selectedContextIds;
   final List<TripMemberModel> members;
+  final bool shared;
+  final bool v1ShareReady;
+  final String? shareCode;
 }
 
 class QuickListItemModel {
@@ -190,9 +196,29 @@ class QuickListDetailModel {
     required this.id,
     required this.name,
     required this.items,
+    this.shared = false,
+    this.v1ShareReady = false,
+    this.shareCode,
   });
 
   final String id;
   final String name;
   final List<QuickListItemModel> items;
+  final bool shared;
+  final bool v1ShareReady;
+  final String? shareCode;
+}
+
+enum SharedDocumentType { trip, quickList }
+
+class SharedDocumentAccess {
+  const SharedDocumentAccess({
+    required this.documentId,
+    required this.documentType,
+    required this.shareCode,
+  });
+
+  final String documentId;
+  final SharedDocumentType documentType;
+  final String shareCode;
 }

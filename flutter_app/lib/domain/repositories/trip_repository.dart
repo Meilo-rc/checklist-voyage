@@ -15,4 +15,15 @@ abstract interface class TripRepository {
   Future<void> changeItemQuantity(String itemId, int delta);
 
   Future<void> removeItem(String itemId);
+
+  Future<String> addItem({
+    required String tripId,
+    required String categoryId,
+    required String name,
+    int quantity = 1,
+  });
+
+  Future<void> renameCategory(String categoryId, String name);
+
+  Future<void> removeCategory(String categoryId);
 }

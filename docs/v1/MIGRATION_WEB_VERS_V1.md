@@ -43,6 +43,9 @@ Cette stratégie ne modifie ni `travel_checklists` ni le `localStorage` actuel. 
 - `share_state = shared`.
 - Conserver `remote_record_id` et le code existant.
 - Conserver une référence vers le record legacy pour audit et rollback.
+- Ne pas considérer le code 2.63 comme une capacité V1 active. La première
+  action Partager copie le document vers `cv1_documents`, conserve son UUID V1
+  stable et reçoit un nouveau code/capacité sans écrire dans le legacy.
 
 ### Documents uniquement locaux
 

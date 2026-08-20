@@ -7,12 +7,18 @@ import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
 import '../../domain/repositories/trip_repository.dart';
 import '../local/app_database.dart';
+import '../../sync/shared_document_sync_store.dart';
 
 class DriftTripRepository implements TripRepository {
-  DriftTripRepository(this._database, {this._uuid = const Uuid()});
+  DriftTripRepository(
+    this._database, {
+    SharedDocumentSyncStore? syncStore,
+    this._uuid = const Uuid(),
+  }) : _sync = syncStore ?? SharedDocumentSyncStore(_database, enabled: false);
 
   final AppDatabase _database;
   final Uuid _uuid;
+  final SharedDocumentSyncStore _sync;
 
   @override
   Stream<List<TripSummary>> watchTrips() {
@@ -116,6 +122,9 @@ class DriftTripRepository implements TripRepository {
               (row) => row.tripId.equals(tripId) & row.deletedAt.isNull(),
             ))
             .get();
+    final syncDocument = await (_database.select(
+      _database.syncDocuments,
+    )..where((row) => row.documentId.equals(tripId))).getSingleOrNull();
 
     TripCategoryModel mapCategory(TripCategory category) {
       return TripCategoryModel(
@@ -179,6 +188,9 @@ class DriftTripRepository implements TripRepository {
           .map((choice) => choice.choiceId)
           .toSet(),
       members: mappedMembers,
+      shared: trip.shareState == 'shared',
+      v1ShareReady: syncDocument?.capabilityToken?.isNotEmpty ?? false,
+      shareCode: syncDocument?.shareCode,
     );
   }
 
@@ -529,6 +541,9 @@ class DriftTripRepository implements TripRepository {
         TripItemsCompanion(status: Value(next), updatedAtLocal: Value(now)),
       );
       await _touchTrip(item.tripId, now);
+      if (await _isShared(item.tripId)) {
+        await _sync.recordUpsert(item.tripId, 'trip_item', item.id);
+      }
     });
   }
 
@@ -550,6 +565,9 @@ class DriftTripRepository implements TripRepository {
         ),
       );
       await _touchTrip(item.tripId, now);
+      if (await _isShared(item.tripId)) {
+        await _sync.recordUpsert(item.tripId, 'trip_item', item.id);
+      }
     });
   }
 
@@ -582,9 +600,135 @@ class DriftTripRepository implements TripRepository {
                 purgeEligibleAt: now.add(const Duration(days: 90)),
               ),
             );
+        await _sync.recordDelete(item.tripId, 'trip_item', item.id);
       }
     });
   }
+
+  @override
+  Future<String> addItem({
+    required String tripId,
+    required String categoryId,
+    required String name,
+    int quantity = 1,
+  }) async {
+    final clean = name.trim();
+    if (clean.isEmpty) throw ArgumentError.value(name, 'name', 'Nom requis');
+    final id = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      await (_database.select(_database.tripCategories)..where(
+            (row) =>
+                row.id.equals(categoryId) &
+                row.tripId.equals(tripId) &
+                row.deletedAt.isNull(),
+          ))
+          .getSingle();
+      await _database
+          .into(_database.tripItems)
+          .insert(
+            TripItemsCompanion.insert(
+              id: id,
+              tripId: tripId,
+              categoryId: categoryId,
+              name: clean,
+              quantity: Value(quantity.clamp(1, 99)),
+              createdAt: now,
+              updatedAtLocal: now,
+            ),
+          );
+      await _touchTrip(tripId, now);
+      if (await _isShared(tripId)) {
+        await _sync.recordUpsert(tripId, 'trip_item', id);
+      }
+    });
+    return id;
+  }
+
+  @override
+  Future<void> renameCategory(String categoryId, String name) async {
+    final clean = name.trim();
+    if (clean.isEmpty) throw ArgumentError.value(name, 'name', 'Nom requis');
+    await _database.transaction(() async {
+      final category =
+          await (_database.select(_database.tripCategories)..where(
+                (row) => row.id.equals(categoryId) & row.deletedAt.isNull(),
+              ))
+              .getSingle();
+      final now = DateTime.now().toUtc();
+      await (_database.update(
+        _database.tripCategories,
+      )..where((row) => row.id.equals(categoryId))).write(
+        TripCategoriesCompanion(name: Value(clean), updatedAtLocal: Value(now)),
+      );
+      await _touchTrip(category.tripId, now);
+      if (await _isShared(category.tripId)) {
+        await _sync.recordUpsert(category.tripId, 'trip_category', categoryId);
+      }
+    });
+  }
+
+  @override
+  Future<void> removeCategory(String categoryId) async {
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      final category =
+          await (_database.select(_database.tripCategories)..where(
+                (row) => row.id.equals(categoryId) & row.deletedAt.isNull(),
+              ))
+              .getSingle();
+      final items =
+          await (_database.select(_database.tripItems)..where(
+                (row) =>
+                    row.categoryId.equals(categoryId) & row.deletedAt.isNull(),
+              ))
+              .get();
+      await (_database.update(
+        _database.tripCategories,
+      )..where((row) => row.id.equals(categoryId))).write(
+        TripCategoriesCompanion(
+          deletedAt: Value(now),
+          updatedAtLocal: Value(now),
+        ),
+      );
+      await (_database.update(
+        _database.tripItems,
+      )..where((row) => row.categoryId.equals(categoryId))).write(
+        TripItemsCompanion(deletedAt: Value(now), updatedAtLocal: Value(now)),
+      );
+      await _touchTrip(category.tripId, now);
+      if (await _isShared(category.tripId)) {
+        for (final item in items) {
+          await _trackTombstone('trip_item', item.id, now);
+          await _sync.recordDelete(category.tripId, 'trip_item', item.id);
+        }
+        await _trackTombstone('trip_category', categoryId, now);
+        await _sync.recordDelete(category.tripId, 'trip_category', categoryId);
+      }
+    });
+  }
+
+  Future<bool> _isShared(String tripId) async {
+    final trip = await (_database.select(
+      _database.trips,
+    )..where((row) => row.id.equals(tripId))).getSingle();
+    return trip.shareState == 'shared';
+  }
+
+  Future<void> _trackTombstone(
+    String entityType,
+    String entityId,
+    DateTime deletedAt,
+  ) => _database
+      .into(_database.syncTombstones)
+      .insertOnConflictUpdate(
+        SyncTombstonesCompanion.insert(
+          entityType: entityType,
+          entityId: entityId,
+          deletedAt: deletedAt,
+          purgeEligibleAt: deletedAt.add(const Duration(days: 90)),
+        ),
+      );
 
   Future<void> _touchTrip(String tripId, DateTime now) {
     return (_database.update(_database.trips)
