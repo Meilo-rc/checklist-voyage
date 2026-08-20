@@ -1,6 +1,6 @@
-/// Contrat de préparation uniquement. Aucun appel réseau n'est effectué au lot 3.
+/// Contrat PocketBase V1. Les tests peuvent toujours injecter une autre URL.
 abstract final class PocketBaseV1Contract {
-  static const baseUrl = 'https://psyco.fly.dev';
+  static const baseUrl = 'https://checklist-voyage-pb.fly.dev';
 
   static const libraryCollection = 'cv1_libraries';
   static const entityCollection = 'cv1_library_entities';

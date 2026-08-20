@@ -6,6 +6,13 @@ const migrationPath = new URL("../../pocketbase/pb_migrations/2026081701_cv1_lib
 const hookPath = new URL("../../pocketbase/pb_hooks/cv1_sync.pb.js", import.meta.url);
 const documentsMigrationPath = new URL("../../pocketbase/pb_migrations/2026082001_cv1_shared_documents.js", import.meta.url);
 const documentsHookPath = new URL("../../pocketbase/pb_hooks/cv1_documents.pb.js", import.meta.url);
+const contractPath = new URL("../../flutter_app/lib/sync/pocketbase_v1_contract.dart", import.meta.url);
+
+test("Flutter V1 cible uniquement le backend Checklist dédié", async () => {
+  const contract = await readFile(contractPath, "utf8");
+  assert.match(contract, /static const baseUrl = 'https:\/\/checklist-voyage-pb\.fly\.dev'/);
+  assert.doesNotMatch(contract, /static const baseUrl = 'https:\/\/psyco\.fly\.dev'/);
+});
 
 test("le schéma PocketBase V1 est versionné, isolé et verrouillé", async () => {
   const migration = await readFile(migrationPath, "utf8");
