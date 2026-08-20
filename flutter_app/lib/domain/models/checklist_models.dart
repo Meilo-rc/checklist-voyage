@@ -142,14 +142,18 @@ class TripMemberModel {
     required this.id,
     required this.name,
     required this.sourceOwnerId,
+    required this.groupKind,
     required this.categories,
   });
 
   final String id;
   final String name;
   final String? sourceOwnerId;
+  final TripMemberGroupKind groupKind;
   final List<TripCategoryModel> categories;
 }
+
+enum TripMemberGroupKind { general, family }
 
 class TripDetailModel {
   const TripDetailModel({

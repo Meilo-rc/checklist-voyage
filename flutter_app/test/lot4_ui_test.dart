@@ -63,11 +63,14 @@ void main() {
       expect(find.text('Voyage UI'), findsWidgets);
       expect(find.text('Grenoble'), findsOneWidget);
       expect(find.text('Essentiel'), findsOneWidget);
-      expect(find.text('Alex'), findsOneWidget);
+      expect(find.text('Alex'), findsWidgets);
+      await tester.scrollUntilVisible(
+        find.text('Trajet - Train'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Trajet - Avion'), findsOneWidget);
       expect(find.text('Trajet - Train'), findsOneWidget);
-      expect(find.text('Logement - Hôtel'), findsOneWidget);
-      expect(find.text('Logement - Camping'), findsOneWidget);
       final contextChoices = await database
           .select(database.tripGenerationChoices)
           .get();

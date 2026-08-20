@@ -154,6 +154,9 @@ class DriftTripRepository implements TripRepository {
             id: member.id,
             name: member.name,
             sourceOwnerId: member.sourceOwnerId,
+            groupKind: member.groupKind == 'family'
+                ? TripMemberGroupKind.family
+                : TripMemberGroupKind.general,
             categories: categories
                 .where((category) => category.memberId == member.id)
                 .map(mapCategory)
@@ -172,6 +175,7 @@ class DriftTripRepository implements TripRepository {
           id: 'general-$tripId',
           name: 'Général',
           sourceOwnerId: null,
+          groupKind: TripMemberGroupKind.general,
           categories: generalCategories,
         ),
       );

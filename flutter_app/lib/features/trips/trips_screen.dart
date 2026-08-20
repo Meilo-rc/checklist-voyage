@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
 import '../../domain/models/progress.dart';
+import '../../domain/models/trip_filters.dart';
 import '../../domain/usecases/trip_use_cases.dart';
 import '../../domain/usecases/shared_document_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
@@ -375,7 +376,7 @@ class _ChoiceGroup extends StatelessWidget {
   }
 }
 
-class _TripDetail extends StatelessWidget {
+class _TripDetail extends StatefulWidget {
   const _TripDetail({
     required this.tripId,
     required this.useCases,
@@ -389,20 +390,41 @@ class _TripDetail extends StatelessWidget {
   final SharedDocumentUseCases? sharedDocuments;
 
   @override
+  State<_TripDetail> createState() => _TripDetailState();
+}
+
+class _TripDetailState extends State<_TripDetail> {
+  TripFilter _filter = const TripFilter();
+  late final Stream<TripDetailModel?> _tripStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _tripStream = widget.useCases.watchTrip(widget.tripId);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<TripDetailModel?>(
-      stream: useCases.watchTrip(tripId),
+      stream: _tripStream,
       builder: (context, snapshot) {
         final trip = snapshot.data;
         if (trip == null) {
           return const Center(child: CircularProgressIndicator());
         }
         final progress = ProgressCalculator.forTrip(trip);
+        final personOptions = TripFilterEngine.personOptions(trip);
+        final effectivePerson =
+            personOptions.any((option) => option.filter == _filter.person)
+            ? _filter.person
+            : const TripPersonFilter.all();
+        final effectiveFilter = _filter.copyWith(person: effectivePerson);
+        final visibleMembers = TripFilterEngine.apply(trip, effectiveFilter);
         return CustomScrollView(
           slivers: [
             SliverAppBar.large(
               leading: IconButton(
-                onPressed: onBack,
+                onPressed: widget.onBack,
                 icon: const Icon(Icons.arrow_back),
               ),
               title: Text(trip.name),
@@ -412,7 +434,7 @@ class _TripDetail extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 8),
                     child: Center(child: Chip(label: Text('Partagé'))),
                   ),
-                if (sharedDocuments != null)
+                if (widget.sharedDocuments != null)
                   IconButton(
                     key: Key(
                       trip.v1ShareReady ? 'trip-show-code' : 'trip-share',
@@ -425,7 +447,7 @@ class _TripDetail extends StatelessWidget {
                       try {
                         final code = trip.v1ShareReady
                             ? trip.shareCode
-                            : (await sharedDocuments!.shareTrip(
+                            : (await widget.sharedDocuments!.shareTrip(
                                 trip.id,
                               )).shareCode;
                         if (context.mounted && code != null) {
@@ -458,16 +480,147 @@ class _TripDetail extends StatelessWidget {
                     '${progress.completed}/${progress.total} rangés · ${progress.percent}%',
                   ),
                   const SizedBox(height: 12),
-                  ...trip.members.map(
-                    (member) =>
-                        _TripMemberCard(member: member, useCases: useCases),
+                  _TripFilters(
+                    filter: effectiveFilter,
+                    personOptions: personOptions,
+                    onStateChanged: (state) => setState(
+                      () => _filter = _filter.copyWith(state: state),
+                    ),
+                    onPersonChanged: (person) => setState(
+                      () => _filter = _filter.copyWith(person: person),
+                    ),
                   ),
+                  const SizedBox(height: 12),
+                  if (visibleMembers.isEmpty)
+                    _EmptyTripFilter(
+                      filter: effectiveFilter,
+                      personOptions: personOptions,
+                    )
+                  else
+                    ...visibleMembers.map((member) {
+                      final completeMember = trip.members.singleWhere(
+                        (candidate) => candidate.id == member.id,
+                      );
+                      return _TripMemberCard(
+                        member: member,
+                        completeMember: completeMember,
+                        useCases: widget.useCases,
+                      );
+                    }),
                 ],
               ),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+class _TripFilters extends StatelessWidget {
+  const _TripFilters({
+    required this.filter,
+    required this.personOptions,
+    required this.onStateChanged,
+    required this.onPersonChanged,
+  });
+
+  final TripFilter filter;
+  final List<TripPersonOption> personOptions;
+  final ValueChanged<TripStateFilter> onStateChanged;
+  final ValueChanged<TripPersonFilter> onPersonChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          label: 'Filtrer par état',
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: TripStateFilter.values
+                  .map(
+                    (state) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        key: Key('trip-state-${state.name}'),
+                        label: Text(_stateFilterLabel(state)),
+                        selected: filter.state == state,
+                        selectedColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
+                        checkmarkColor: Theme.of(context).colorScheme.primary,
+                        onSelected: (_) => onStateChanged(state),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Semantics(
+          label: 'Filtrer par personne',
+          child: SingleChildScrollView(
+            key: const Key('trip-person-filters'),
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: personOptions
+                  .map(
+                    (option) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        key: Key(_personFilterKey(option.filter)),
+                        label: Text(option.label),
+                        selected: filter.person == option.filter,
+                        selectedColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
+                        checkmarkColor: Theme.of(context).colorScheme.primary,
+                        onSelected: (_) => onPersonChanged(option.filter),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyTripFilter extends StatelessWidget {
+  const _EmptyTripFilter({required this.filter, required this.personOptions});
+
+  final TripFilter filter;
+  final List<TripPersonOption> personOptions;
+
+  @override
+  Widget build(BuildContext context) {
+    final person = personOptions
+        .where((option) => option.filter == filter.person)
+        .map((option) => option.label)
+        .firstOrNull;
+    final state = switch (filter.state) {
+      TripStateFilter.all => 'élément',
+      TripStateFilter.todo => 'élément à préparer',
+      TripStateFilter.checked => 'élément prêt',
+      TripStateFilter.done => 'élément rangé',
+    };
+    final suffix = filter.person.kind == TripPersonFilterKind.all
+        ? ''
+        : ' pour ${person ?? 'cette personne'}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Text(
+        'Aucun $state$suffix.',
+        key: const Key('trip-filter-empty'),
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
     );
   }
 }
@@ -520,23 +673,37 @@ Future<void> _showCode(BuildContext context, String code) => showDialog<void>(
 );
 
 class _TripMemberCard extends StatelessWidget {
-  const _TripMemberCard({required this.member, required this.useCases});
+  const _TripMemberCard({
+    required this.member,
+    required this.completeMember,
+    required this.useCases,
+  });
 
   final TripMemberModel member;
+  final TripMemberModel completeMember;
   final TripUseCases useCases;
 
   @override
   Widget build(BuildContext context) {
-    final progress = ProgressCalculator.forMember(member);
+    final progress = ProgressCalculator.forMember(completeMember);
     return Card(
+      key: Key('trip-member-${member.id}'),
       child: ExpansionTile(
+        key: PageStorageKey<String>('trip-member-tile-${member.id}'),
+        maintainState: true,
         title: Text(member.name),
         subtitle: Text('${progress.completed}/${progress.total} rangés'),
         children: member.categories
-            .map(
-              (category) =>
-                  _TripCategoryTile(category: category, useCases: useCases),
-            )
+            .map((category) {
+              final completeCategory = completeMember.categories.singleWhere(
+                (candidate) => candidate.id == category.id,
+              );
+              return _TripCategoryTile(
+                category: category,
+                completeCategory: completeCategory,
+                useCases: useCases,
+              );
+            })
             .toList(growable: false),
       ),
     );
@@ -544,15 +711,22 @@ class _TripMemberCard extends StatelessWidget {
 }
 
 class _TripCategoryTile extends StatelessWidget {
-  const _TripCategoryTile({required this.category, required this.useCases});
+  const _TripCategoryTile({
+    required this.category,
+    required this.completeCategory,
+    required this.useCases,
+  });
 
   final TripCategoryModel category;
+  final TripCategoryModel completeCategory;
   final TripUseCases useCases;
 
   @override
   Widget build(BuildContext context) {
-    final progress = ProgressCalculator.forCategory(category);
+    final progress = ProgressCalculator.forCategory(completeCategory);
     return ExpansionTile(
+      key: PageStorageKey<String>('trip-category-${category.id}'),
+      maintainState: true,
       title: Text(category.name),
       subtitle: Text('${progress.completed}/${progress.total} rangés'),
       children: category.items
@@ -626,6 +800,19 @@ String _statusLabel(TripItemStatus status) => switch (status) {
   TripItemStatus.todo => 'À préparer',
   TripItemStatus.checked => 'Prêt',
   TripItemStatus.done => 'Rangé',
+};
+
+String _stateFilterLabel(TripStateFilter filter) => switch (filter) {
+  TripStateFilter.all => 'Tout',
+  TripStateFilter.todo => 'À préparer',
+  TripStateFilter.checked => 'Prêt',
+  TripStateFilter.done => 'Rangé',
+};
+
+String _personFilterKey(TripPersonFilter filter) => switch (filter.kind) {
+  TripPersonFilterKind.all => 'trip-person-all',
+  TripPersonFilterKind.general => 'trip-person-general',
+  TripPersonFilterKind.participant => 'trip-person-${filter.memberId}',
 };
 
 IconData _statusIcon(TripItemStatus status) => switch (status) {
