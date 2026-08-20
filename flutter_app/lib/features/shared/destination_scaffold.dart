@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
+
 class DestinationScaffold extends StatelessWidget {
   const DestinationScaffold({
     super.key,
@@ -16,9 +18,14 @@ class DestinationScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        SliverAppBar.large(title: Text(title), actions: actions),
+        SliverAppBar(pinned: true, title: Text(title), actions: actions),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
           sliver: SliverToBoxAdapter(child: child),
         ),
       ],
@@ -41,13 +48,17 @@ class EmptyDestination extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 64),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
       child: Column(
         children: [
-          Icon(icon, size: 48, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 16),
+          Icon(
+            icon,
+            size: 32,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: AppSpacing.md),
           Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             message,
             textAlign: TextAlign.center,

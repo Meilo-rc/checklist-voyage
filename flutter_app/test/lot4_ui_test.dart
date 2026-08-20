@@ -31,7 +31,6 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('trip-create')));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('trip-name')), 'Voyage UI');
       await tester.enterText(
         find.byKey(const Key('trip-destination')),
         'Grenoble',
@@ -44,24 +43,18 @@ void main() {
         'Logement - Camping',
         'Plage',
       ];
-      for (var index = 0; index < choices.length; index++) {
-        if (index > 0) {
-          await tester.drag(
-            find.byType(SingleChildScrollView),
-            const Offset(0, -72),
-          );
-          await tester.pump();
-        }
-        final choice = choices[index];
-        final target = find.widgetWithText(CheckboxListTile, choice);
-        await tester.tap(target);
-        await tester.pump();
+      for (final choice in choices) {
+        final target = find.widgetWithText(ChoiceChip, choice);
+        await tester.ensureVisible(target);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(choice).last);
+        await tester.pumpAndSettle();
       }
+      await tester.ensureVisible(find.byKey(const Key('trip-submit')));
       await tester.tap(find.byKey(const Key('trip-submit')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Voyage UI'), findsWidgets);
-      expect(find.text('Grenoble'), findsOneWidget);
+      expect(find.text('Grenoble'), findsWidgets);
       expect(find.text('Essentiel'), findsOneWidget);
       expect(find.text('Alex'), findsWidgets);
       await tester.scrollUntilVisible(

@@ -10,6 +10,8 @@ abstract interface class TripRepository {
 
   Future<String> createTrip(CreateTripRequest request);
 
+  Future<void> updateTripDetails(UpdateTripDetailsRequest request);
+
   Future<String> duplicateTrip(DuplicateTripRequest request);
 
   Future<void> archiveTrip(String tripId);

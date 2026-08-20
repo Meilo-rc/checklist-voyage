@@ -90,6 +90,22 @@ class CreateTripRequest {
   final bool includeEssentials;
 }
 
+class UpdateTripDetailsRequest {
+  const UpdateTripDetailsRequest({
+    required this.tripId,
+    required this.name,
+    required this.destination,
+    required this.startDate,
+    required this.endDate,
+  });
+
+  final String tripId;
+  final String name;
+  final String destination;
+  final DateTime? startDate;
+  final DateTime? endDate;
+}
+
 class DuplicateTripRequest {
   const DuplicateTripRequest({
     required this.sourceTripId,
@@ -180,6 +196,9 @@ class TripDetailModel {
     required this.endDate,
     required this.selectedContextIds,
     required this.members,
+    this.selectedParticipantOwnerIds = const {},
+    this.selectedTransportOwnerIds = const {},
+    this.selectedLodgingOwnerIds = const {},
     this.archivedAt,
     this.shared = false,
     this.v1ShareReady = false,
@@ -192,6 +211,9 @@ class TripDetailModel {
   final DateTime? startDate;
   final DateTime? endDate;
   final Set<String> selectedContextIds;
+  final Set<String> selectedParticipantOwnerIds;
+  final Set<String> selectedTransportOwnerIds;
+  final Set<String> selectedLodgingOwnerIds;
   final List<TripMemberModel> members;
   final DateTime? archivedAt;
   final bool shared;

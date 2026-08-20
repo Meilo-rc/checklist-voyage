@@ -10,14 +10,16 @@ class ChecklistProgress {
 }
 
 abstract final class ProgressCalculator {
-  static ChecklistProgress forTripItems(Iterable<TripItemModel> items) {
-    final visible = items.toList(growable: false);
+  static ChecklistProgress forTripStatuses(Iterable<TripItemStatus> statuses) {
+    final values = statuses.toList(growable: false);
     return ChecklistProgress(
-      total: visible.length,
-      completed: visible
-          .where((item) => item.status == TripItemStatus.done)
-          .length,
+      total: values.length,
+      completed: values.where((status) => status == TripItemStatus.done).length,
     );
+  }
+
+  static ChecklistProgress forTripItems(Iterable<TripItemModel> items) {
+    return forTripStatuses(items.map((item) => item.status));
   }
 
   static ChecklistProgress forCategory(TripCategoryModel category) =>

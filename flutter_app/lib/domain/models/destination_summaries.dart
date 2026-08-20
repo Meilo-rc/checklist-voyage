@@ -1,3 +1,5 @@
+import 'progress.dart';
+
 class TripSummary {
   const TripSummary({
     required this.id,
@@ -8,6 +10,9 @@ class TripSummary {
     required this.archivedAt,
     required this.updatedAt,
     required this.participantNames,
+    this.transportNames = const [],
+    this.lodgingNames = const [],
+    this.progress = const ChecklistProgress(total: 0, completed: 0),
     required this.shared,
   });
 
@@ -19,6 +24,9 @@ class TripSummary {
   final DateTime? archivedAt;
   final DateTime updatedAt;
   final List<String> participantNames;
+  final List<String> transportNames;
+  final List<String> lodgingNames;
+  final ChecklistProgress progress;
   final bool shared;
 }
 

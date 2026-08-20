@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
+import '../../domain/models/progress.dart';
 import '../../domain/repositories/trip_repository.dart';
 import '../local/app_database.dart';
 import '../../sync/shared_document_sync_store.dart';
@@ -30,8 +31,23 @@ class DriftTripRepository implements TripRepository {
             UNION ALL
             SELECT 'member:' || id, updated_at_local, deleted_at
             FROM trip_members
+            UNION ALL
+            SELECT 'item:' || id, updated_at_local, deleted_at
+            FROM trip_items
+            UNION ALL
+            SELECT 'choice:' || id, created_at, deleted_at
+            FROM trip_generation_choices
+            UNION ALL
+            SELECT 'owner:' || id, updated_at_local, deleted_at
+            FROM library_owners
           ''',
-          readsFrom: {_database.trips, _database.tripMembers},
+          readsFrom: {
+            _database.trips,
+            _database.tripMembers,
+            _database.tripItems,
+            _database.tripGenerationChoices,
+            _database.libraryOwners,
+          },
         )
         .watch()
         .asyncMap((_) => _loadTripSummaries());
@@ -55,9 +71,42 @@ class DriftTripRepository implements TripRepository {
               )
               ..orderBy([(row) => OrderingTerm.asc(row.name)]))
             .get();
+    final items = await (_database.select(
+      _database.tripItems,
+    )..where((row) => row.tripId.isIn(tripIds) & row.deletedAt.isNull())).get();
+    final choices = await (_database.select(
+      _database.tripGenerationChoices,
+    )..where((row) => row.tripId.isIn(tripIds) & row.deletedAt.isNull())).get();
+    final choiceOwnerIds = choices
+        .where(
+          (choice) =>
+              choice.choiceKind == 'transport' ||
+              choice.choiceKind == 'lodging',
+        )
+        .map((choice) => choice.choiceId)
+        .toSet();
+    final choiceOwners = choiceOwnerIds.isEmpty
+        ? <LibraryOwner>[]
+        : await (_database.select(_database.libraryOwners)..where(
+                (row) => row.id.isIn(choiceOwnerIds) & row.deletedAt.isNull(),
+              ))
+              .get();
+    final ownerNames = {for (final owner in choiceOwners) owner.id: owner.name};
     return trips
-        .map(
-          (trip) => TripSummary(
+        .map((trip) {
+          final tripItems = items.where((item) => item.tripId == trip.id);
+          final tripChoices = choices.where(
+            (choice) => choice.tripId == trip.id,
+          );
+          List<String> namesFor(String kind) =>
+              tripChoices
+                  .where((choice) => choice.choiceKind == kind)
+                  .map((choice) => ownerNames[choice.choiceId])
+                  .whereType<String>()
+                  .toSet()
+                  .toList(growable: false)
+                ..sort();
+          return TripSummary(
             id: trip.id,
             name: trip.name,
             destination: _destinationName(trip.destinationJson),
@@ -69,9 +118,14 @@ class DriftTripRepository implements TripRepository {
                 .where((member) => member.tripId == trip.id)
                 .map((member) => member.name)
                 .toList(growable: false),
+            transportNames: namesFor('transport'),
+            lodgingNames: namesFor('lodging'),
+            progress: ProgressCalculator.forTripStatuses(
+              tripItems.map((item) => _tripStatus(item.status)),
+            ),
             shared: trip.shareState == 'shared',
-          ),
-        )
+          );
+        })
         .toList(growable: false);
   }
 
@@ -228,6 +282,18 @@ class DriftTripRepository implements TripRepository {
           .where((choice) => choice.choiceKind == 'context')
           .map((choice) => choice.choiceId)
           .toSet(),
+      selectedParticipantOwnerIds: choices
+          .where((choice) => choice.choiceKind == 'participant')
+          .map((choice) => choice.choiceId)
+          .toSet(),
+      selectedTransportOwnerIds: choices
+          .where((choice) => choice.choiceKind == 'transport')
+          .map((choice) => choice.choiceId)
+          .toSet(),
+      selectedLodgingOwnerIds: choices
+          .where((choice) => choice.choiceKind == 'lodging')
+          .map((choice) => choice.choiceId)
+          .toSet(),
       members: mappedMembers,
       archivedAt: trip.archivedAt,
       shared: trip.shareState == 'shared',
@@ -285,6 +351,43 @@ class DriftTripRepository implements TripRepository {
       await _writeCompactedItems(tripId, compacted.values, now);
     });
     return tripId;
+  }
+
+  @override
+  Future<void> updateTripDetails(UpdateTripDetailsRequest request) async {
+    if (request.endDate != null &&
+        request.startDate != null &&
+        request.endDate!.isBefore(request.startDate!)) {
+      throw ArgumentError('La date de fin précède la date de début.');
+    }
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      final trip =
+          await (_database.select(_database.trips)..where(
+                (row) => row.id.equals(request.tripId) & row.deletedAt.isNull(),
+              ))
+              .getSingle();
+      final destination = request.destination.trim();
+      final name = request.name.trim().isEmpty
+          ? (destination.isEmpty ? 'Voyage' : destination)
+          : request.name.trim();
+      await (_database.update(
+        _database.trips,
+      )..where((row) => row.id.equals(request.tripId))).write(
+        TripsCompanion(
+          name: Value(name),
+          destinationJson: Value(
+            destination.isEmpty ? null : jsonEncode({'name': destination}),
+          ),
+          startDate: Value(request.startDate?.toUtc()),
+          endDate: Value(request.endDate?.toUtc()),
+          updatedAtLocal: Value(now),
+        ),
+      );
+      if (trip.shareState == 'shared') {
+        await _sync.recordUpsert(request.tripId, 'trip', request.tripId);
+      }
+    });
   }
 
   @override

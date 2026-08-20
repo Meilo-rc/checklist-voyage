@@ -70,6 +70,7 @@ class _HomeShellState extends State<HomeShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _homeViewModel.selectedIndex,
         onDestinationSelected: _homeViewModel.select,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.luggage_outlined),
