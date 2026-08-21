@@ -78,9 +78,14 @@ void main() {
       expect(find.byKey(Key('trip-member-page-${member.id}')), findsOneWidget);
       await tester.tap(find.byKey(Key('trip-category-${category.id}')));
       await tester.pumpAndSettle();
+      expect(find.byKey(Key('trip-member-page-${member.id}')), findsOneWidget);
       expect(
         find.byKey(Key('trip-category-page-${category.id}')),
-        findsOneWidget,
+        findsNothing,
+      );
+      expect(
+        Theme.of(tester.element(find.text('Vêtements'))).brightness,
+        Brightness.light,
       );
 
       final shirtRow = find.byKey(Key('trip-item-${shirt.id}'));
@@ -114,13 +119,19 @@ void main() {
       );
       await tester.tap(find.byKey(Key('trip-item-edit-save-${shirt.id}')));
       await tester.pumpAndSettle();
-      storedShirt = (await dependencies.trips.watchTrip(tripId).first)!
-          .members
+      storedShirt = (await dependencies.trips.watchTrip(tripId).first)!.members
           .expand((group) => group.categories)
           .expand((candidate) => candidate.items)
           .singleWhere((item) => item.id == shirt.id);
       expect(storedShirt.name, 'T-shirt léger');
 
+      final collapsedAdder = find.byKey(
+        Key('trip-add-item-collapsed-${category.id}'),
+      );
+      await tester.ensureVisible(collapsedAdder);
+      expect(find.byKey(Key('trip-add-item-${category.id}')), findsNothing);
+      await tester.tap(collapsedAdder);
+      await tester.pumpAndSettle();
       final addField = find.byKey(Key('trip-add-item-${category.id}'));
       await tester.ensureVisible(addField);
       await tester.enterText(addField, 'Casquette');
@@ -149,12 +160,8 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.arrow_back).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.arrow_back).first);
-      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('trip-state-todo')));
-      await tester.tap(
-        find.byKey(Key('trip-person-${member.id}')),
-      );
+      await tester.tap(find.byKey(Key('trip-person-${member.id}')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(Key('trip-member-${member.id}')));
       await tester.pumpAndSettle();
@@ -171,14 +178,12 @@ void main() {
     },
   );
 
-  testWidgets('120 items restent denses, paresseux et lisibles en sombre', (
+  testWidgets('catégories inline et 120 items restent denses en sombre', (
     tester,
   ) async {
     await _narrowScreen(tester);
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
-    addTearDown(
-      tester.platformDispatcher.clearPlatformBrightnessTestValue,
-    );
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
     final database = AppDatabase(NativeDatabase.memory());
     final library = DriftLibraryRepository(database);
     final memberOwner = await library.createOwner(
@@ -190,13 +195,39 @@ void main() {
       memberOwner,
       'Vêtements',
     );
+    final healthCategory = await library.createCategory(memberOwner, 'Santé');
+    final papersCategory = await library.createCategory(
+      memberOwner,
+      'Documents',
+    );
     for (var index = 0; index < 120; index += 1) {
       await library.createItem(
         categoryId: sourceCategory,
-        name: 'Item ${index.toString().padLeft(3, '0')}',
-        defaultQuantity: 1,
+        name: index == 2
+            ? 'Un nom d’item volontairement très long sur deux lignes'
+            : 'Item ${index.toString().padLeft(3, '0')}',
+        defaultQuantity: index == 0
+            ? 12
+            : index == 1
+            ? 2
+            : 1,
       );
     }
+    await library.createItem(
+      categoryId: healthCategory,
+      name: 'Trousse de secours',
+      defaultQuantity: 1,
+    );
+    await library.createItem(
+      categoryId: healthCategory,
+      name: 'Médicaments',
+      defaultQuantity: 1,
+    );
+    await library.createItem(
+      categoryId: papersCategory,
+      name: 'Billets',
+      defaultQuantity: 1,
+    );
     final dependencies = await AppDependencies.create(
       database: database,
       autoSync: false,
@@ -215,8 +246,27 @@ void main() {
     );
     final trip = (await dependencies.trips.watchTrip(tripId).first)!;
     final member = trip.members.single;
-    final category = member.categories.single;
-    final firstItem = category.items.first;
+    final category = member.categories.singleWhere(
+      (candidate) => candidate.name == 'Vêtements',
+    );
+    final health = member.categories.singleWhere(
+      (candidate) => candidate.name == 'Santé',
+    );
+    final healthItem = health.items.singleWhere(
+      (item) => item.name == 'Trousse de secours',
+    );
+    final medicine = health.items.singleWhere(
+      (item) => item.name == 'Médicaments',
+    );
+    final firstItem = category.items.singleWhere(
+      (item) => item.name == 'Item 000',
+    );
+    final quantityOne = category.items.singleWhere(
+      (item) => item.name == 'Item 003',
+    );
+    final longItem = category.items.singleWhere(
+      (item) => item.name.startsWith('Un nom'),
+    );
 
     await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
     await _pumpData(tester);
@@ -224,6 +274,10 @@ void main() {
     await _pumpData(tester);
     await tester.tap(find.byKey(Key('trip-member-${member.id}')));
     await tester.pumpAndSettle();
+    expect(find.text('Vêtements'), findsOneWidget);
+    expect(find.text('Santé'), findsOneWidget);
+    expect(find.text('Documents'), findsOneWidget);
+    expect(find.byKey(Key('trip-item-${firstItem.id}')), findsNothing);
     await tester.tap(find.byKey(Key('trip-category-${category.id}')));
     await tester.pumpAndSettle();
 
@@ -233,6 +287,65 @@ void main() {
     );
     final firstRow = find.byKey(Key('trip-item-${firstItem.id}'));
     expect(tester.getSize(firstRow).height, lessThanOrEqualTo(48));
+    expect(find.text('12'), findsOneWidget);
+    expect(
+      find.byKey(Key('trip-item-decrease-${firstItem.id}')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(Key('trip-item-decrease-${quantityOne.id}')),
+      findsNothing,
+    );
+    await tester.tap(find.byKey(Key('trip-item-increase-${quantityOne.id}')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(Key('trip-item-decrease-${quantityOne.id}')),
+      findsOneWidget,
+    );
+    expect(find.text('2'), findsWidgets);
+    await tester.tap(find.byKey(Key('trip-item-decrease-${quantityOne.id}')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(Key('trip-item-decrease-${quantityOne.id}')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(Key('trip-category-${category.id}')));
+    await tester.pumpAndSettle();
+    expect(firstRow, findsNothing);
+    await tester.tap(find.byKey(Key('trip-category-${health.id}')));
+    await tester.pumpAndSettle();
+    expect(find.text('Trousse de secours'), findsOneWidget);
+    expect(firstRow, findsNothing);
+    expect(
+      find.byKey(const ValueKey('trip-status-shape-todo')),
+      findsNWidgets(2),
+    );
+    await tester.tap(find.byKey(Key('trip-item-status-${healthItem.id}')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('trip-status-shape-checked')),
+      findsOneWidget,
+    );
+    var healthText = tester.widget<Text>(find.text(healthItem.name));
+    expect(healthText.style?.decoration, isNot(TextDecoration.lineThrough));
+    expect(
+      tester.getTopLeft(find.text(healthItem.name)).dy,
+      greaterThan(tester.getTopLeft(find.text(medicine.name)).dy),
+    );
+    await tester.tap(find.byKey(Key('trip-item-status-${healthItem.id}')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('trip-status-shape-done')),
+      findsOneWidget,
+    );
+    healthText = tester.widget<Text>(find.text(healthItem.name));
+    expect(healthText.style?.decoration, TextDecoration.lineThrough);
+    await tester.tap(find.byKey(Key('trip-category-${health.id}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('trip-category-${category.id}')));
+    await tester.pumpAndSettle();
+
     expect(find.text('Item 119'), findsNothing);
     await tester.scrollUntilVisible(
       find.text('Item 119'),
@@ -241,11 +354,33 @@ void main() {
     );
     expect(find.text('Item 119'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.byKey(Key('trip-add-item-${category.id}')),
+      find.text(longItem.name),
       500,
       scrollable: find.byType(Scrollable).last,
     );
+    expect(
+      tester.getSize(find.byKey(Key('trip-item-${longItem.id}'))).height,
+      lessThanOrEqualTo(48),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(Key('trip-add-item-collapsed-${category.id}')),
+      500,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.byKey(Key('trip-add-item-collapsed-${category.id}')));
+    await tester.pumpAndSettle();
     expect(find.byKey(Key('trip-add-item-${category.id}')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(Key('trip-add-item-${category.id}')),
+      'Ajout inline',
+    );
+    await tester.tap(find.byKey(Key('trip-add-item-submit-${category.id}')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(Key('trip-add-item-${category.id}')), findsNothing);
+    expect(
+      find.byKey(Key('trip-add-item-collapsed-${category.id}')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
     await _dispose(tester, dependencies);

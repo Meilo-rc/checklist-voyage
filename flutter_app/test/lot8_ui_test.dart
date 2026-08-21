@@ -89,12 +89,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         find.byKey(Key('trip-category-page-${alexCategory.id}')),
-        findsOneWidget,
+        findsNothing,
       );
       expect(find.text('T-shirt'), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.arrow_back).first);
-      await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.arrow_back).first);
       await tester.pumpAndSettle();
       await tester.drag(
