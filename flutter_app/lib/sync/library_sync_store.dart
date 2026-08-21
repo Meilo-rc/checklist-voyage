@@ -151,6 +151,7 @@ class LibrarySyncStore {
   Future<void> ensureBootstrapQueued() async {
     if (!enabled) return;
     await _ensureSettings();
+    await _pruneInvalidBootstrapUpserts();
     final entities = await database
         .customSelect(
           '''
@@ -159,19 +160,36 @@ class LibrarySyncStore {
       UNION ALL
       SELECT 'library_category', c.id FROM library_categories c
       JOIN library_owners o ON o.id = c.owner_id
-      WHERE o.sync_scope = 'shared_library' AND c.deleted_at IS NULL
+      WHERE o.sync_scope = 'shared_library'
+        AND o.deleted_at IS NULL
+        AND c.deleted_at IS NULL
       UNION ALL
       SELECT 'library_item', i.id FROM library_items i
       JOIN library_categories c ON c.id = i.category_id
       JOIN library_owners o ON o.id = c.owner_id
-      WHERE o.sync_scope = 'shared_library' AND i.deleted_at IS NULL
+      WHERE o.sync_scope = 'shared_library'
+        AND o.deleted_at IS NULL
+        AND c.deleted_at IS NULL
+        AND i.deleted_at IS NULL
       UNION ALL
       SELECT 'context', id FROM contexts
       WHERE sync_scope = 'shared_library' AND deleted_at IS NULL
       UNION ALL
-      SELECT 'context_association', association_id FROM library_item_contexts
-      WHERE sync_scope = 'shared_library' AND deleted_at IS NULL
-        AND association_id IS NOT NULL
+      SELECT 'context_association', a.association_id
+      FROM library_item_contexts a
+      JOIN library_items i ON i.id = a.item_id
+      JOIN library_categories c ON c.id = i.category_id
+      JOIN library_owners o ON o.id = c.owner_id
+      JOIN contexts x ON x.id = a.context_id
+      WHERE a.sync_scope = 'shared_library'
+        AND o.sync_scope = 'shared_library'
+        AND x.sync_scope = 'shared_library'
+        AND o.deleted_at IS NULL
+        AND c.deleted_at IS NULL
+        AND i.deleted_at IS NULL
+        AND x.deleted_at IS NULL
+        AND a.deleted_at IS NULL
+        AND a.association_id IS NOT NULL
     ''',
           readsFrom: {
             database.libraryOwners,
@@ -195,6 +213,102 @@ class LibrarySyncStore {
         await recordUpsert(type, id, await payloadFor(type, id));
       }
     }
+  }
+
+  Future<void> _pruneInvalidBootstrapUpserts() async {
+    final invalid = await database
+        .customSelect(
+          '''
+      SELECT operation_id, entity_type, entity_id
+      FROM sync_outbox outbox
+      WHERE operation_type = 'upsert'
+        AND (
+          (entity_type = 'library_category' AND NOT EXISTS (
+            SELECT 1 FROM library_categories c
+            JOIN library_owners o ON o.id = c.owner_id
+            WHERE c.id = outbox.entity_id
+              AND c.deleted_at IS NULL
+              AND o.deleted_at IS NULL
+              AND o.sync_scope = 'shared_library'
+          ))
+          OR
+          (entity_type = 'library_item' AND NOT EXISTS (
+            SELECT 1 FROM library_items i
+            JOIN library_categories c ON c.id = i.category_id
+            JOIN library_owners o ON o.id = c.owner_id
+            WHERE i.id = outbox.entity_id
+              AND i.deleted_at IS NULL
+              AND c.deleted_at IS NULL
+              AND o.deleted_at IS NULL
+              AND o.sync_scope = 'shared_library'
+          ))
+          OR
+          (entity_type = 'context_association' AND NOT EXISTS (
+            SELECT 1 FROM library_item_contexts a
+            JOIN library_items i ON i.id = a.item_id
+            JOIN library_categories c ON c.id = i.category_id
+            JOIN library_owners o ON o.id = c.owner_id
+            JOIN contexts x ON x.id = a.context_id
+            WHERE a.association_id = outbox.entity_id
+              AND a.deleted_at IS NULL
+              AND i.deleted_at IS NULL
+              AND c.deleted_at IS NULL
+              AND o.deleted_at IS NULL
+              AND x.deleted_at IS NULL
+              AND a.sync_scope = 'shared_library'
+              AND o.sync_scope = 'shared_library'
+              AND x.sync_scope = 'shared_library'
+          ))
+        )
+      ''',
+          readsFrom: {
+            database.syncOutbox,
+            database.libraryOwners,
+            database.libraryCategories,
+            database.libraryItems,
+            database.contexts,
+            database.libraryItemContexts,
+          },
+        )
+        .get();
+    if (invalid.isEmpty) return;
+
+    await database.transaction(() async {
+      for (final row in invalid) {
+        final operationId = row.read<String>('operation_id');
+        final entityType = row.read<String>('entity_type');
+        final entityId = row.read<String>('entity_id');
+        await (database.delete(
+          database.syncOutbox,
+        )..where((entry) => entry.operationId.equals(operationId))).go();
+
+        final remaining =
+            await (database.select(database.syncOutbox)..where(
+                  (entry) =>
+                      entry.entityType.equals(entityType) &
+                      entry.entityId.equals(entityId),
+                ))
+                .get();
+        final state =
+            await (database.select(database.syncEntityStates)..where(
+                  (entry) =>
+                      entry.entityType.equals(entityType) &
+                      entry.entityId.equals(entityId),
+                ))
+                .getSingleOrNull();
+        if (remaining.isEmpty &&
+            state != null &&
+            state.serverRevision == 0 &&
+            state.winningDeviceId == null) {
+          await (database.delete(database.syncEntityStates)..where(
+                (entry) =>
+                    entry.entityType.equals(entityType) &
+                    entry.entityId.equals(entityId),
+              ))
+              .go();
+        }
+      }
+    });
   }
 
   Future<Map<String, Object?>> payloadFor(
