@@ -30,4 +30,4 @@ Les filtres, l'ordre métier des items et les progressions restent fournis par l
 
 Aucun schéma Drift, moteur métier, filtre, progression, contexte, partage, synchronisation, backend, PocketBase ou élément de la PWA n'a été modifié.
 
-Le Samsung n'était plus visible par ADB lors de la livraison. L'installation et le smoke test réel de cette version restent donc à effectuer sans effacer les données lorsque l'appareil sera de nouveau connecté.
+L'APK a ensuite été installé avec `adb install -r` sur le Samsung SM-S921B, sans effacer les données. Le démarrage à froid, Voyage → Richard, le dépliage de la catégorie Électronique et l'affichage compact de trois items ont été vérifiés en mode clair. Aucun état, aucune quantité et aucune donnée utilisateur n'ont été modifiés pendant ce smoke test.
