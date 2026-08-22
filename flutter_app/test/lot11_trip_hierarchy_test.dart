@@ -376,11 +376,9 @@ void main() {
     );
     await tester.tap(find.byKey(Key('trip-add-item-submit-${category.id}')));
     await tester.pumpAndSettle();
-    expect(find.byKey(Key('trip-add-item-${category.id}')), findsNothing);
-    expect(
-      find.byKey(Key('trip-add-item-collapsed-${category.id}')),
-      findsOneWidget,
-    );
+    final successiveAddField = find.byKey(Key('trip-add-item-${category.id}'));
+    expect(successiveAddField, findsOneWidget);
+    expect(Focus.of(tester.element(successiveAddField)).hasFocus, isTrue);
     expect(tester.takeException(), isNull);
 
     await _dispose(tester, dependencies);

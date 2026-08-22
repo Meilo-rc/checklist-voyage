@@ -192,7 +192,7 @@ class _QuickItemRow extends StatelessWidget {
                 onPressed: () => onQuantityChanged(-1),
               ),
               SizedBox(
-                width: item.quantity > 9 ? 28 : 22,
+                width: 28,
                 child: Text('${item.quantity}', textAlign: TextAlign.center),
               ),
             ],
@@ -231,7 +231,7 @@ class _QuickQuantityButton extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints.tightFor(width: 40, height: 40),
       padding: EdgeInsets.zero,
-      icon: Icon(icon, size: 19),
+      icon: Icon(icon, size: 20),
     );
   }
 }
@@ -263,10 +263,23 @@ class _InlineQuickAdderState extends State<_InlineQuickAdder> {
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_collapseWhenEmpty);
+  }
+
+  @override
   void dispose() {
+    _focus.removeListener(_collapseWhenEmpty);
     _controller.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  void _collapseWhenEmpty() {
+    if (!_focus.hasFocus && _editing && _controller.text.trim().isEmpty) {
+      setState(() => _editing = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -276,9 +289,13 @@ class _InlineQuickAdderState extends State<_InlineQuickAdder> {
     try {
       await widget.onSubmit(value);
       _controller.clear();
-      if (mounted) setState(() => _editing = false);
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focus.requestFocus();
+        });
+      }
     } on Object catch (error) {
-      widget.onError(error.toString());
+      widget.onError(userMessageFor(error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -331,6 +348,7 @@ class _InlineQuickAdderState extends State<_InlineQuickAdder> {
               textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
+              onTapOutside: (_) => _focus.unfocus(),
               decoration: InputDecoration(
                 hintText: widget.label,
                 isDense: true,
@@ -403,7 +421,7 @@ class _InlineQuickRenameState extends State<_InlineQuickRename> {
     try {
       await widget.onSubmit(value);
     } on Object catch (error) {
-      widget.onError(error.toString());
+      widget.onError(userMessageFor(error));
       if (mounted) setState(() => _saving = false);
     }
   }
@@ -416,6 +434,7 @@ class _InlineQuickRenameState extends State<_InlineQuickRename> {
         children: [
           Expanded(
             child: TextField(
+              key: const Key('quick-inline-rename-field'),
               controller: _controller,
               autofocus: true,
               textInputAction: TextInputAction.done,

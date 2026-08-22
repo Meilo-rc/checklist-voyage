@@ -433,7 +433,7 @@ void main() {
     await tester.drag(itemRow, const Offset(260, 0));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
-    final editField = find.byType(TextField);
+    final editField = find.byKey(const Key('library-inline-rename-field'));
     await tester.enterText(editField, 'Lunettes polarisées');
     await tester.tap(find.byTooltip('Valider'));
     await tester.pumpAndSettle();

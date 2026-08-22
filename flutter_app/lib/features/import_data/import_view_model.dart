@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/presentation/user_message.dart';
 import '../../domain/models/import_report.dart';
 import '../../domain/usecases/import_web_backup.dart';
 
@@ -24,7 +25,7 @@ class ImportViewModel extends ChangeNotifier {
     try {
       _report = await _importWebBackup(bytes);
     } on Object catch (error) {
-      _error = error.toString();
+      _error = userMessageFor(error, fallback: 'Import impossible.');
     } finally {
       _loading = false;
       notifyListeners();

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,6 +19,9 @@ import 'package:checklist_voyage_v1/sync/in_memory_sync_remote.dart';
 import 'helpers/seed_reference_library.dart';
 
 void main() {
+  // Ce fichier ouvre volontairement deux installations isolées en parallèle.
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
   test('classe futur, en cours et terminé sans mutation', () {
     final today = DateTime(2026, 8, 20, 12);
     final future = _summary(

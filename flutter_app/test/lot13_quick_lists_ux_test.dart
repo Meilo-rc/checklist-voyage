@@ -125,6 +125,8 @@ void main() {
       await tester.pumpAndSettle();
       final testItem = (await database.select(database.quickListItems).get())
           .singleWhere((item) => item.name == 'ITEM TEST LOT 13');
+      await tester.tapAt(const Offset(8, 180));
+      await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
         find.byKey(Key('quick-item-${testItem.id}')),
@@ -137,7 +139,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.byType(TextField),
+        find.byKey(const Key('quick-inline-rename-field')),
         'ITEM TEST LOT 13 renommé',
       );
       await tester.tap(find.byTooltip('Valider'));

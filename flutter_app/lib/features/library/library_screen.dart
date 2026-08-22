@@ -1,6 +1,7 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/presentation/user_message.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/repositories/local_data_repository.dart';
 import '../../domain/usecases/context_use_cases.dart';
@@ -209,7 +210,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         linkedParticipantOwnerId: linkedParticipantOwnerId,
       );
     } on Object catch (error) {
-      _message(error.toString());
+      _message(userMessageFor(error));
     }
   }
 

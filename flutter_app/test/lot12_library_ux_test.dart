@@ -208,7 +208,10 @@ void main() {
       const Offset(280, 0),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Milo renommé');
+    await tester.enterText(
+      find.byKey(const Key('library-inline-rename-field')),
+      'Milo renommé',
+    );
     await tester.tap(find.byTooltip('Valider'));
     await tester.pumpAndSettle();
     expect(find.text('Milo renommé'), findsOneWidget);
@@ -234,7 +237,10 @@ void main() {
       const Offset(280, 0),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Tenues');
+    await tester.enterText(
+      find.byKey(const Key('library-inline-rename-field')),
+      'Tenues',
+    );
     await tester.tap(find.byTooltip('Valider'));
     await tester.pumpAndSettle();
     expect(find.text('Tenues'), findsOneWidget);

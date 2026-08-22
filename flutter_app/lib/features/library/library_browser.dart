@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/presentation/user_message.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/usecases/library_use_cases.dart';
@@ -189,128 +190,140 @@ class _MembersPageState extends State<_MembersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: const Key('library-members-page'),
-      body: StreamBuilder<List<LibraryOwnerModel>>(
-        stream: widget.useCases.watchLibrary(),
-        builder: (context, snapshot) {
-          final members = (snapshot.data ?? const <LibraryOwnerModel>[])
-              .where((owner) => owner.kind == LibraryOwnerKind.familyMember)
-              .toList(growable: false);
-          return CustomScrollView(
-            slivers: [
-              const SliverAppBar(pinned: true, title: Text('Membres')),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                sliver: SliverList.builder(
-                  itemCount: members.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == members.length) {
-                      return _InlineLibraryAdder(
-                        key: const Key('library-add-member'),
-                        label: 'Ajouter un membre',
-                        fieldKey: const Key('library-add-member-field'),
-                        submitKey: const Key('library-add-member-submit'),
-                        onSubmit: (name) async {
-                          await widget.useCases.createOwner(
-                            name: name,
-                            kind: LibraryOwnerKind.familyMember,
-                            generationRole: GenerationRole.participant,
-                          );
-                        },
-                        onError: widget.onMessage,
-                      );
-                    }
-                    final member = members[index];
-                    if (_editingOwnerId == member.id) {
-                      return _InlineRenameRow(
-                        initialValue: member.name,
-                        onCancel: () => setState(() => _editingOwnerId = null),
-                        onSubmit: (name) async {
-                          await widget.useCases.renameOwner(member.id, name);
-                          if (mounted) {
-                            setState(() => _editingOwnerId = null);
+    return PopScope(
+      canPop: _editingOwnerId == null,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _editingOwnerId != null) {
+          setState(() => _editingOwnerId = null);
+        }
+      },
+      child: Scaffold(
+        key: const Key('library-members-page'),
+        body: StreamBuilder<List<LibraryOwnerModel>>(
+          stream: widget.useCases.watchLibrary(),
+          builder: (context, snapshot) {
+            final members = (snapshot.data ?? const <LibraryOwnerModel>[])
+                .where((owner) => owner.kind == LibraryOwnerKind.familyMember)
+                .toList(growable: false);
+            return CustomScrollView(
+              slivers: [
+                const SliverAppBar(pinned: true, title: Text('Membres')),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                  sliver: SliverList.builder(
+                    itemCount: members.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == members.length) {
+                        return _InlineLibraryAdder(
+                          key: const Key('library-add-member'),
+                          label: 'Ajouter un membre',
+                          fieldKey: const Key('library-add-member-field'),
+                          submitKey: const Key('library-add-member-submit'),
+                          onSubmit: (name) async {
+                            await widget.useCases.createOwner(
+                              name: name,
+                              kind: LibraryOwnerKind.familyMember,
+                              generationRole: GenerationRole.participant,
+                            );
+                          },
+                          onError: widget.onMessage,
+                        );
+                      }
+                      final member = members[index];
+                      if (_editingOwnerId == member.id) {
+                        return _InlineRenameRow(
+                          initialValue: member.name,
+                          onCancel: () =>
+                              setState(() => _editingOwnerId = null),
+                          onSubmit: (name) async {
+                            await widget.useCases.renameOwner(member.id, name);
+                            if (mounted) {
+                              setState(() => _editingOwnerId = null);
+                            }
+                          },
+                          onError: widget.onMessage,
+                        );
+                      }
+                      return Dismissible(
+                        key: Key('library-member-dismiss-${member.id}'),
+                        confirmDismiss: (direction) async {
+                          if (direction == DismissDirection.startToEnd) {
+                            setState(() => _editingOwnerId = member.id);
+                            return false;
+                          }
+                          try {
+                            await widget.useCases.deleteOwner(member.id);
+                            return true;
+                          } on Object catch (error) {
+                            widget.onMessage(userMessageFor(error));
+                            return false;
                           }
                         },
-                        onError: widget.onMessage,
-                      );
-                    }
-                    return Dismissible(
-                      key: Key('library-member-dismiss-${member.id}'),
-                      confirmDismiss: (direction) async {
-                        if (direction == DismissDirection.startToEnd) {
-                          setState(() => _editingOwnerId = member.id);
-                          return false;
-                        }
-                        try {
-                          await widget.useCases.deleteOwner(member.id);
-                          return true;
-                        } on Object catch (error) {
-                          widget.onMessage(error.toString());
-                          return false;
-                        }
-                      },
-                      background: const _LibrarySwipeAction(
-                        alignment: Alignment.centerLeft,
-                        icon: Icons.edit_outlined,
-                        label: 'Modifier',
-                      ),
-                      secondaryBackground: const _LibrarySwipeAction(
-                        alignment: Alignment.centerRight,
-                        icon: Icons.delete_outline,
-                        label: 'Supprimer',
-                        destructive: true,
-                      ),
-                      child: Material(
-                        color: Theme.of(context).colorScheme.surface,
-                        child: InkWell(
-                          key: Key('library-member-${member.id}'),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => _LibraryUniversePage(
-                                title: member.name,
-                                kind: LibraryOwnerKind.familyMember,
-                                ownerId: member.id,
-                                useCases: widget.useCases,
-                                onManageContexts: widget.onManageContexts,
-                                onLinkPersonalOwner: widget.onLinkPersonalOwner,
-                                onMessage: widget.onMessage,
+                        background: const _LibrarySwipeAction(
+                          alignment: Alignment.centerLeft,
+                          icon: Icons.edit_outlined,
+                          label: 'Modifier',
+                        ),
+                        secondaryBackground: const _LibrarySwipeAction(
+                          alignment: Alignment.centerRight,
+                          icon: Icons.delete_outline,
+                          label: 'Supprimer',
+                          destructive: true,
+                        ),
+                        child: Material(
+                          color: Theme.of(context).colorScheme.surface,
+                          child: InkWell(
+                            key: Key('library-member-${member.id}'),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => _LibraryUniversePage(
+                                  title: member.name,
+                                  kind: LibraryOwnerKind.familyMember,
+                                  ownerId: member.id,
+                                  useCases: widget.useCases,
+                                  onManageContexts: widget.onManageContexts,
+                                  onLinkPersonalOwner:
+                                      widget.onLinkPersonalOwner,
+                                  onMessage: widget.onMessage,
+                                ),
+                              ),
+                            ),
+                            onLongPress: () =>
+                                setState(() => _editingOwnerId = member.id),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(minHeight: 48),
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      member.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${member.categories.length} cat. · '
+                                    '${_itemCount([member])} items',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.chevron_right, size: 20),
+                                ],
                               ),
                             ),
                           ),
-                          onLongPress: () =>
-                              setState(() => _editingOwnerId = member.id),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(minHeight: 48),
-                            child: Row(
-                              children: [
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    member.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Text(
-                                  '${member.categories.length} cat. · '
-                                  '${_itemCount([member])} items',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                                const SizedBox(width: 4),
-                                const Icon(Icons.chevron_right, size: 20),
-                              ],
-                            ),
-                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -346,32 +359,54 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: Key('library-${widget.kind.name}-page'),
-      body: StreamBuilder<List<LibraryOwnerModel>>(
-        stream: widget.useCases.watchLibrary(),
-        builder: (context, snapshot) {
-          final owners = (snapshot.data ?? const <LibraryOwnerModel>[])
-              .where(
-                (owner) =>
-                    owner.kind == widget.kind &&
-                    (widget.ownerId == null || owner.id == widget.ownerId),
-              )
-              .toList(growable: false);
-          final rows = _buildRows(owners);
-          return CustomScrollView(
-            slivers: [
-              SliverAppBar(pinned: true, title: Text(widget.title)),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                sliver: SliverList.builder(
-                  itemCount: rows.length,
-                  itemBuilder: (context, index) => _buildRow(rows[index]),
+    final editing = _editingCategoryId != null || _editingItemId != null;
+    return PopScope(
+      canPop: !editing,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && editing) {
+          setState(() {
+            _editingCategoryId = null;
+            _editingItemId = null;
+          });
+        }
+      },
+      child: Scaffold(
+        key: Key('library-${widget.kind.name}-page'),
+        body: StreamBuilder<List<LibraryOwnerModel>>(
+          stream: widget.useCases.watchLibrary(),
+          builder: (context, snapshot) {
+            final owners = (snapshot.data ?? const <LibraryOwnerModel>[])
+                .where(
+                  (owner) =>
+                      owner.kind == widget.kind &&
+                      (widget.ownerId == null || owner.id == widget.ownerId),
+                )
+                .toList(growable: false);
+            final rows = _buildRows(owners);
+            return CustomScrollView(
+              slivers: [
+                SliverAppBar(pinned: true, title: Text(widget.title)),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                  sliver: SliverList.builder(
+                    itemCount: rows.length,
+                    findChildIndexCallback: (key) {
+                      final value = (key as ValueKey<String>).value;
+                      final index = rows.indexWhere(
+                        (row) => row.stableKey == value,
+                      );
+                      return index < 0 ? null : index;
+                    },
+                    itemBuilder: (context, index) => KeyedSubtree(
+                      key: ValueKey(rows[index].stableKey),
+                      child: _buildRow(rows[index]),
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -475,7 +510,7 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
           }
           return true;
         } on Object catch (error) {
-          widget.onMessage(error.toString());
+          widget.onMessage(userMessageFor(error));
           return false;
         }
       },
@@ -537,7 +572,7 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
             await widget.useCases.deleteItem(item.id);
             return true;
           } on Object catch (error) {
-            widget.onMessage(error.toString());
+            widget.onMessage(userMessageFor(error));
             return false;
           }
         },
@@ -681,7 +716,7 @@ class _LibraryItemRow extends StatelessWidget {
                   onPressed: () => onQuantityChanged(quantity - 1),
                 ),
                 SizedBox(
-                  width: quantity > 9 ? 28 : 22,
+                  width: 28,
                   child: Text('$quantity', textAlign: TextAlign.center),
                 ),
               ],
@@ -721,7 +756,7 @@ class _QuantityButton extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints.tightFor(width: 40, height: 40),
       padding: EdgeInsets.zero,
-      icon: Icon(icon, size: 19),
+      icon: Icon(icon, size: 20),
     );
   }
 }
@@ -753,10 +788,23 @@ class _InlineLibraryAdderState extends State<_InlineLibraryAdder> {
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_collapseWhenEmpty);
+  }
+
+  @override
   void dispose() {
+    _focus.removeListener(_collapseWhenEmpty);
     _controller.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  void _collapseWhenEmpty() {
+    if (!_focus.hasFocus && _editing && _controller.text.trim().isEmpty) {
+      setState(() => _editing = false);
+    }
   }
 
   void _open() {
@@ -771,9 +819,13 @@ class _InlineLibraryAdderState extends State<_InlineLibraryAdder> {
     try {
       await widget.onSubmit(value);
       _controller.clear();
-      if (mounted) setState(() => _editing = false);
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focus.requestFocus();
+        });
+      }
     } on Object catch (error) {
-      widget.onError(error.toString());
+      widget.onError(userMessageFor(error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -821,6 +873,7 @@ class _InlineLibraryAdderState extends State<_InlineLibraryAdder> {
               textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
+              onTapOutside: (_) => _focus.unfocus(),
               decoration: InputDecoration(
                 hintText: widget.label,
                 isDense: true,
@@ -893,7 +946,7 @@ class _InlineRenameRowState extends State<_InlineRenameRow> {
     try {
       await widget.onSubmit(value);
     } on Object catch (error) {
-      widget.onError(error.toString());
+      widget.onError(userMessageFor(error));
       if (mounted) setState(() => _saving = false);
     }
   }
@@ -906,6 +959,7 @@ class _InlineRenameRowState extends State<_InlineRenameRow> {
         children: [
           Expanded(
             child: TextField(
+              key: const Key('library-inline-rename-field'),
               controller: _controller,
               autofocus: true,
               textInputAction: TextInputAction.done,
@@ -1046,6 +1100,15 @@ class _LibraryPageRow {
   final LibraryOwnerModel? owner;
   final LibraryCategoryModel? category;
   final LibraryItemModel? item;
+
+  String get stableKey => switch (type) {
+    _LibraryPageRowType.empty => 'empty',
+    _LibraryPageRowType.owner => 'owner:${owner!.id}',
+    _LibraryPageRowType.category => 'category:${category!.id}',
+    _LibraryPageRowType.item => 'item:${item!.id}',
+    _LibraryPageRowType.itemAdder => 'item-adder:${category!.id}',
+    _LibraryPageRowType.categoryAdder => 'category-adder:${owner!.id}',
+  };
 }
 
 int _itemCount(Iterable<LibraryOwnerModel> owners) => owners.fold(
