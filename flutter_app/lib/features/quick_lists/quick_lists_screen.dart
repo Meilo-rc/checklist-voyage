@@ -6,7 +6,8 @@ import '../../domain/models/progress.dart';
 import '../../domain/usecases/quick_list_use_cases.dart';
 import '../../domain/usecases/shared_document_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
-import '../shared/destination_scaffold.dart';
+
+part 'quick_list_widgets.dart';
 
 class QuickListsScreen extends StatefulWidget {
   const QuickListsScreen({
@@ -28,6 +29,10 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
   String? _selectedListId;
   bool _showArchives = false;
 
+  void _message(String value) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
+  }
+
   Future<void> _join() async {
     final sharing = widget.sharedDocuments;
     if (sharing == null) return;
@@ -40,10 +45,7 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
       }
       if (mounted) setState(() => _selectedListId = access.documentId);
     } on Object catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) _message(error.toString());
     }
   }
 
@@ -54,7 +56,7 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
       builder: (context) => AlertDialog(
         title: Text(title),
         content: TextField(
-          key: const Key('quick-name-input'),
+          key: const Key('quick-rename-input'),
           controller: controller,
           autofocus: true,
           decoration: const InputDecoration(labelText: 'Nom'),
@@ -66,27 +68,18 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
             child: const Text('Annuler'),
           ),
           FilledButton(
-            key: const Key('quick-name-submit'),
+            key: const Key('quick-rename-submit'),
             onPressed: () => Navigator.pop(context, controller.text),
             child: const Text('Valider'),
           ),
         ],
       ),
-    );
+    ).whenComplete(controller.dispose);
   }
 
-  Future<void> _create() async {
-    final name = await _askName('Nouvelle liste rapide');
-    if (name == null) return;
-    try {
-      final id = await widget.useCases.create(name);
-      if (mounted) setState(() => _selectedListId = id);
-    } on Object catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    }
+  Future<void> _create(String name) async {
+    final id = await widget.useCases.create(name);
+    if (mounted) setState(() => _selectedListId = id);
   }
 
   Future<void> _duplicate(String sourceId) async {
@@ -99,10 +92,7 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
         });
       }
     } on Object catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) _message(error.toString());
     }
   }
 
@@ -111,6 +101,7 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
     final selected = _selectedListId;
     if (selected != null) {
       return _QuickListDetail(
+        key: ValueKey('quick-detail-$selected'),
         listId: selected,
         useCases: widget.useCases,
         onBack: () => setState(() => _selectedListId = null),
@@ -119,83 +110,103 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
         sharedDocuments: widget.sharedDocuments,
       );
     }
-    return DestinationScaffold(
-      title: 'Listes rapides',
-      actions: [
-        if (widget.sharedDocuments != null)
-          IconButton(
-            key: const Key('quick-join'),
-            onPressed: _join,
-            tooltip: 'Rejoindre avec un code',
-            icon: const Icon(Icons.group_add_outlined),
-          ),
-        IconButton(
-          key: const Key('quick-create'),
-          onPressed: _create,
-          tooltip: 'Créer une liste rapide',
-          icon: const Icon(Icons.add),
-        ),
-      ],
-      child: StreamBuilder<List<QuickListSummary>>(
-        stream: widget.watchQuickLists(),
-        builder: (context, snapshot) {
-          final lists = snapshot.data ?? const [];
-          final visible = lists
-              .where((list) => (list.archivedAt != null) == _showArchives)
-              .toList(growable: false);
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SegmentedButton<bool>(
-                key: const Key('quick-archive-tabs'),
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Mes listes')),
-                  ButtonSegment(value: true, label: Text('Archives')),
-                ],
-                selected: {_showArchives},
-                onSelectionChanged: (selection) =>
-                    setState(() => _showArchives = selection.single),
+    return StreamBuilder<List<QuickListSummary>>(
+      stream: widget.watchQuickLists(),
+      builder: (context, snapshot) {
+        final lists = snapshot.data ?? const <QuickListSummary>[];
+        final visible = lists
+            .where((list) => (list.archivedAt != null) == _showArchives)
+            .toList(growable: false);
+        return CustomScrollView(
+          key: const Key('quick-lists-root'),
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              title: const Text('Listes rapides'),
+              actions: [
+                if (widget.sharedDocuments != null)
+                  IconButton(
+                    key: const Key('quick-join'),
+                    onPressed: _join,
+                    tooltip: 'Rejoindre avec un code',
+                    icon: const Icon(Icons.group_add_outlined),
+                  ),
+              ],
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+                child: SegmentedButton<bool>(
+                  key: const Key('quick-archive-tabs'),
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Mes listes')),
+                    ButtonSegment(value: true, label: Text('Archives')),
+                  ],
+                  selected: {_showArchives},
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onSelectionChanged: (selection) =>
+                      setState(() => _showArchives = selection.single),
+                ),
               ),
-              const SizedBox(height: 16),
-              if (visible.isEmpty)
-                EmptyDestination(
-                  icon: _showArchives
-                      ? Icons.archive_outlined
-                      : Icons.checklist_outlined,
-                  title: _showArchives
-                      ? 'Aucune liste archivée'
-                      : 'Aucune liste rapide',
-                  message: _showArchives
-                      ? 'Les listes archivées resteront accessibles ici.'
-                      : 'Créez une liste utilisable entièrement hors ligne.',
-                )
-              else
-                ...visible.map(
-                  (list) => Card(
-                    key: Key('quick-summary-${list.id}'),
-                    child: ListTile(
-                      leading: Icon(
-                        _showArchives
-                            ? Icons.archive_outlined
-                            : Icons.checklist_outlined,
-                      ),
-                      title: Text(list.name),
-                      subtitle: Text(list.shared ? 'Partagée' : 'Locale'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => setState(() => _selectedListId = list.id),
-                    ),
+            ),
+            if (visible.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                  child: Text(
+                    _showArchives
+                        ? 'Aucune liste archivée'
+                        : 'Aucune liste rapide',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-            ],
-          );
-        },
-      ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                sliver: SliverList.builder(
+                  itemCount: visible.length,
+                  itemBuilder: (context, index) {
+                    final list = visible[index];
+                    return _QuickListSummaryRow(
+                      key: Key('quick-summary-${list.id}'),
+                      summary: list,
+                      useCases: widget.useCases,
+                      onTap: () => setState(() => _selectedListId = list.id),
+                    );
+                  },
+                ),
+              ),
+            if (!_showArchives)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
+                  child: _InlineQuickAdder(
+                    key: const Key('quick-create'),
+                    label: 'Nouvelle liste',
+                    fieldKey: const Key('quick-name-input'),
+                    submitKey: const Key('quick-name-submit'),
+                    onSubmit: _create,
+                    onError: _message,
+                  ),
+                ),
+              )
+            else
+              const SliverToBoxAdapter(child: SizedBox(height: 96)),
+          ],
+        );
+      },
     );
   }
 }
 
-class _QuickListDetail extends StatelessWidget {
+class _QuickListDetail extends StatefulWidget {
   const _QuickListDetail({
+    super.key,
     required this.listId,
     required this.useCases,
     required this.onBack,
@@ -212,9 +223,69 @@ class _QuickListDetail extends StatelessWidget {
   final SharedDocumentUseCases? sharedDocuments;
 
   @override
+  State<_QuickListDetail> createState() => _QuickListDetailState();
+}
+
+class _QuickListDetailState extends State<_QuickListDetail> {
+  String? _editingItemId;
+
+  void _message(String value) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
+  }
+
+  Future<void> _share(QuickListDetailModel list) async {
+    final sharing = widget.sharedDocuments;
+    if (sharing == null) return;
+    try {
+      final code = list.v1ShareReady
+          ? list.shareCode
+          : (await sharing.shareQuickList(list.id)).shareCode;
+      if (mounted && code != null) await _showQuickCode(context, code);
+    } on Object catch (error) {
+      if (mounted) _message(error.toString());
+    }
+  }
+
+  Future<void> _handleAction(String action, QuickListDetailModel list) async {
+    if (action == 'rename') {
+      final name = await widget.askName(
+        'Renommer la liste',
+        initial: list.name,
+      );
+      if (name != null) await widget.useCases.rename(list.id, name);
+    } else if (action == 'duplicate') {
+      await widget.onDuplicate(list.id);
+    } else if (action == 'archive') {
+      await widget.useCases.archive(list.id);
+    } else if (action == 'restore') {
+      await widget.useCases.restore(list.id);
+    } else if (action == 'delete') {
+      await widget.useCases.delete(list.id);
+      widget.onBack();
+    }
+  }
+
+  Future<bool> _handleSwipe(
+    QuickListItemModel item,
+    DismissDirection direction,
+  ) async {
+    if (direction == DismissDirection.startToEnd) {
+      setState(() => _editingItemId = item.id);
+      return false;
+    }
+    try {
+      await widget.useCases.deleteItem(item.id);
+      return true;
+    } on Object catch (error) {
+      _message(error.toString());
+      return false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuickListDetailModel?>(
-      stream: useCases.watchQuickList(listId),
+      stream: widget.useCases.watchQuickList(widget.listId),
       builder: (context, snapshot) {
         final list = snapshot.data;
         if (list == null) {
@@ -222,20 +293,21 @@ class _QuickListDetail extends StatelessWidget {
         }
         final progress = ProgressCalculator.forQuickList(list);
         return CustomScrollView(
+          key: Key('quick-detail-${list.id}'),
           slivers: [
-            SliverAppBar.large(
+            SliverAppBar(
+              pinned: true,
               leading: IconButton(
-                onPressed: onBack,
+                onPressed: widget.onBack,
                 icon: const Icon(Icons.arrow_back),
               ),
-              title: Text(list.name),
+              title: Text(
+                list.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               actions: [
-                if (list.shared)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Center(child: Chip(label: Text('Partagé'))),
-                  ),
-                if (sharedDocuments != null)
+                if (widget.sharedDocuments != null)
                   IconButton(
                     key: Key(
                       list.v1ShareReady ? 'quick-show-code' : 'quick-share',
@@ -244,72 +316,37 @@ class _QuickListDetail extends StatelessWidget {
                         ? 'Afficher le code'
                         : 'Partager',
                     icon: const Icon(Icons.share_outlined),
-                    onPressed: () async {
-                      try {
-                        final code = list.v1ShareReady
-                            ? list.shareCode
-                            : (await sharedDocuments!.shareQuickList(
-                                list.id,
-                              )).shareCode;
-                        if (context.mounted && code != null) {
-                          await _showQuickCode(context, code);
-                        }
-                      } on Object catch (error) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(error.toString())),
-                          );
-                        }
-                      }
-                    },
+                    onPressed: () => _share(list),
                   ),
                 PopupMenuButton<String>(
                   key: const Key('quick-actions'),
                   position: PopupMenuPosition.under,
-                  onSelected: (action) async {
-                    if (action == 'rename') {
-                      final name = await askName(
-                        'Renommer la liste',
-                        initial: list.name,
-                      );
-                      if (name != null) await useCases.rename(list.id, name);
-                    } else if (action == 'reset') {
-                      await useCases.reset(list.id);
-                    } else if (action == 'duplicate') {
-                      await onDuplicate(list.id);
-                    } else if (action == 'archive') {
-                      await useCases.archive(list.id);
-                    } else if (action == 'restore') {
-                      await useCases.restore(list.id);
-                    } else if (action == 'delete') {
-                      await useCases.delete(list.id);
-                      onBack();
-                    }
-                  },
+                  onSelected: (action) => _handleAction(action, list),
                   itemBuilder: (context) => [
                     const PopupMenuItem(
+                      height: 44,
                       value: 'rename',
                       child: Text('Renommer'),
                     ),
                     const PopupMenuItem(
-                      value: 'reset',
-                      child: Text('Tout décocher'),
-                    ),
-                    const PopupMenuItem(
+                      height: 44,
                       value: 'duplicate',
                       child: Text('Dupliquer'),
                     ),
                     if (list.archivedAt == null)
                       const PopupMenuItem(
+                        height: 44,
                         value: 'archive',
                         child: Text('Archiver'),
                       )
                     else
                       const PopupMenuItem(
+                        height: 44,
                         value: 'restore',
                         child: Text('Restaurer'),
                       ),
                     const PopupMenuItem(
+                      height: 44,
                       value: 'delete',
                       child: Text('Supprimer'),
                     ),
@@ -317,79 +354,72 @@ class _QuickListDetail extends StatelessWidget {
                 ),
               ],
             ),
+            SliverToBoxAdapter(
+              child: _QuickProgressHeader(
+                shared: list.shared,
+                progress: progress,
+                onReset: progress.completed == 0
+                    ? null
+                    : () => widget.useCases.reset(list.id),
+              ),
+            ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              sliver: SliverList.list(
-                children: [
-                  LinearProgressIndicator(value: progress.percent / 100),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${progress.completed}/${progress.total} cochés · ${progress.percent}%',
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    key: const Key('quick-add-item'),
-                    onPressed: () async {
-                      final name = await askName('Nouvel item');
-                      if (name != null) await useCases.addItem(list.id, name);
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Ajouter un item'),
-                  ),
-                  const SizedBox(height: 8),
-                  ...list.items.map(
-                    (item) => Card(
-                      child: Padding(
-                        key: Key('quick-item-${item.id}'),
-                        padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Checkbox(
-                                  value: item.isChecked,
-                                  onChanged: (_) =>
-                                      useCases.toggleItem(item.id),
-                                ),
-                                Expanded(child: Text(item.name)),
-                                IconButton(
-                                  tooltip: 'Supprimer',
-                                  onPressed: () => useCases.deleteItem(item.id),
-                                  icon: const Icon(Icons.delete_outline),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                const Text('Quantité'),
-                                IconButton(
-                                  tooltip: 'Diminuer',
-                                  onPressed: () =>
-                                      useCases.changeQuantity(item.id, -1),
-                                  icon: const Icon(Icons.remove),
-                                ),
-                                SizedBox(
-                                  width: 32,
-                                  child: Text(
-                                    '${item.quantity}',
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: 'Augmenter',
-                                  onPressed: () =>
-                                      useCases.changeQuantity(item.id, 1),
-                                  icon: const Icon(Icons.add),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
+              sliver: SliverList.builder(
+                itemCount: list.items.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == list.items.length) {
+                    return _InlineQuickAdder(
+                      key: const Key('quick-add-item'),
+                      label: 'Ajouter un item',
+                      fieldKey: const Key('quick-add-item-input'),
+                      submitKey: const Key('quick-add-item-submit'),
+                      onSubmit: (name) async {
+                        await widget.useCases.addItem(list.id, name);
+                      },
+                      onError: _message,
+                    );
+                  }
+                  final item = list.items[index];
+                  if (_editingItemId == item.id) {
+                    return _InlineQuickRename(
+                      initialValue: item.name,
+                      onCancel: () => setState(() => _editingItemId = null),
+                      onSubmit: (name) async {
+                        await widget.useCases.updateItem(
+                          item.id,
+                          name,
+                          item.quantity,
+                        );
+                        if (mounted) setState(() => _editingItemId = null);
+                      },
+                      onError: _message,
+                    );
+                  }
+                  return Dismissible(
+                    key: Key('quick-item-dismiss-${item.id}'),
+                    confirmDismiss: (direction) =>
+                        _handleSwipe(item, direction),
+                    background: const _QuickSwipeAction(
+                      alignment: Alignment.centerLeft,
+                      icon: Icons.edit_outlined,
+                      label: 'Modifier',
                     ),
-                  ),
-                ],
+                    secondaryBackground: const _QuickSwipeAction(
+                      alignment: Alignment.centerRight,
+                      icon: Icons.delete_outline,
+                      label: 'Supprimer',
+                      destructive: true,
+                    ),
+                    child: _QuickItemRow(
+                      key: Key('quick-item-${item.id}'),
+                      item: item,
+                      onToggle: () => widget.useCases.toggleItem(item.id),
+                      onQuantityChanged: (delta) =>
+                          widget.useCases.changeQuantity(item.id, delta),
+                    ),
+                  );
+                },
               ),
             ),
           ],

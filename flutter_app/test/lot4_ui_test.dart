@@ -89,10 +89,10 @@ void main() {
       await tester.tap(find.byKey(const Key('quick-add-item')));
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.byKey(const Key('quick-name-input')),
+        find.byKey(const Key('quick-add-item-input')),
         'Maillot',
       );
-      await tester.tap(find.byKey(const Key('quick-name-submit')));
+      await tester.tap(find.byKey(const Key('quick-add-item-submit')));
       await tester.pumpAndSettle();
       expect(
         await database.select(database.quickListItems).get(),
@@ -106,7 +106,9 @@ void main() {
 
       expect(find.text('Liste UI'), findsWidgets);
       expect(find.text('Maillot'), findsOneWidget);
-      expect(find.text('Quantité'), findsOneWidget);
+      final item = await database.select(database.quickListItems).getSingle();
+      expect(find.byKey(Key('quick-item-plus-${item.id}')), findsOneWidget);
+      expect(find.text('Quantité'), findsNothing);
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(const SizedBox.shrink());
