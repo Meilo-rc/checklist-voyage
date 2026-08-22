@@ -410,15 +410,15 @@ void main() {
     await _pumpData(tester);
     await tester.tap(find.text('Bibliothèque'));
     await _pumpData(tester);
-    await tester.ensureVisible(find.text('Général compact'));
-    await tester.tap(find.text('Général compact'));
+    await tester.tap(find.byKey(const Key('library-root-general')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Accessoires'));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(Key('library-add-item-collapsed-$categoryId')));
+    await tester.pumpAndSettle();
     final field = find.byKey(Key('library-add-item-$categoryId'));
     expect(field, findsOneWidget);
-    expect(find.text('Ajouter un item'), findsNothing);
     await tester.enterText(field, 'Lunettes de soleil');
     await tester.tap(find.byKey(Key('library-add-item-submit-$categoryId')));
     await tester.pumpAndSettle();
@@ -432,13 +432,10 @@ void main() {
 
     await tester.drag(itemRow, const Offset(260, 0));
     await tester.pumpAndSettle();
-    expect(find.text('Modifier l’item'), findsOneWidget);
-    final editField = find.descendant(
-      of: find.byType(AlertDialog),
-      matching: find.byType(TextField),
-    );
+    expect(find.byType(AlertDialog), findsNothing);
+    final editField = find.byType(TextField);
     await tester.enterText(editField, 'Lunettes polarisées');
-    await tester.tap(find.text('Valider'));
+    await tester.tap(find.byTooltip('Valider'));
     await tester.pumpAndSettle();
     expect(
       (await database.select(database.libraryItems).getSingle()).name,

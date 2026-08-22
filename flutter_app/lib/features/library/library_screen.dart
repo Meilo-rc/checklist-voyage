@@ -1,7 +1,6 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/repositories/local_data_repository.dart';
 import '../../domain/usecases/context_use_cases.dart';
@@ -10,6 +9,7 @@ import '../../domain/usecases/watch_destinations.dart';
 import '../import_data/import_view_model.dart';
 import '../shared/destination_scaffold.dart';
 import '../shared/item_contexts_sheet.dart';
+import 'library_browser.dart';
 import '../../sync/library_sync_coordinator.dart';
 import '../../sync/sync_models.dart';
 
@@ -258,7 +258,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  Future<void> _manageContexts(LibraryItemModel item) async {
+  Future<void> _manageContexts(
+    BuildContext pageContext,
+    LibraryItemModel item,
+  ) async {
     final contexts = await widget.contextUseCases.loadContexts();
     if (!mounted) return;
     if (contexts.isEmpty) {
@@ -266,9 +269,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
       return;
     }
     final initial = await widget.contextUseCases.loadForItem(item.id);
-    if (!mounted) return;
+    if (!mounted || !pageContext.mounted) return;
     final selected = await showItemContextsSheet(
-      context,
+      pageContext,
       itemName: item.name,
       contexts: contexts,
       initialSelection: initial,
@@ -278,93 +281,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  Future<String?> _askName(String title, {String initialValue = ''}) async {
-    final controller = TextEditingController(text: initialValue);
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Nom'),
-          onSubmitted: (_) => Navigator.pop(context, controller.text),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Valider'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<_ItemDraft?> _askItem({LibraryItemModel? item}) async {
-    final controller = TextEditingController(text: item?.name ?? '');
-    var quantity = item?.defaultQuantity ?? 1;
-    return showDialog<_ItemDraft>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(item == null ? 'Nouvel item' : 'Modifier l’item'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Nom'),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    onPressed: () => setDialogState(() {
-                      quantity = (quantity - 1).clamp(1, 99);
-                    }),
-                    icon: const Icon(Icons.remove_circle_outline),
-                  ),
-                  Text(
-                    '$quantity',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  IconButton(
-                    onPressed: () => setDialogState(() {
-                      quantity = (quantity + 1).clamp(1, 99);
-                    }),
-                    icon: const Icon(Icons.add_circle_outline),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.pop(context, _ItemDraft(controller.text, quantity)),
-              child: const Text('Valider'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return DestinationScaffold(
       title: 'Bibliothèque',
       actions: [
+        _SyncControl(syncCoordinator: widget.syncCoordinator),
         IconButton(
           key: const Key('library-contexts'),
           onPressed: _openContextCatalog,
@@ -389,362 +311,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
           icon: const Icon(Icons.add),
         ),
       ],
-      child: StreamBuilder<List<LibraryOwnerModel>>(
-        stream: widget.useCases.watchLibrary(),
-        builder: (context, snapshot) {
-          final owners = snapshot.data ?? const [];
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _InstallationCard(
-                localData: widget.localData,
-                syncCoordinator: widget.syncCoordinator,
-              ),
-              const SizedBox(height: 12),
-              if (owners.isEmpty)
-                const EmptyDestination(
-                  icon: Icons.menu_book_outlined,
-                  title: 'Bibliothèque locale vide',
-                  message:
-                      'Ajoutez un groupe ou importez une sauvegarde Web 2.63.',
-                )
-              else ...[
-                _OwnerSection(
-                  title: 'Général',
-                  owners: owners
-                      .where((owner) => owner.kind == LibraryOwnerKind.general)
-                      .toList(),
-                  screen: this,
-                ),
-                _OwnerSection(
-                  title: 'Membres',
-                  owners: owners
-                      .where(
-                        (owner) => owner.kind == LibraryOwnerKind.familyMember,
-                      )
-                      .toList(),
-                  screen: this,
-                ),
-                _OwnerSection(
-                  title: 'Personnel',
-                  owners: owners
-                      .where((owner) => owner.kind == LibraryOwnerKind.personal)
-                      .toList(),
-                  screen: this,
-                ),
-              ],
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _OwnerSection extends StatelessWidget {
-  const _OwnerSection({
-    required this.title,
-    required this.owners,
-    required this.screen,
-  });
-
-  final String title;
-  final List<LibraryOwnerModel> owners;
-  final _LibraryScreenState screen;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 12, bottom: 4),
-          child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-        ),
-        if (owners.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Text('Aucun groupe'),
-          )
-        else
-          ...owners.map((owner) => _OwnerCard(owner: owner, screen: screen)),
-      ],
-    );
-  }
-}
-
-class _OwnerCard extends StatelessWidget {
-  const _OwnerCard({required this.owner, required this.screen});
-
-  final LibraryOwnerModel owner;
-  final _LibraryScreenState screen;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ExpansionTile(
-        leading: Icon(
-          owner.isPersonal ? Icons.person_outline : Icons.group_outlined,
-        ),
-        title: Text(owner.name),
-        subtitle: Text(_roleLabel(owner)),
-        trailing: PopupMenuButton<String>(
-          onSelected: (action) async {
-            if (action == 'category') {
-              final name = await screen._askName('Nouvelle catégorie');
-              if (name != null) {
-                await screen.widget.useCases.createCategory(owner.id, name);
-              }
-            } else if (action == 'rename') {
-              final name = await screen._askName(
-                'Renommer le groupe',
-                initialValue: owner.name,
-              );
-              if (name != null) {
-                await screen.widget.useCases.renameOwner(owner.id, name);
-              }
-            } else if (action == 'delete') {
-              await screen.widget.useCases.deleteOwner(owner.id);
-            } else if (action == 'link') {
-              await screen._linkPersonalOwner(owner);
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'category',
-              child: Text('Ajouter une catégorie'),
-            ),
-            const PopupMenuItem(value: 'rename', child: Text('Renommer')),
-            if (owner.isPersonal)
-              const PopupMenuItem(
-                value: 'link',
-                child: Text('Associer à un membre'),
-              ),
-            const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
-          ],
-        ),
-        children: [
-          if (owner.categories.isEmpty)
-            const ListTile(title: Text('Aucune catégorie')),
-          ...owner.categories.map(
-            (category) => _CategoryTile(
-              key: ValueKey('library-category-${category.id}'),
-              category: category,
-              screen: screen,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CategoryTile extends StatefulWidget {
-  const _CategoryTile({
-    super.key,
-    required this.category,
-    required this.screen,
-  });
-
-  final LibraryCategoryModel category;
-  final _LibraryScreenState screen;
-
-  @override
-  State<_CategoryTile> createState() => _CategoryTileState();
-}
-
-class _CategoryTileState extends State<_CategoryTile> {
-  final _itemController = TextEditingController();
-  final _itemFocus = FocusNode();
-  bool _adding = false;
-
-  LibraryCategoryModel get category => widget.category;
-  _LibraryScreenState get screen => widget.screen;
-
-  @override
-  void dispose() {
-    _itemController.dispose();
-    _itemFocus.dispose();
-    super.dispose();
-  }
-
-  Future<void> _addItem() async {
-    final name = _itemController.text.trim();
-    if (name.isEmpty || _adding) return;
-    setState(() => _adding = true);
-    try {
-      await screen.widget.useCases.createItem(
-        categoryId: category.id,
-        name: name,
-        defaultQuantity: 1,
-      );
-      _itemController.clear();
-      _itemFocus.requestFocus();
-    } on Object catch (error) {
-      screen._message(error.toString());
-    } finally {
-      if (mounted) setState(() => _adding = false);
-    }
-  }
-
-  Future<void> _editItem(LibraryItemModel item) async {
-    final draft = await screen._askItem(item: item);
-    if (draft == null) return;
-    await screen.widget.useCases.updateItem(
-      itemId: item.id,
-      name: draft.name,
-      defaultQuantity: draft.quantity,
-    );
-  }
-
-  Future<bool> _handleSwipe(
-    LibraryItemModel item,
-    DismissDirection direction,
-  ) async {
-    try {
-      if (direction == DismissDirection.startToEnd) {
-        await _editItem(item);
-        return false;
-      }
-      await screen.widget.useCases.deleteItem(item.id);
-      return true;
-    } on Object catch (error) {
-      screen._message(error.toString());
-      return false;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ExpansionTile(
-      leading: const Icon(Icons.folder_outlined),
-      title: Text(category.name),
-      trailing: PopupMenuButton<String>(
-        onSelected: (action) async {
-          if (action == 'rename') {
-            final name = await screen._askName(
-              'Renommer la catégorie',
-              initialValue: category.name,
-            );
-            if (name != null) {
-              await screen.widget.useCases.renameCategory(category.id, name);
-            }
-          } else if (action == 'delete') {
-            await screen.widget.useCases.deleteCategory(category.id);
-          }
-        },
-        itemBuilder: (context) => const [
-          PopupMenuItem(height: 44, value: 'rename', child: Text('Renommer')),
-          PopupMenuItem(height: 44, value: 'delete', child: Text('Supprimer')),
-        ],
-      ),
-      children: [
-        ...category.items.map(
-          (item) => Dismissible(
-            key: ValueKey('library-item-dismiss-${item.id}'),
-            confirmDismiss: (direction) => _handleSwipe(item, direction),
-            background: const _SwipeAction(
-              alignment: Alignment.centerLeft,
-              icon: Icons.edit_outlined,
-              label: 'Modifier',
-            ),
-            secondaryBackground: _SwipeAction(
-              alignment: Alignment.centerRight,
-              icon: Icons.delete_outline,
-              label: 'Supprimer',
-              destructive: true,
-            ),
-            child: ListTile(
-              key: Key('library-item-${item.id}'),
-              dense: true,
-              visualDensity: const VisualDensity(vertical: -2),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-              ),
-              onLongPress: () => screen._manageContexts(item),
-              title: Text(item.name),
-              trailing: item.defaultQuantity == 1
-                  ? null
-                  : Text('×${item.defaultQuantity}'),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.xs,
-            AppSpacing.sm,
-            AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  key: Key('library-add-item-${category.id}'),
-                  controller: _itemController,
-                  focusNode: _itemFocus,
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _addItem(),
-                  decoration: const InputDecoration(
-                    hintText: 'Ajouter un item…',
-                    isDense: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              IconButton.filledTonal(
-                key: Key('library-add-item-submit-${category.id}'),
-                tooltip: 'Ajouter',
-                onPressed: _adding ? null : _addItem,
-                icon: _adding
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SwipeAction extends StatelessWidget {
-  const _SwipeAction({
-    required this.alignment,
-    required this.icon,
-    required this.label,
-    this.destructive = false,
-  });
-
-  final Alignment alignment;
-  final IconData icon;
-  final String label;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final foreground = destructive
-        ? colors.onErrorContainer
-        : colors.onPrimaryContainer;
-    return Container(
-      alignment: alignment,
-      color: destructive ? colors.errorContainer : colors.primaryContainer,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: foreground, size: 20),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            label,
-            style: TextStyle(color: foreground, fontWeight: FontWeight.w600),
-          ),
-        ],
+      child: LibraryBrowser(
+        useCases: widget.useCases,
+        onManageContexts: _manageContexts,
+        onLinkPersonalOwner: _linkPersonalOwner,
+        onMessage: _message,
       ),
     );
   }
@@ -872,38 +443,6 @@ class _ContextCatalogSheet extends StatelessWidget {
   }
 }
 
-class _InstallationCard extends StatelessWidget {
-  const _InstallationCard({
-    required this.localData,
-    required this.syncCoordinator,
-  });
-
-  final LocalDataRepository localData;
-  final LibrarySyncCoordinator syncCoordinator;
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<String>(
-      future: localData.getInstallationId(),
-      builder: (context, snapshot) {
-        final id = snapshot.data;
-        return Card(
-          child: ListTile(
-            leading: const Icon(Icons.offline_bolt_outlined),
-            trailing: _SyncControl(syncCoordinator: syncCoordinator),
-            title: const Text('Mode local-first actif'),
-            subtitle: Text(
-              id == null
-                  ? 'Initialisation de l’installation…'
-                  : 'Installation ${id.substring(0, 8)}…',
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
 class _SyncControl extends StatelessWidget {
   const _SyncControl({required this.syncCoordinator});
 
@@ -947,25 +486,8 @@ class _SyncControl extends StatelessWidget {
   }
 }
 
-class _ItemDraft {
-  const _ItemDraft(this.name, this.quantity);
-  final String name;
-  final int quantity;
-}
-
 class _LinkChoice {
   const _LinkChoice(this.participantOwnerId);
 
   final String? participantOwnerId;
-}
-
-String _roleLabel(LibraryOwnerModel owner) {
-  if (owner.isPersonal) return 'Local uniquement';
-  return switch (owner.generationRole) {
-    GenerationRole.essential => 'Essentiels',
-    GenerationRole.transport => 'Transport',
-    GenerationRole.lodging => 'Logement',
-    GenerationRole.participant => 'Participant',
-    _ => 'Bibliothèque générale',
-  };
 }

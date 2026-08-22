@@ -12,8 +12,10 @@ void main() {
   testWidgets('CRUD contexte et association par appui long', (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
 
     final database = AppDatabase(NativeDatabase.memory());
     final library = DriftLibraryRepository(database);
@@ -61,12 +63,18 @@ void main() {
 
     await tester.tapAt(const Offset(12, 100));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Général UI'));
+    await tester.tap(find.byKey(const Key('library-root-general')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Accessoires'));
     await tester.pumpAndSettle();
     await tester.longPress(find.byKey(Key('library-item-$item')));
     await tester.pumpAndSettle();
+    expect(
+      Theme.of(
+        tester.element(find.byKey(const Key('context-save-item'))),
+      ).brightness,
+      Brightness.dark,
+    );
     await tester.tap(find.widgetWithText(FilterChip, 'Plage et piscine'));
     await tester.tap(find.byKey(const Key('context-save-item')));
     await tester.pumpAndSettle();
@@ -78,6 +86,8 @@ void main() {
     expect(association.contextId, contextId);
     expect(association.deletedAt, isNull);
 
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('library-contexts')));
     await tester.pumpAndSettle();
     final reopenedRow = find.byKey(Key('context-row-$contextId'));

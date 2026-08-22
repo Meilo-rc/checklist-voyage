@@ -23,7 +23,10 @@ void main() {
 
     await tester.tap(find.text('Bibliothèque'));
     await tester.pumpAndSettle();
-    expect(find.text('Mode local-first actif'), findsOneWidget);
+    expect(find.byKey(const Key('library-root-general')), findsOneWidget);
+    expect(find.byKey(const Key('library-root-members')), findsOneWidget);
+    expect(find.byKey(const Key('library-root-personal')), findsOneWidget);
+    expect(find.text('Mode local-first actif'), findsNothing);
     expect(find.byIcon(Icons.file_download_outlined), findsOneWidget);
 
     await tester.tap(find.text('Listes rapides'));
