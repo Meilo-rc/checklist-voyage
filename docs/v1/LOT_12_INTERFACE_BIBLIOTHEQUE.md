@@ -35,5 +35,23 @@ synchronisation.
 - APK debug : `flutter_app/build/app/outputs/flutter-apk/app-debug.apk`, version
   `0.12.0+12`.
 
+## Smoke test Samsung
+
+L'APK a été installé avec `adb install -r`, sans désinstallation. Après arrêt
+complet et redémarrage :
+
+- UUID inchangé : `41459db3-42f6-48cd-83cf-a63aa54aff04` ;
+- schéma Drift 7, 3 voyages et 1 liste rapide conservés ;
+- état courant mesuré : 12 propriétaires, 34 catégories et 235 items visibles ;
+- synchronisation saine avec 0 opération en attente ;
+- Général, Membres, Malone, une catégorie de 20 items, Personnel et les thèmes
+  clair/sombre contrôlés sans débordement.
+
+Les volumes courants diffèrent du relevé historique du lot 11C
+(`14 / 37 / 240`, 2 voyages). Le voyage supplémentaire confirme que
+l'installation avait évolué depuis ce relevé ; aucune restauration vers cet
+ancien état n'a donc été appliquée. Aucun item réel n'a été modifié pour le
+smoke test.
+
 Aucun schéma Drift, import legacy, moteur métier, backend, PocketBase ou PWA n'a
 été modifié.
