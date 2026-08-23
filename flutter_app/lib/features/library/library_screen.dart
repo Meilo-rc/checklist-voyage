@@ -1,7 +1,10 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/presentation/user_message.dart';
+import '../../data/backup/safety_backup_file_gateway.dart';
+import '../../data/backup/v1_safety_backup_service.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/repositories/local_data_repository.dart';
 import '../../domain/usecases/context_use_cases.dart';
@@ -23,6 +26,8 @@ class LibraryScreen extends StatefulWidget {
     required this.useCases,
     required this.contextUseCases,
     required this.syncCoordinator,
+    required this.safetyBackup,
+    required this.safetyBackupFiles,
   });
 
   final WatchLibraryOwners watchOwners;
@@ -31,6 +36,8 @@ class LibraryScreen extends StatefulWidget {
   final LibraryUseCases useCases;
   final ContextUseCases contextUseCases;
   final LibrarySyncCoordinator syncCoordinator;
+  final V1SafetyBackupService safetyBackup;
+  final SafetyBackupFileGateway safetyBackupFiles;
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -75,6 +82,91 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ? 'Cette sauvegarde avait déjà été importée.'
               : 'Import local terminé.'),
     );
+  }
+
+  Future<void> _exportSafetyBackup() async {
+    try {
+      final now = DateTime.now().toUtc();
+      final timestamp = now
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .replaceAll('.', '-');
+      final bytes = await widget.safetyBackup.exportBytes(now: now);
+      final saved = await widget.safetyBackupFiles.save(
+        name: 'checklist-voyage-v1-$timestamp.cv1backup.json',
+        bytes: bytes,
+      );
+      if (mounted && saved) {
+        _message('Sauvegarde de sécurité exportée.');
+      }
+    } on Object catch (error) {
+      if (mounted) {
+        _message(userMessageFor(error, fallback: 'Export impossible.'));
+      }
+    }
+  }
+
+  Future<void> _restoreSafetyBackup() async {
+    const backupGroup = XTypeGroup(
+      label: 'Sauvegarde Checklist Voyage V1',
+      extensions: ['json'],
+      mimeTypes: ['application/json'],
+    );
+    final file = await openFile(acceptedTypeGroups: const [backupGroup]);
+    if (file == null) return;
+    try {
+      final bytes = await file.readAsBytes();
+      final info = widget.safetyBackup.inspect(bytes);
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Restaurer la sauvegarde V1 ?'),
+          content: Text(
+            'Cette action remplace toutes les données locales. Utilise-la '
+            'uniquement sur une installation neuve et hors ligne.\n\n'
+            '${info.count('library_items')} items · '
+            '${info.count('trips')} voyages · '
+            '${info.count('quick_lists')} listes rapides\n'
+            'Installation : ${info.installationId}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Restaurer'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      await widget.safetyBackup.restoreBytes(bytes);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Restauration terminée'),
+          content: const Text(
+            'L’application va se fermer. Rouvre-la avant de réactiver le réseau.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
+      );
+      await SystemNavigator.pop();
+    } on Object catch (error) {
+      if (mounted) {
+        _message(userMessageFor(error, fallback: 'Restauration impossible.'));
+      }
+    }
   }
 
   void _message(String value) {
@@ -304,6 +396,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.file_download_outlined),
+        ),
+        PopupMenuButton<String>(
+          key: const Key('library-safety-backup-menu'),
+          tooltip: 'Sauvegarde de sécurité V1',
+          onSelected: (action) async {
+            if (action == 'export') {
+              await _exportSafetyBackup();
+            } else if (action == 'restore') {
+              await _restoreSafetyBackup();
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: 'export', child: Text('Exporter sécurité V1')),
+            PopupMenuItem(
+              value: 'restore',
+              child: Text('Restaurer sécurité V1'),
+            ),
+          ],
+          icon: const Icon(Icons.security_outlined),
         ),
         IconButton(
           key: const Key('library-add-owner'),

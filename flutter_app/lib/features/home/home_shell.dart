@@ -53,6 +53,8 @@ class _HomeShellState extends State<HomeShell> {
         useCases: widget.dependencies.library,
         contextUseCases: widget.dependencies.contexts,
         syncCoordinator: widget.dependencies.librarySync,
+        safetyBackup: widget.dependencies.safetyBackup,
+        safetyBackupFiles: widget.dependencies.safetyBackupFiles,
       ),
       QuickListsScreen(
         watchQuickLists: widget.dependencies.watchQuickLists,

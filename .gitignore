@@ -5,6 +5,9 @@
 **/pocketbase-full*.sha256
 **/pocketbase-full*.report.json
 **/sauvegarde-checklist-voyage-*.json
+**/*.cv1backup.json
+**/*.cv1backup.json.sha256
+**/*.cv1backup.json.manifest.json
 **/cv1-migration/
 **/cv1-migration-*.tar.gz
 **/cv1-migration-*.tgz
@@ -15,6 +18,7 @@
 **/.env.*
 !**/.env.example
 **/key.properties
+**/release-key.properties
 **/*.keystore
 **/*.jks
 **/*.p12

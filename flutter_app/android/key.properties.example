@@ -1,0 +1,5 @@
+# Copie ce modèle hors du dépôt et protège-le avec le keystore.
+storeFile=C:/chemin/secret/checklist-voyage-release.jks
+storePassword=REMPLACER
+keyAlias=checklist-voyage
+keyPassword=REMPLACER

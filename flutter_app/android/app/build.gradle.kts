@@ -1,7 +1,29 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val releaseSigningPropertiesPath =
+    System.getenv("CHECKLIST_VOYAGE_SIGNING_PROPERTIES")?.takeIf { it.isNotBlank() }
+val releaseSigningFile = releaseSigningPropertiesPath?.let { file(it) }
+val releaseSigningProperties =
+    releaseSigningFile?.takeIf { it.isFile }?.let { propertiesFile ->
+        Properties().apply {
+            FileInputStream(propertiesFile).use(::load)
+        }
+    }
+val releaseRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+if (releaseRequested && releaseSigningProperties == null) {
+    throw GradleException(
+        "Signature release absente. Définis CHECKLIST_VOYAGE_SIGNING_PROPERTIES " +
+            "vers un fichier local conforme à android/key.properties.example.",
+    )
 }
 
 android {
@@ -25,11 +47,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseSigningProperties != null) {
+            create("release") {
+                keyAlias = releaseSigningProperties.getProperty("keyAlias")
+                keyPassword = releaseSigningProperties.getProperty("keyPassword")
+                storeFile = file(releaseSigningProperties.getProperty("storeFile"))
+                storePassword = releaseSigningProperties.getProperty("storePassword")
+                enableV1Signing = true
+                enableV2Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = releaseSigningProperties?.let {
+                signingConfigs.getByName("release")
+            }
         }
     }
 }

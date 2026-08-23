@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import '../data/backup/safety_backup_file_gateway.dart';
+import '../data/backup/v1_safety_backup_service.dart';
 import '../data/import/web_v263_importer.dart';
 import '../data/local/app_database.dart';
+import '../data/local/open_app_database.dart';
 import '../data/repositories/drift_library_repository.dart';
 import '../data/repositories/drift_local_data_repository.dart';
 import '../data/repositories/drift_context_repository.dart';
@@ -38,6 +41,8 @@ class AppDependencies {
     required this.contexts,
     required this.librarySync,
     required this.sharedDocuments,
+    required this.safetyBackup,
+    required this.safetyBackupFiles,
   });
 
   final AppDatabase database;
@@ -52,6 +57,8 @@ class AppDependencies {
   final ContextUseCases contexts;
   final LibrarySyncCoordinator librarySync;
   final SharedDocumentUseCases sharedDocuments;
+  final V1SafetyBackupService safetyBackup;
+  final SafetyBackupFileGateway safetyBackupFiles;
 
   static Future<AppDependencies> create({
     AppDatabase? database,
@@ -59,7 +66,7 @@ class AppDependencies {
     SharedDocumentRemoteGateway? documentRemote,
     bool? autoSync,
   }) async {
-    final db = database ?? AppDatabase.open();
+    final db = database ?? openAppDatabase();
     final localData = DriftLocalDataRepository(db);
     await localData.ensureInstallationId();
     final syncStore = LibrarySyncStore(db);
@@ -92,6 +99,8 @@ class AppDependencies {
       contexts: ContextUseCases(contextRepository),
       librarySync: librarySync,
       sharedDocuments: SharedDocumentUseCases(documentSync),
+      safetyBackup: V1SafetyBackupService(db),
+      safetyBackupFiles: const SafetyBackupFileGateway(),
     );
     if (autoSync ?? database == null) {
       unawaited(librarySync.syncNow());
