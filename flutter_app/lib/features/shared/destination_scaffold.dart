@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/version/app_version.dart';
 
 class DestinationScaffold extends StatelessWidget {
   const DestinationScaffold({
@@ -18,7 +19,11 @@ class DestinationScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        SliverAppBar(pinned: true, title: Text(title), actions: actions),
+        SliverAppBar(
+          pinned: true,
+          title: VersionedTitle(title),
+          actions: actions,
+        ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.md,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/presentation/user_message.dart';
+import '../../core/version/app_version.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
 import '../../domain/models/progress.dart';
@@ -130,7 +131,7 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
             slivers: [
               SliverAppBar(
                 pinned: true,
-                title: const Text('Listes rapides'),
+                title: const VersionedTitle('Listes rapides'),
                 actions: [
                   if (widget.sharedDocuments != null)
                     IconButton(

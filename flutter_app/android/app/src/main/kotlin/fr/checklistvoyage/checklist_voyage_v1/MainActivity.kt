@@ -2,6 +2,7 @@ package fr.checklistvoyage.app
 
 import android.app.Activity
 import android.content.Intent
+import android.os.Build
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
@@ -39,6 +40,28 @@ class MainActivity : FlutterActivity() {
                     putExtra(Intent.EXTRA_TITLE, name)
                 },
                 backupRequestCode,
+            )
+        }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "fr.checklistvoyage.app/app_info",
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "getVersion") {
+                result.notImplemented()
+                return@setMethodCallHandler
+            }
+            @Suppress("DEPRECATION")
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                packageInfo.longVersionCode
+            } else {
+                packageInfo.versionCode.toLong()
+            }
+            result.success(
+                mapOf(
+                    "versionName" to (packageInfo.versionName ?: ""),
+                    "versionCode" to versionCode.toString(),
+                ),
             )
         }
     }
