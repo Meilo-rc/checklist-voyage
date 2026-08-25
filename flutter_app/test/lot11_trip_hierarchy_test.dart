@@ -69,7 +69,7 @@ void main() {
       _expectNoFlutterError(tester, 'accueil');
       await tester.tap(find.byKey(Key('trip-summary-$tripId')));
       await _pumpData(tester);
-      _expectNoFlutterError(tester, 'aperÃ§u du voyage');
+      _expectNoFlutterError(tester, 'aperçu du voyage');
 
       expect(find.byKey(const Key('trip-overview')), findsOneWidget);
       expect(find.text(compactTripPeriodLabel(start, end)), findsOneWidget);
@@ -77,13 +77,29 @@ void main() {
       expect(find.text('Membres'), findsOneWidget);
       expect(find.byKey(const Key('trip-level-general')), findsOneWidget);
       expect(find.byKey(const Key('trip-level-members')), findsOneWidget);
+      final memberRowText = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(Key('trip-member-${member.id}')),
+          matching: find.text(member.name),
+        ),
+      );
+      expect(memberRowText.style?.fontSize, 20);
+      expect(memberRowText.style?.fontWeight, FontWeight.w600);
       await tester.tap(find.byKey(Key('trip-member-${member.id}')));
       await tester.pumpAndSettle();
       _expectNoFlutterError(tester, 'page membre');
       expect(find.byKey(Key('trip-member-page-${member.id}')), findsOneWidget);
+      final memberPageTitle = tester.widget<Text>(
+        find.descendant(
+          of: find.byType(SliverAppBar),
+          matching: find.text(member.name),
+        ),
+      );
+      expect(memberPageTitle.style?.fontSize, 24);
+      expect(memberPageTitle.style?.fontWeight, FontWeight.w700);
       await tester.tap(find.byKey(Key('trip-category-${category.id}')));
       await tester.pumpAndSettle();
-      _expectNoFlutterError(tester, 'catÃ©gorie ouverte');
+      _expectNoFlutterError(tester, 'catégorie ouverte');
       expect(find.byKey(Key('trip-member-page-${member.id}')), findsOneWidget);
       expect(
         find.byKey(Key('trip-category-page-${category.id}')),
@@ -93,6 +109,11 @@ void main() {
         Theme.of(tester.element(find.text('Vêtements'))).brightness,
         Brightness.light,
       );
+      final categoryText = tester.widget<Text>(find.text(category.name));
+      expect(categoryText.style?.fontSize, 19);
+      expect(categoryText.style?.fontWeight, FontWeight.w600);
+      final itemText = tester.widget<Text>(find.text(shirt.name));
+      expect(itemText.style?.fontSize, 14);
 
       final shirtRow = find.byKey(Key('trip-item-${shirt.id}'));
       expect(tester.getSize(shirtRow).height, lessThanOrEqualTo(48));
@@ -102,7 +123,7 @@ void main() {
       await tester.tap(find.byKey(Key('context-choice-$beach')));
       await tester.tap(find.byKey(const Key('context-save-item')));
       await tester.pumpAndSettle();
-      _expectNoFlutterError(tester, 'contextes enregistrÃ©s');
+      _expectNoFlutterError(tester, 'contextes enregistrés');
       expect(await contexts.loadContextIdsForItem(ids.shirtItem), {beach});
 
       await tester.tap(find.byKey(Key('trip-item-status-${shirt.id}')));
@@ -111,7 +132,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(Key('trip-item-increase-${shirt.id}')));
       await tester.pumpAndSettle();
-      _expectNoFlutterError(tester, 'Ã©tat et quantitÃ©');
+      _expectNoFlutterError(tester, 'état et quantité');
       trip = (await dependencies.trips.watchTrip(tripId).first)!;
       var storedShirt = trip.members
           .expand((group) => group.categories)
@@ -128,7 +149,7 @@ void main() {
       );
       await tester.tap(find.byKey(Key('trip-item-edit-save-${shirt.id}')));
       await tester.pumpAndSettle();
-      _expectNoFlutterError(tester, 'item renommÃ©');
+      _expectNoFlutterError(tester, 'item renommé');
       storedShirt = (await dependencies.trips.watchTrip(tripId).first)!.members
           .expand((group) => group.categories)
           .expand((candidate) => candidate.items)
@@ -147,7 +168,7 @@ void main() {
       await tester.enterText(addField, 'Casquette');
       await tester.tap(find.byKey(Key('trip-add-item-submit-${category.id}')));
       await tester.pumpAndSettle();
-      _expectNoFlutterError(tester, 'item ajoutÃ©');
+      _expectNoFlutterError(tester, 'item ajouté');
       final added = (await database.select(database.tripItems).get())
           .singleWhere((item) => item.name == 'Casquette');
       await tester.ensureVisible(find.byKey(Key('trip-item-${added.id}')));
@@ -156,7 +177,7 @@ void main() {
         const Offset(-320, 0),
       );
       await tester.pumpAndSettle();
-      _expectNoFlutterError(tester, 'item supprimÃ©');
+      _expectNoFlutterError(tester, 'item supprimé');
       expect(
         (await database.select(database.tripItems).get())
             .singleWhere((item) => item.id == added.id)
@@ -172,7 +193,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.arrow_back).first);
       await tester.pumpAndSettle();
-      _expectNoFlutterError(tester, 'filtres appliquÃ©s');
+      _expectNoFlutterError(tester, 'filtres appliqués');
       await tester.tap(find.byKey(const Key('trip-state-todo')));
       await tester.tap(find.byKey(Key('trip-person-${member.id}')));
       await tester.pumpAndSettle();
@@ -185,7 +206,7 @@ void main() {
       await tester.tap(find.byKey(Key('trip-item-status-${socks.id}')));
       await tester.pumpAndSettle();
       expect(find.text('Aucun élément à préparer.'), findsOneWidget);
-      _expectNoFlutterError(tester, 'Ã©tat vide');
+      _expectNoFlutterError(tester, 'état vide');
 
       await _dispose(tester, dependencies);
     },

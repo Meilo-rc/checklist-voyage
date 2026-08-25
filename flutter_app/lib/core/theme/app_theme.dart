@@ -20,6 +20,63 @@ abstract final class AppColors {
   static const yellow = Color(0xFFF8AC34);
 }
 
+@immutable
+class AppHierarchyTextStyles extends ThemeExtension<AppHierarchyTextStyles> {
+  const AppHierarchyTextStyles({
+    this.tripMemberName = const TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.w600,
+    ),
+    this.tripMemberPageTitle = const TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.w700,
+    ),
+    this.tripCategoryName = const TextStyle(
+      fontSize: 19,
+      fontWeight: FontWeight.w600,
+    ),
+  });
+
+  final TextStyle tripMemberName;
+  final TextStyle tripMemberPageTitle;
+  final TextStyle tripCategoryName;
+
+  static AppHierarchyTextStyles of(BuildContext context) =>
+      Theme.of(context).extension<AppHierarchyTextStyles>()!;
+
+  @override
+  AppHierarchyTextStyles copyWith({
+    TextStyle? tripMemberName,
+    TextStyle? tripMemberPageTitle,
+    TextStyle? tripCategoryName,
+  }) => AppHierarchyTextStyles(
+    tripMemberName: tripMemberName ?? this.tripMemberName,
+    tripMemberPageTitle: tripMemberPageTitle ?? this.tripMemberPageTitle,
+    tripCategoryName: tripCategoryName ?? this.tripCategoryName,
+  );
+
+  @override
+  AppHierarchyTextStyles lerp(
+    covariant AppHierarchyTextStyles? other,
+    double t,
+  ) {
+    if (other == null) return this;
+    return AppHierarchyTextStyles(
+      tripMemberName: TextStyle.lerp(tripMemberName, other.tripMemberName, t)!,
+      tripMemberPageTitle: TextStyle.lerp(
+        tripMemberPageTitle,
+        other.tripMemberPageTitle,
+        t,
+      )!,
+      tripCategoryName: TextStyle.lerp(
+        tripCategoryName,
+        other.tripCategoryName,
+        t,
+      )!,
+    );
+  }
+}
+
 abstract final class AppTheme {
   static ThemeData get light => _build(Brightness.light);
 
@@ -64,27 +121,28 @@ abstract final class AppTheme {
       platform: TargetPlatform.android,
     );
     final baseText = dark ? typography.white : typography.black;
-    final contentText = _scaleContentText(baseText).copyWith(
+    final contentText = _materialTextTheme(baseText).copyWith(
       headlineSmall: baseText.headlineSmall?.copyWith(
-        fontSize: (baseText.headlineSmall?.fontSize ?? 24) * 1.2,
+        fontSize: baseText.headlineSmall?.fontSize ?? 24,
         fontWeight: FontWeight.w700,
       ),
       titleLarge: baseText.titleLarge?.copyWith(
-        fontSize: (baseText.titleLarge?.fontSize ?? 22) * 1.2,
+        fontSize: baseText.titleLarge?.fontSize ?? 22,
         fontWeight: FontWeight.w700,
       ),
       titleMedium: baseText.titleMedium?.copyWith(
-        fontSize: (baseText.titleMedium?.fontSize ?? 16) * 1.2,
+        fontSize: baseText.titleMedium?.fontSize ?? 16,
         fontWeight: FontWeight.w700,
       ),
       titleSmall: baseText.titleSmall?.copyWith(
-        fontSize: (baseText.titleSmall?.fontSize ?? 14) * 1.2,
+        fontSize: baseText.titleSmall?.fontSize ?? 14,
         fontWeight: FontWeight.w700,
       ),
     );
     return baseTheme.copyWith(
       scaffoldBackgroundColor: colors.surface,
       textTheme: contentText,
+      extensions: const [AppHierarchyTextStyles()],
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -184,27 +242,27 @@ abstract final class AppTheme {
     );
   }
 
-  static TextTheme _scaleContentText(TextTheme source) {
-    TextStyle scale(TextStyle? style, double defaultSize) =>
+  static TextTheme _materialTextTheme(TextTheme source) {
+    TextStyle resolve(TextStyle? style, double defaultSize) =>
         (style ?? const TextStyle()).copyWith(
-          fontSize: (style?.fontSize ?? defaultSize) * 1.2,
+          fontSize: style?.fontSize ?? defaultSize,
         );
     return source.copyWith(
-      displayLarge: scale(source.displayLarge, 57),
-      displayMedium: scale(source.displayMedium, 45),
-      displaySmall: scale(source.displaySmall, 36),
-      headlineLarge: scale(source.headlineLarge, 32),
-      headlineMedium: scale(source.headlineMedium, 28),
-      headlineSmall: scale(source.headlineSmall, 24),
-      titleLarge: scale(source.titleLarge, 22),
-      titleMedium: scale(source.titleMedium, 16),
-      titleSmall: scale(source.titleSmall, 14),
-      bodyLarge: scale(source.bodyLarge, 16),
-      bodyMedium: scale(source.bodyMedium, 14),
-      bodySmall: scale(source.bodySmall, 12),
-      labelLarge: scale(source.labelLarge, 14),
-      labelMedium: scale(source.labelMedium, 12),
-      labelSmall: scale(source.labelSmall, 11),
+      displayLarge: resolve(source.displayLarge, 57),
+      displayMedium: resolve(source.displayMedium, 45),
+      displaySmall: resolve(source.displaySmall, 36),
+      headlineLarge: resolve(source.headlineLarge, 32),
+      headlineMedium: resolve(source.headlineMedium, 28),
+      headlineSmall: resolve(source.headlineSmall, 24),
+      titleLarge: resolve(source.titleLarge, 22),
+      titleMedium: resolve(source.titleMedium, 16),
+      titleSmall: resolve(source.titleSmall, 14),
+      bodyLarge: resolve(source.bodyLarge, 16),
+      bodyMedium: resolve(source.bodyMedium, 14),
+      bodySmall: resolve(source.bodySmall, 12),
+      labelLarge: resolve(source.labelLarge, 14),
+      labelMedium: resolve(source.labelMedium, 12),
+      labelSmall: resolve(source.labelSmall, 11),
     );
   }
 }

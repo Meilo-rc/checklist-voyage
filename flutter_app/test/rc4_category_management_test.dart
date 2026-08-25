@@ -139,11 +139,16 @@ void main() {
     },
   );
 
-  test('le contenu est agrandi sans grossir les titres et la navigation', () {
+  test('la hiérarchie voyage grandit sans agrandir le contenu global', () {
     final theme = AppTheme.light;
-    expect(theme.textTheme.bodyMedium!.fontSize, closeTo(16.8, 0.01));
+    final hierarchy = theme.extension<AppHierarchyTextStyles>()!;
+    expect(theme.textTheme.bodyMedium!.fontSize, 14);
+    expect(theme.textTheme.bodyLarge!.fontSize, 16);
     expect(theme.appBarTheme.titleTextStyle!.fontSize, 22);
     expect(theme.navigationBarTheme.labelTextStyle!.resolve({})!.fontSize, 12);
+    expect(hierarchy.tripMemberName.fontSize, 20);
+    expect(hierarchy.tripMemberPageTitle.fontSize, 24);
+    expect(hierarchy.tripCategoryName.fontSize, 19);
     expect(theme.scaffoldBackgroundColor, const Color(0xFFF0F2F4));
     expect(theme.cardTheme.color, Colors.white);
   });

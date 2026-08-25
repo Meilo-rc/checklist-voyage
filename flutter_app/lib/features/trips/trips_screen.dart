@@ -1180,7 +1180,12 @@ class _TripNavigationRow extends StatelessWidget {
       dense: true,
       visualDensity: const VisualDensity(vertical: -2),
       contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppHierarchyTextStyles.of(context).tripMemberName,
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1692,7 +1697,10 @@ class _TripMemberPageState extends State<_TripMemberPage> {
             onPressed: widget.onBack,
             icon: const Icon(Icons.arrow_back),
           ),
-          title: Text(widget.member.name),
+          title: Text(
+            widget.member.name,
+            style: AppHierarchyTextStyles.of(context).tripMemberPageTitle,
+          ),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(
@@ -1879,7 +1887,7 @@ class _TripCategoryHeader extends StatelessWidget {
                     category.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: AppHierarchyTextStyles.of(context).tripCategoryName,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
