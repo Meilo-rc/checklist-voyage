@@ -40,11 +40,13 @@ class LibraryCategoryModel {
     required this.id,
     required this.name,
     required this.items,
+    this.icon,
   });
 
   final String id;
   final String name;
   final List<LibraryItemModel> items;
+  final String? icon;
 }
 
 class LibraryOwnerModel {
@@ -165,11 +167,13 @@ class TripCategoryModel {
     required this.id,
     required this.name,
     required this.items,
+    this.icon,
   });
 
   final String id;
   final String name;
   final List<TripItemModel> items;
+  final String? icon;
 }
 
 class TripMemberModel {

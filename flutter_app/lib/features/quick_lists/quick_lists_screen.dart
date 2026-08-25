@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/presentation/user_message.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/version/app_version.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
@@ -159,7 +160,13 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
                               size: 20,
                             ),
                             const SizedBox(width: 12),
-                            Text(_showArchives ? 'Mes listes' : 'Archives'),
+                            Expanded(
+                              child: Text(
+                                _showArchives ? 'Mes listes' : 'Archives',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                       ),

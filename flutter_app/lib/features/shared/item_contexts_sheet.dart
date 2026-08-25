@@ -67,18 +67,21 @@ Future<Set<String>?> showItemContextsSheet(
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      TextButton(
-                        key: const Key('context-cancel-item'),
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Annuler'),
+                      Expanded(
+                        child: TextButton(
+                          key: const Key('context-cancel-item'),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Annuler'),
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      FilledButton(
-                        key: const Key('context-save-item'),
-                        onPressed: () => Navigator.pop(context, draft),
-                        child: const Text('Enregistrer'),
+                      Expanded(
+                        child: FilledButton(
+                          key: const Key('context-save-item'),
+                          onPressed: () => Navigator.pop(context, draft),
+                          child: const Text('Enregistrer'),
+                        ),
                       ),
                     ],
                   ),

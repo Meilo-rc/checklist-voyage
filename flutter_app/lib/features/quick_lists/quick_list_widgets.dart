@@ -21,44 +21,30 @@ class _QuickListSummaryRow extends StatelessWidget {
         final progress = detail == null
             ? null
             : ProgressCalculator.forQuickList(detail);
-        return Material(
-          color: Theme.of(context).colorScheme.surface,
+        return Card(
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.card),
             onTap: onTap,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 52),
-              child: Row(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          summary.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (summary.shared)
-                          Text(
-                            'Partagé',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                          ),
-                      ],
-                    ),
-                  ),
                   Text(
-                    progress == null
-                        ? '—'
-                        : '${progress.completed}/${progress.total}',
+                    summary.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right, size: 20),
-                  const SizedBox(width: 4),
+                  const SizedBox(height: AppSpacing.sm),
+                  LinearProgressIndicator(
+                    value: progress == null ? 0 : progress.percent / 100,
+                    semanticsLabel: 'Progression de ${summary.name}',
+                    semanticsValue: progress == null
+                        ? '0 %'
+                        : '${progress.percent} %',
+                  ),
                 ],
               ),
             ),

@@ -22,6 +22,17 @@ void main() {
     expect(find.byKey(const Key('launch-decorations')), findsOneWidget);
     expect(find.text('Accueil prêt'), findsNothing);
 
+    expect(
+      tester.getSize(find.byKey(const Key('launch-icon'))),
+      const Size.square(210),
+    );
+    final initialBag = tester.widget<Transform>(
+      find.byKey(const Key('launch-pink-bag')),
+    );
+    final initialBagTranslation = initialBag.transform.getTranslation();
+    expect(initialBagTranslation.x, lessThan(0));
+    expect(initialBagTranslation.y, 0);
+
     await tester.pump();
     await tester.pump(
       launchAnimationDuration - const Duration(milliseconds: 1),

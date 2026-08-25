@@ -54,7 +54,7 @@ class _LaunchAnimationState extends State<LaunchAnimation>
   late final AnimationController _controller;
   late final Animation<double> _suitcaseProgress;
   late final Animation<double> _handleProgress;
-  late final Animation<double> _bagPosition;
+  late final Animation<double> _bagProgress;
   late final Animation<double> _decorationOpacity;
   late final Animation<double> _decorationScale;
 
@@ -76,19 +76,19 @@ class _LaunchAnimationState extends State<LaunchAnimation>
       parent: _controller,
       curve: const Interval(0.46, 0.68, curve: Curves.easeOutCubic),
     );
-    _bagPosition =
+    _bagProgress =
         TweenSequence<double>([
           TweenSequenceItem(
             tween: Tween<double>(
-              begin: -1.08,
-              end: 0.035,
+              begin: 0.0,
+              end: 1.035,
             ).chain(CurveTween(curve: Curves.easeOutCubic)),
             weight: 82,
           ),
           TweenSequenceItem(
             tween: Tween<double>(
-              begin: 0.035,
-              end: 0.0,
+              begin: 1.035,
+              end: 1.0,
             ).chain(CurveTween(curve: Curves.easeOut)),
             weight: 18,
           ),
@@ -126,8 +126,8 @@ class _LaunchAnimationState extends State<LaunchAnimation>
         child: LayoutBuilder(
           builder: (context, constraints) {
             final iconSize = math.min(
-              math.min(constraints.maxWidth, constraints.maxHeight) * 0.78,
-              420.0,
+              math.min(constraints.maxWidth, constraints.maxHeight) * 0.39,
+              210.0,
             );
             final offscreenDistance = constraints.maxWidth / 2 + iconSize;
             return Center(
@@ -137,8 +137,9 @@ class _LaunchAnimationState extends State<LaunchAnimation>
                   final suitcaseX =
                       (1 - _suitcaseProgress.value) * offscreenDistance;
                   final handleY = (1 - _handleProgress.value) * iconSize * 0.27;
-                  final bagY = _bagPosition.value * iconSize;
+                  final bagX = -(1 - _bagProgress.value) * offscreenDistance;
                   return SizedBox.square(
+                    key: const Key('launch-icon'),
                     dimension: iconSize,
                     child: Stack(
                       clipBehavior: Clip.none,
@@ -160,8 +161,11 @@ class _LaunchAnimationState extends State<LaunchAnimation>
                         ),
                         Transform.translate(
                           key: const Key('launch-pink-bag'),
-                          offset: Offset(0, bagY),
-                          child: SvgPicture.asset(_pinkBag),
+                          offset: Offset(bagX, 0),
+                          child: SvgPicture.asset(
+                            _pinkBag,
+                            clipBehavior: Clip.none,
+                          ),
                         ),
                         FadeTransition(
                           key: const Key('launch-decorations'),

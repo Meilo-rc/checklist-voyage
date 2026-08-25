@@ -92,6 +92,7 @@ class DriftLibraryRepository implements LibraryRepository {
                   (category) => LibraryCategoryModel(
                     id: category.id,
                     name: category.name,
+                    icon: category.icon,
                     items: items
                         .where((item) => item.categoryId == category.id)
                         .map(
@@ -321,6 +322,26 @@ class DriftLibraryRepository implements LibraryRepository {
           .write(
             LibraryCategoriesCompanion(
               name: Value(_requiredName(name)),
+              updatedAtLocal: Value(DateTime.now().toUtc()),
+            ),
+          );
+      await _sync.recordUpsert(
+        'library_category',
+        categoryId,
+        await _sync.payloadFor('library_category', categoryId),
+      );
+    });
+  }
+
+  @override
+  Future<void> setCategoryIcon(String categoryId, String? icon) async {
+    await _database.transaction(() async {
+      await (_database.update(
+            _database.libraryCategories,
+          )..where((row) => row.id.equals(categoryId) & row.deletedAt.isNull()))
+          .write(
+            LibraryCategoriesCompanion(
+              icon: Value(icon),
               updatedAtLocal: Value(DateTime.now().toUtc()),
             ),
           );

@@ -66,8 +66,10 @@ void main() {
 
       await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
       await _pumpData(tester);
+      _expectNoFlutterError(tester, 'accueil');
       await tester.tap(find.byKey(Key('trip-summary-$tripId')));
       await _pumpData(tester);
+      _expectNoFlutterError(tester, 'aperÃ§u du voyage');
 
       expect(find.byKey(const Key('trip-overview')), findsOneWidget);
       expect(find.text(compactTripPeriodLabel(start, end)), findsOneWidget);
@@ -77,9 +79,11 @@ void main() {
       expect(find.byKey(const Key('trip-level-members')), findsOneWidget);
       await tester.tap(find.byKey(Key('trip-member-${member.id}')));
       await tester.pumpAndSettle();
+      _expectNoFlutterError(tester, 'page membre');
       expect(find.byKey(Key('trip-member-page-${member.id}')), findsOneWidget);
       await tester.tap(find.byKey(Key('trip-category-${category.id}')));
       await tester.pumpAndSettle();
+      _expectNoFlutterError(tester, 'catÃ©gorie ouverte');
       expect(find.byKey(Key('trip-member-page-${member.id}')), findsOneWidget);
       expect(
         find.byKey(Key('trip-category-page-${category.id}')),
@@ -94,9 +98,11 @@ void main() {
       expect(tester.getSize(shirtRow).height, lessThanOrEqualTo(48));
       await tester.longPress(shirtRow);
       await tester.pumpAndSettle();
+      _expectNoFlutterError(tester, 'contextes');
       await tester.tap(find.byKey(Key('context-choice-$beach')));
       await tester.tap(find.byKey(const Key('context-save-item')));
       await tester.pumpAndSettle();
+      _expectNoFlutterError(tester, 'contextes enregistrÃ©s');
       expect(await contexts.loadContextIdsForItem(ids.shirtItem), {beach});
 
       await tester.tap(find.byKey(Key('trip-item-status-${shirt.id}')));
@@ -105,6 +111,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(Key('trip-item-increase-${shirt.id}')));
       await tester.pumpAndSettle();
+      _expectNoFlutterError(tester, 'Ã©tat et quantitÃ©');
       trip = (await dependencies.trips.watchTrip(tripId).first)!;
       var storedShirt = trip.members
           .expand((group) => group.categories)
@@ -121,6 +128,7 @@ void main() {
       );
       await tester.tap(find.byKey(Key('trip-item-edit-save-${shirt.id}')));
       await tester.pumpAndSettle();
+      _expectNoFlutterError(tester, 'item renommÃ©');
       storedShirt = (await dependencies.trips.watchTrip(tripId).first)!.members
           .expand((group) => group.categories)
           .expand((candidate) => candidate.items)
@@ -139,6 +147,7 @@ void main() {
       await tester.enterText(addField, 'Casquette');
       await tester.tap(find.byKey(Key('trip-add-item-submit-${category.id}')));
       await tester.pumpAndSettle();
+      _expectNoFlutterError(tester, 'item ajoutÃ©');
       final added = (await database.select(database.tripItems).get())
           .singleWhere((item) => item.name == 'Casquette');
       await tester.ensureVisible(find.byKey(Key('trip-item-${added.id}')));
@@ -147,6 +156,7 @@ void main() {
         const Offset(-320, 0),
       );
       await tester.pumpAndSettle();
+      _expectNoFlutterError(tester, 'item supprimÃ©');
       expect(
         (await database.select(database.tripItems).get())
             .singleWhere((item) => item.id == added.id)
@@ -162,6 +172,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.arrow_back).first);
       await tester.pumpAndSettle();
+      _expectNoFlutterError(tester, 'filtres appliquÃ©s');
       await tester.tap(find.byKey(const Key('trip-state-todo')));
       await tester.tap(find.byKey(Key('trip-person-${member.id}')));
       await tester.pumpAndSettle();
@@ -174,7 +185,7 @@ void main() {
       await tester.tap(find.byKey(Key('trip-item-status-${socks.id}')));
       await tester.pumpAndSettle();
       expect(find.text('Aucun élément à préparer.'), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      _expectNoFlutterError(tester, 'Ã©tat vide');
 
       await _dispose(tester, dependencies);
     },
@@ -390,6 +401,10 @@ void main() {
 Future<void> _pumpData(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
   await tester.pump(const Duration(milliseconds: 300));
+}
+
+void _expectNoFlutterError(WidgetTester tester, String stage) {
+  expect(tester.takeException(), isNull, reason: stage);
 }
 
 Future<void> _narrowScreen(WidgetTester tester) async {

@@ -35,29 +35,19 @@ void main() {
       final trip = (await trips.loadTrip(tripId))!;
 
       expect(trip.selectedPersonalCategoryIds, {fixture.selectedCategoryId});
-      expect(trip.members, hasLength(1));
-      expect(trip.members.single.groupKind, TripMemberGroupKind.personal);
-      expect(
-        trip.members.single.categories.single.items.single.name,
-        'Lunettes privées',
+      final personal = trip.members.singleWhere(
+        (member) => member.groupKind == TripMemberGroupKind.personal,
       );
+      expect(personal.groupKind, TripMemberGroupKind.personal);
+      expect(personal.categories.single.items.single.name, 'Lunettes privées');
       expect(
-        trip.members.single.categories
+        personal.categories
             .expand((category) => category.items)
             .map((item) => item.name),
         isNot(contains('Clés')),
       );
       expect(
-        trip
-            .members
-            .single
-            .categories
-            .single
-            .items
-            .single
-            .sources
-            .single
-            .reasonKind,
+        personal.categories.single.items.single.sources.single.reasonKind,
         GenerationReasonKind.personal,
       );
       expect(await database.select(database.syncOutbox).get(), isEmpty);
@@ -171,9 +161,7 @@ void main() {
 
     expect(find.byKey(const Key('trip-level-personal')), findsOneWidget);
     expect(find.text('Personnel Malone'), findsOneWidget);
-    await tester.tap(
-      find.byKey(const Key('trip-level-personnel-toggle')),
-    );
+    await tester.tap(find.byKey(const Key('trip-level-personnel-toggle')));
     await tester.pumpAndSettle();
     expect(find.text('Personnel Malone'), findsNothing);
     expect(tester.takeException(), isNull);

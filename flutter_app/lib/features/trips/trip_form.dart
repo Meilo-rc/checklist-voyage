@@ -120,6 +120,18 @@ class _TripFormState extends State<TripForm> {
       saveText: 'Valider',
       confirmText: 'Valider',
       cancelText: 'Annuler',
+      builder: (context, child) {
+        final current = Theme.of(context);
+        final compactMaterialText = ThemeData(
+          useMaterial3: true,
+          colorScheme: current.colorScheme,
+          brightness: current.brightness,
+        ).textTheme;
+        return Theme(
+          data: current.copyWith(textTheme: compactMaterialText),
+          child: child!,
+        );
+      },
     );
     if (range != null) {
       setState(() {

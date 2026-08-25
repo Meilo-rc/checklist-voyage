@@ -56,13 +56,20 @@ class SelectionChipGroup extends StatelessWidget {
                       ),
                       child: ChoiceChip(
                         key: Key('trip-choice-${choice.id}'),
-                        label: Text(
-                          choice.label,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        label: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth - 48,
+                          ),
+                          child: Text(
+                            choice.label,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         selected: selected,
                         showCheckmark: false,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: const VisualDensity(vertical: -1),
                         selectedColor: colors.primaryContainer,
                         backgroundColor: colors.surfaceContainerLowest,
                         side: BorderSide(

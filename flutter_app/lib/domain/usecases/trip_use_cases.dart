@@ -63,6 +63,21 @@ class TripUseCases {
   Future<void> renameCategory(String categoryId, String name) =>
       _trips.renameCategory(categoryId, name);
 
+  Future<String> addCategory(
+    String tripId,
+    String? memberId,
+    String name, {
+    String? icon,
+  }) => _trips.addCategory(
+    tripId: tripId,
+    memberId: memberId,
+    name: name,
+    icon: icon,
+  );
+
+  Future<void> setCategoryIcon(String categoryId, String? icon) =>
+      _trips.setCategoryIcon(categoryId, icon);
+
   Future<void> removeCategory(String categoryId) =>
       _trips.removeCategory(categoryId);
 }

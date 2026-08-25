@@ -165,8 +165,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Partagé'), findsOneWidget);
-      expect(find.textContaining('Trajet - Avion'), findsOneWidget);
+      expect(find.text('Partagé'), findsNothing);
+      expect(find.textContaining('Trajet - Avion'), findsNothing);
       expect(
         find.text('${items.length}/${items.length} · 100 %'),
         findsOneWidget,
@@ -183,19 +183,9 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        find.byKey(Key('trip-summary-actions-$ongoingId')),
-        findsOneWidget,
-      );
+      expect(find.byKey(Key('trip-summary-actions-$ongoingId')), findsNothing);
       expect(tester.takeException(), isNull);
-
-      await tester.tap(find.byKey(Key('trip-summary-actions-$ongoingId')));
-      await tester.pumpAndSettle();
-      expect(find.text('Modifier'), findsOneWidget);
-      expect(find.text('Dupliquer'), findsOneWidget);
-      expect(find.text('Archiver'), findsOneWidget);
-      await tester.tapAt(const Offset(12, 120));
-      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
 
       await tester.tap(find.byKey(Key('trip-summary-$ongoingId')));
       await _pumpData(tester);
@@ -305,6 +295,7 @@ void main() {
         find.text(compactDateRangeLabel(startDate, endDate)),
         findsOneWidget,
       );
+      expect(tester.takeException(), isNull);
 
       final selections = <(String, String)>[
         (ids.participantOwner, 'Alex'),
@@ -336,6 +327,7 @@ void main() {
         expect(selected.selected, isTrue);
         expect(selected.showCheckmark, isFalse);
       }
+      expect(tester.takeException(), isNull);
       await tester.ensureVisible(find.byKey(const Key('trip-submit')));
       await tester.tap(find.byKey(const Key('trip-submit')));
       await _pumpData(tester);
@@ -367,6 +359,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Modifier'));
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
       expect(find.text('Modifier le voyage'), findsOneWidget);
       final participantChip = tester.widget<ChoiceChip>(
         find.byKey(Key('trip-choice-${ids.participantOwner}')),

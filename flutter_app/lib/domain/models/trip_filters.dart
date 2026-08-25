@@ -80,12 +80,23 @@ abstract final class TripFilterEngine {
         final items = category.items
             .where((item) => _matchesState(item.status, filter.state))
             .toList(growable: false);
-        if (items.isEmpty) continue;
+        if (items.isEmpty &&
+            !(filter.state == TripStateFilter.all && category.items.isEmpty)) {
+          continue;
+        }
         categories.add(
-          TripCategoryModel(id: category.id, name: category.name, items: items),
+          TripCategoryModel(
+            id: category.id,
+            name: category.name,
+            icon: category.icon,
+            items: items,
+          ),
         );
       }
-      if (categories.isEmpty) continue;
+      if (categories.isEmpty &&
+          !(filter.state == TripStateFilter.all && member.categories.isEmpty)) {
+        continue;
+      }
       result.add(
         TripMemberModel(
           id: member.id,

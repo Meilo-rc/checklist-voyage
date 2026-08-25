@@ -38,6 +38,9 @@ class LibraryUseCases {
   Future<void> renameCategory(String categoryId, String name) =>
       _repository.renameCategory(categoryId, name);
 
+  Future<void> setCategoryIcon(String categoryId, String? icon) =>
+      _repository.setCategoryIcon(categoryId, icon);
+
   Future<void> deleteCategory(String categoryId) =>
       _repository.deleteCategory(categoryId);
 

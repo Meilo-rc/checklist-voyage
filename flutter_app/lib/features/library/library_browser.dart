@@ -4,6 +4,7 @@ import '../../core/presentation/user_message.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/usecases/library_use_cases.dart';
+import '../shared/category_details_page.dart';
 
 class LibraryBrowser extends StatelessWidget {
   const LibraryBrowser({
@@ -39,7 +40,6 @@ class LibraryBrowser extends StatelessWidget {
           children: [
             _UniverseRow(
               key: const Key('library-root-general'),
-              icon: Icons.public_outlined,
               title: 'Général',
               subtitle: _categoryItemSummary(general, scope: 'Partagée'),
               onTap: () => _openUniverse(
@@ -48,20 +48,18 @@ class LibraryBrowser extends StatelessWidget {
                 kind: LibraryOwnerKind.general,
               ),
             ),
-            const Divider(height: 1),
+            const SizedBox(height: AppSpacing.sm),
             _UniverseRow(
               key: const Key('library-root-members'),
-              icon: Icons.group_outlined,
               title: 'Membres',
               subtitle:
                   '${members.length} membre${members.length > 1 ? 's' : ''} · '
                   '${_itemCount(members)} items · Partagée',
               onTap: () => _openMembers(context),
             ),
-            const Divider(height: 1),
+            const SizedBox(height: AppSpacing.sm),
             _UniverseRow(
               key: const Key('library-root-personal'),
-              icon: Icons.person_outline,
               title: 'Personnel',
               subtitle: _categoryItemSummary(personal, scope: 'Locale'),
               onTap: () => _openUniverse(
@@ -112,13 +110,11 @@ class LibraryBrowser extends StatelessWidget {
 class _UniverseRow extends StatelessWidget {
   const _UniverseRow({
     super.key,
-    required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
-  final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -126,40 +122,50 @@ class _UniverseRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final headerColor = Color.alphaBlend(
+      colors.primary.withValues(alpha: dark ? 0.18 : 0.13),
+      colors.surfaceContainerLowest,
+    );
     return Material(
-      color: colors.surface,
+      color: colors.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 58),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            child: Row(
-              children: [
-                SizedBox(width: 40, child: Icon(icon, size: 22)),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
+          child: ColoredBox(
+            color: headerColor,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                      ),
-                    ],
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const Icon(Icons.chevron_right, size: 22),
-              ],
+                  const Icon(Icons.chevron_right, size: 22),
+                ],
+              ),
             ),
           ),
         ),
@@ -357,6 +363,27 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
   String? _editingCategoryId;
   String? _editingItemId;
 
+  Future<void> _openCategoryDetails(LibraryCategoryModel category) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => CategoryDetailsPage(
+          categoryId: category.id,
+          initialName: category.name,
+          initialIcon: category.icon,
+          onRename: (name) => widget.useCases.renameCategory(category.id, name),
+          onIconChanged: (icon) =>
+              widget.useCases.setCategoryIcon(category.id, icon),
+          onDelete: () async {
+            await widget.useCases.deleteCategory(category.id);
+            if (_expandedCategoryId == category.id && mounted) {
+              setState(() => _expandedCategoryId = null);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final editing = _editingCategoryId != null || _editingItemId != null;
@@ -535,7 +562,8 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
               : category.id;
           _editingItemId = null;
         }),
-        onLongPress: () => setState(() => _editingCategoryId = category.id),
+        onLongPress: () => _openCategoryDetails(category),
+        onIconTap: () => _openCategoryDetails(category),
       ),
     );
   }
@@ -634,12 +662,14 @@ class _CategoryHeader extends StatelessWidget {
     required this.expanded,
     required this.onTap,
     required this.onLongPress,
+    required this.onIconTap,
   });
 
   final LibraryCategoryModel category;
   final bool expanded;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+  final VoidCallback onIconTap;
 
   @override
   Widget build(BuildContext context) {
@@ -652,7 +682,17 @@ class _CategoryHeader extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 44),
           child: Row(
             children: [
-              const SizedBox(width: 8),
+              InkWell(
+                key: Key('library-category-icon-${category.id}'),
+                onTap: onIconTap,
+                borderRadius: BorderRadius.circular(AppRadius.field),
+                child: SizedBox.square(
+                  dimension: 40,
+                  child: Center(
+                    child: CategoryIconView(icon: category.icon, size: 22),
+                  ),
+                ),
+              ),
               Expanded(
                 child: Text(
                   category.name,

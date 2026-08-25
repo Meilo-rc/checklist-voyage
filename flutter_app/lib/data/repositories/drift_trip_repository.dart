@@ -221,6 +221,7 @@ class DriftTripRepository implements TripRepository {
       return TripCategoryModel(
         id: category.id,
         name: category.name,
+        icon: category.icon,
         items: items
             .where((item) => item.categoryId == category.id)
             .map(
@@ -1076,6 +1077,73 @@ class DriftTripRepository implements TripRepository {
         _database.tripCategories,
       )..where((row) => row.id.equals(categoryId))).write(
         TripCategoriesCompanion(name: Value(clean), updatedAtLocal: Value(now)),
+      );
+      await _touchTrip(category.tripId, now);
+      if (await _isShared(category.tripId)) {
+        await _sync.recordUpsert(category.tripId, 'trip_category', categoryId);
+      }
+    });
+  }
+
+  @override
+  Future<String> addCategory({
+    required String tripId,
+    required String? memberId,
+    required String name,
+    String? icon,
+  }) async {
+    final clean = name.trim();
+    if (clean.isEmpty) throw ArgumentError.value(name, 'name', 'Nom requis');
+    final id = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      await (_database.select(_database.trips)
+            ..where((row) => row.id.equals(tripId) & row.deletedAt.isNull()))
+          .getSingle();
+      if (memberId != null) {
+        await (_database.select(_database.tripMembers)..where(
+              (row) =>
+                  row.id.equals(memberId) &
+                  row.tripId.equals(tripId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingle();
+      }
+      await _database
+          .into(_database.tripCategories)
+          .insert(
+            TripCategoriesCompanion.insert(
+              id: id,
+              tripId: tripId,
+              memberId: Value(memberId),
+              sourceCategoryId: const Value(null),
+              name: clean,
+              icon: Value(icon),
+              createdAt: now,
+              updatedAtLocal: now,
+            ),
+          );
+      await _touchTrip(tripId, now);
+      if (await _isShared(tripId)) {
+        await _sync.recordUpsert(tripId, 'trip_category', id);
+      }
+    });
+    return id;
+  }
+
+  @override
+  Future<void> setCategoryIcon(String categoryId, String? icon) async {
+    await _database.transaction(() async {
+      final category =
+          await (_database.select(_database.tripCategories)..where(
+                (row) => row.id.equals(categoryId) & row.deletedAt.isNull(),
+              ))
+              .getSingle();
+      final now = DateTime.now().toUtc();
+      await (_database.update(
+        _database.tripCategories,
+      )..where((row) => row.id.equals(categoryId))).write(
+        TripCategoriesCompanion(icon: Value(icon), updatedAtLocal: Value(now)),
       );
       await _touchTrip(category.tripId, now);
       if (await _isShared(category.tripId)) {

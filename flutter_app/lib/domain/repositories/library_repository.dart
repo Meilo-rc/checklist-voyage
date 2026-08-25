@@ -28,6 +28,8 @@ abstract interface class LibraryRepository {
 
   Future<void> renameCategory(String categoryId, String name);
 
+  Future<void> setCategoryIcon(String categoryId, String? icon);
+
   Future<void> deleteCategory(String categoryId);
 
   Future<String> createItem({

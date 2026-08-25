@@ -48,25 +48,32 @@ void main() {
 
     await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
     await _pumpData(tester);
+    _expectNoFlutterError(tester, 'accueil');
     await _showListBody(tester);
+    _expectNoFlutterError(tester, 'liste active');
     expect(find.byKey(Key('trip-summary-$futureId')), findsOneWidget);
     expect(find.byKey(Key('trip-summary-$pastId')), findsNothing);
 
     await tester.tap(find.byKey(const Key('trip-root-menu')));
     await tester.pumpAndSettle();
+    _expectNoFlutterError(tester, 'menu racine');
     await tester.tap(find.text('Archives'));
     await tester.pump(const Duration(milliseconds: 300));
+    _expectNoFlutterError(tester, 'archives');
     expect(find.byKey(Key('trip-summary-$futureId')), findsNothing);
     expect(find.byKey(Key('trip-summary-$pastId')), findsOneWidget);
 
     await tester.tap(find.byKey(Key('trip-summary-$pastId')));
     await _pumpData(tester);
+    _expectNoFlutterError(tester, 'voyage archivÃ©');
     await tester.tap(find.byKey(const Key('trip-actions')));
     await tester.pumpAndSettle();
+    _expectNoFlutterError(tester, 'menu voyage');
     expect(find.text('Archiver'), findsNothing);
     expect(find.text('Restaurer'), findsNothing);
     await tester.tap(find.text('Dupliquer'));
     await tester.pump(const Duration(milliseconds: 300));
+    _expectNoFlutterError(tester, 'dialogue de duplication');
     final destination = tester.widget<TextField>(
       find.byKey(const Key('trip-duplicate-destination')),
     );
@@ -74,24 +81,32 @@ void main() {
     expect(find.textContaining('Structure conservée'), findsOneWidget);
     await tester.tap(find.byKey(const Key('trip-duplicate-submit')));
     await tester.pump();
+    _expectNoFlutterError(tester, 'erreur de duplication');
     expect(find.byKey(const Key('trip-duplicate-error')), findsOneWidget);
     expect(await database.select(database.trips).get(), hasLength(2));
     await tester.tap(find.text('Annuler'));
     await tester.pump();
+    _expectNoFlutterError(tester, 'fermeture de la duplication');
 
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pump(const Duration(milliseconds: 300));
     await _showListBody(tester);
+    _expectNoFlutterError(tester, 'retour aux archives');
     await tester.tap(find.byKey(const Key('trip-root-menu')));
     await tester.pumpAndSettle();
+    _expectNoFlutterError(tester, 'menu archives');
     await tester.tap(find.text('Voyages actifs'));
     await tester.pump(const Duration(milliseconds: 300));
+    _expectNoFlutterError(tester, 'voyages actifs');
     await tester.tap(find.byKey(Key('trip-summary-$futureId')));
     await _pumpData(tester);
+    _expectNoFlutterError(tester, 'voyage actif');
     await tester.tap(find.byKey(const Key('trip-actions')));
     await tester.pumpAndSettle();
+    _expectNoFlutterError(tester, 'actions du voyage actif');
     await tester.tap(find.text('Archiver'));
     await tester.pump(const Duration(milliseconds: 500));
+    _expectNoFlutterError(tester, 'voyage archivÃ©');
     expect(
       (await dependencies.trips.watchTrip(futureId).first)!.archivedAt,
       isNotNull,
@@ -99,8 +114,10 @@ void main() {
 
     await tester.tap(find.byKey(const Key('trip-actions')));
     await tester.pumpAndSettle();
+    _expectNoFlutterError(tester, 'actions du voyage archivÃ©');
     await tester.tap(find.text('Restaurer'));
     await tester.pump(const Duration(milliseconds: 500));
+    _expectNoFlutterError(tester, 'voyage restaurÃ©');
     expect(
       (await dependencies.trips.watchTrip(futureId).first)!.archivedAt,
       isNull,
@@ -183,6 +200,10 @@ void main() {
 Future<void> _pumpData(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
   await tester.pump(const Duration(milliseconds: 300));
+}
+
+void _expectNoFlutterError(WidgetTester tester, String stage) {
+  expect(tester.takeException(), isNull, reason: stage);
 }
 
 Future<void> _showListBody(WidgetTester tester) async {

@@ -11,6 +11,7 @@ import '../../domain/usecases/trip_use_cases.dart';
 import '../../domain/usecases/shared_document_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
 import '../shared/date_range_label.dart';
+import '../shared/category_details_page.dart';
 import '../shared/destination_scaffold.dart';
 import '../shared/item_contexts_sheet.dart';
 import 'trip_form.dart';
@@ -167,34 +168,6 @@ class _TripsScreenState extends State<TripsScreen> {
     }
   }
 
-  Future<void> _handleCardAction(
-    TripSummary summary,
-    _TripCardAction action,
-  ) async {
-    try {
-      if (action == _TripCardAction.archive) {
-        await widget.useCases.archiveTrip(summary.id);
-        return;
-      }
-      if (action == _TripCardAction.restore) {
-        await widget.useCases.restoreTrip(summary.id);
-        return;
-      }
-      final trip = await widget.useCases.watchTrip(summary.id).first;
-      if (trip == null) return;
-      if (action == _TripCardAction.edit) {
-        await _editTrip(trip);
-      } else if (action == _TripCardAction.duplicate) {
-        await _duplicateTrip(trip);
-      }
-    } on Object catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(userMessageFor(error))));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final selected = _selectedTripId;
@@ -239,7 +212,13 @@ class _TripsScreenState extends State<TripsScreen> {
                           size: 20,
                         ),
                         const SizedBox(width: AppSpacing.md),
-                        Text(_showArchives ? 'Voyages actifs' : 'Archives'),
+                        Expanded(
+                          child: Text(
+                            _showArchives ? 'Voyages actifs' : 'Archives',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -339,8 +318,6 @@ class _TripsScreenState extends State<TripsScreen> {
                               archived: true,
                               onTap: () =>
                                   setState(() => _selectedTripId = trip.id),
-                              onAction: (action) =>
-                                  _handleCardAction(trip, action),
                             ),
                           ),
                         ),
@@ -367,8 +344,6 @@ class _TripsScreenState extends State<TripsScreen> {
                               archived: false,
                               onTap: () =>
                                   setState(() => _selectedTripId = trip.id),
-                              onAction: (action) =>
-                                  _handleCardAction(trip, action),
                             ),
                           ),
                         ),
@@ -391,8 +366,6 @@ class _TripsScreenState extends State<TripsScreen> {
                               archived: false,
                               onTap: () =>
                                   setState(() => _selectedTripId = trip.id),
-                              onAction: (action) =>
-                                  _handleCardAction(trip, action),
                             ),
                           ),
                         ),
@@ -499,13 +472,11 @@ class _TripSummaryCard extends StatelessWidget {
     required this.trip,
     required this.archived,
     required this.onTap,
-    required this.onAction,
   });
 
   final TripSummary trip;
   final bool archived;
   final VoidCallback onTap;
-  final Future<void> Function(_TripCardAction action) onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -513,7 +484,6 @@ class _TripSummaryCard extends StatelessWidget {
     final title = trip.destination.trim().isEmpty
         ? trip.name
         : trip.destination;
-    final journey = [...trip.transportNames, ...trip.lodgingNames].join(' · ');
     return Card(
       key: Key('trip-summary-${trip.id}'),
       color: archived ? colors.surfaceContainerLowest : null,
@@ -525,74 +495,11 @@ class _TripSummaryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  if (trip.shared) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    Icon(
-                      Icons.people_outline,
-                      size: 14,
-                      color: colors.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      'Partagé',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(width: AppSpacing.xs),
-                  PopupMenuButton<_TripCardAction>(
-                    key: Key('trip-summary-actions-${trip.id}'),
-                    tooltip: 'Actions du voyage',
-                    position: PopupMenuPosition.under,
-                    padding: EdgeInsets.zero,
-                    iconSize: 20,
-                    constraints: const BoxConstraints(
-                      minWidth: 40,
-                      minHeight: 40,
-                    ),
-                    onSelected: onAction,
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        height: 44,
-                        value: _TripCardAction.edit,
-                        child: Text('Modifier'),
-                      ),
-                      const PopupMenuItem(
-                        height: 44,
-                        value: _TripCardAction.duplicate,
-                        child: Text('Dupliquer'),
-                      ),
-                      if (trip.archivedAt != null)
-                        const PopupMenuItem(
-                          height: 44,
-                          value: _TripCardAction.restore,
-                          child: Text('Restaurer'),
-                        )
-                      else if (!archived &&
-                          !TripArchiveClassifier.isFinished(
-                            trip.endDate,
-                            DateTime.now(),
-                          ))
-                        const PopupMenuItem(
-                          height: 44,
-                          value: _TripCardAction.archive,
-                          child: Text('Archiver'),
-                        ),
-                    ],
-                  ),
-                ],
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
               if (trip.startDate != null || trip.endDate != null) ...[
                 const SizedBox(height: AppSpacing.xs),
@@ -603,17 +510,6 @@ class _TripSummaryCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colors.onSurfaceVariant,
                   ),
-                ),
-              ],
-              if (trip.participantNames.isNotEmpty ||
-                  (!archived && journey.isNotEmpty)) ...[
-                const SizedBox(height: AppSpacing.sm),
-                _SummaryLine(
-                  label: [
-                    if (trip.participantNames.isNotEmpty)
-                      trip.participantNames.join(', '),
-                    if (!archived && journey.isNotEmpty) journey,
-                  ].join(' · '),
                 ),
               ],
               if (!archived) ...[
@@ -643,33 +539,6 @@ class _TripSummaryCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-enum _TripCardAction { edit, duplicate, archive, restore }
-
-class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -770,20 +639,45 @@ class _DuplicateTripDialogState extends State<_DuplicateTripDialog> {
                 decoration: const InputDecoration(labelText: 'Destination'),
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  OutlinedButton.icon(
+                  OutlinedButton(
                     key: const Key('trip-duplicate-start'),
                     onPressed: _pickStart,
-                    icon: const Icon(Icons.calendar_today_outlined),
-                    label: Text(_dateLabel(_startDate, 'Nouveau départ')),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.calendar_today_outlined),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Text(
+                            _dateLabel(_startDate, 'Nouveau départ'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  OutlinedButton.icon(
+                  const SizedBox(height: AppSpacing.xs),
+                  OutlinedButton(
                     key: const Key('trip-duplicate-end'),
                     onPressed: _pickEnd,
-                    icon: const Icon(Icons.event_outlined),
-                    label: Text(_dateLabel(_endDate, 'Nouveau retour')),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.event_outlined),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Text(
+                            _dateLabel(_endDate, 'Nouveau retour'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1116,7 +1010,6 @@ class _TripOverviewState extends State<_TripOverview> {
                 if (general.isNotEmpty)
                   _TripLevelBlock(
                     key: const Key('trip-level-general'),
-                    icon: Icons.public_outlined,
                     title: 'Général',
                     members: general,
                     trip: widget.trip,
@@ -1130,7 +1023,6 @@ class _TripOverviewState extends State<_TripOverview> {
                 if (family.isNotEmpty)
                   _TripLevelBlock(
                     key: const Key('trip-level-members'),
-                    icon: Icons.group_outlined,
                     title: 'Membres',
                     members: family,
                     trip: widget.trip,
@@ -1145,7 +1037,6 @@ class _TripOverviewState extends State<_TripOverview> {
                 if (personal.isNotEmpty)
                   _TripLevelBlock(
                     key: const Key('trip-level-personal'),
-                    icon: Icons.person_outline,
                     title: 'Personnel',
                     members: personal,
                     trip: widget.trip,
@@ -1166,7 +1057,6 @@ class _TripOverviewState extends State<_TripOverview> {
 class _TripLevelBlock extends StatelessWidget {
   const _TripLevelBlock({
     super.key,
-    required this.icon,
     required this.title,
     required this.members,
     required this.trip,
@@ -1175,7 +1065,6 @@ class _TripLevelBlock extends StatelessWidget {
     required this.onSelected,
   });
 
-  final IconData icon;
   final String title;
   final List<TripMemberModel> members;
   final TripDetailModel trip;
@@ -1227,8 +1116,6 @@ class _TripLevelBlock extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(icon, size: 21, color: colors.primary),
-                      const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
                           title,
@@ -1263,9 +1150,6 @@ class _TripLevelBlock extends StatelessWidget {
                 if (index > 0) const Divider(height: 1, indent: 48),
                 _TripNavigationRow(
                   key: Key('trip-member-${member.id}'),
-                  icon: title == 'Membres' || title == 'Personnel'
-                      ? Icons.person_outline
-                      : Icons.folder_outlined,
                   title: member.name,
                   progress: memberProgress,
                   onTap: () => onSelected(member.id),
@@ -1281,13 +1165,11 @@ class _TripLevelBlock extends StatelessWidget {
 class _TripNavigationRow extends StatelessWidget {
   const _TripNavigationRow({
     super.key,
-    required this.icon,
     required this.title,
     required this.progress,
     required this.onTap,
   });
 
-  final IconData icon;
   final String title;
   final ChecklistProgress progress;
   final VoidCallback onTap;
@@ -1298,7 +1180,6 @@ class _TripNavigationRow extends StatelessWidget {
       dense: true,
       visualDensity: const VisualDensity(vertical: -2),
       contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      leading: Icon(icon, size: 20),
       title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1401,6 +1282,13 @@ class _TripFilters extends StatelessWidget {
                         key: Key('trip-state-${state.name}'),
                         label: Text(_stateFilterLabel(state)),
                         selected: filter.state == state,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: const VisualDensity(
+                          horizontal: -2,
+                          vertical: -3,
+                        ),
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
                         selectedColor: Theme.of(
                           context,
                         ).colorScheme.primaryContainer,
@@ -1428,6 +1316,13 @@ class _TripFilters extends StatelessWidget {
                         key: Key(_personFilterKey(option.filter)),
                         label: Text(option.label),
                         selected: filter.person == option.filter,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: const VisualDensity(
+                          horizontal: -2,
+                          vertical: -3,
+                        ),
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
                         selectedColor: Theme.of(
                           context,
                         ).colorScheme.primaryContainer,
@@ -1547,10 +1442,13 @@ class _TripMemberPage extends StatefulWidget {
 class _TripMemberPageState extends State<_TripMemberPage> {
   final _addController = TextEditingController();
   final _addFocus = FocusNode();
+  final _categoryController = TextEditingController();
+  final _categoryFocus = FocusNode();
   final _editController = TextEditingController();
   String? _expandedCategoryId;
   String? _editingItemId;
   bool _adding = false;
+  bool _addingCategory = false;
 
   @override
   void didUpdateWidget(covariant _TripMemberPage oldWidget) {
@@ -1568,6 +1466,8 @@ class _TripMemberPageState extends State<_TripMemberPage> {
   void dispose() {
     _addController.dispose();
     _addFocus.dispose();
+    _categoryController.dispose();
+    _categoryFocus.dispose();
     _editController.dispose();
     super.dispose();
   }
@@ -1599,6 +1499,97 @@ class _TripMemberPageState extends State<_TripMemberPage> {
     } finally {
       if (mounted) setState(() => _adding = false);
     }
+  }
+
+  Future<void> _addCategory() async {
+    final name = _categoryController.text.trim();
+    if (name.isEmpty || _addingCategory) return;
+    setState(() => _addingCategory = true);
+    try {
+      await widget.useCases.addCategory(
+        widget.tripId,
+        widget.member.groupKind == TripMemberGroupKind.general
+            ? null
+            : widget.member.id,
+        name,
+      );
+      _categoryController.clear();
+    } on Object catch (error) {
+      _message(userMessageFor(error));
+    } finally {
+      if (mounted) setState(() => _addingCategory = false);
+    }
+  }
+
+  Future<void> _openCategoryDetails(TripCategoryModel category) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => CategoryDetailsPage(
+          categoryId: category.id,
+          initialName: category.name,
+          initialIcon: category.icon,
+          onRename: (name) => widget.useCases.renameCategory(category.id, name),
+          onIconChanged: (icon) =>
+              widget.useCases.setCategoryIcon(category.id, icon),
+          onDelete: () async {
+            await widget.useCases.removeCategory(category.id);
+            if (_expandedCategoryId == category.id && mounted) {
+              setState(() => _expandedCategoryId = null);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _handleCategorySwipe(
+    TripCategoryModel category,
+    DismissDirection direction,
+  ) async {
+    if (direction == DismissDirection.startToEnd) {
+      await _openCategoryDetails(category);
+      return false;
+    }
+    try {
+      await widget.useCases.removeCategory(category.id);
+      if (_expandedCategoryId == category.id && mounted) {
+        setState(() => _expandedCategoryId = null);
+      }
+      return true;
+    } on Object catch (error) {
+      _message(userMessageFor(error));
+      return false;
+    }
+  }
+
+  Widget _buildCategoryHeader(
+    TripCategoryModel category,
+    TripCategoryModel completeCategory,
+  ) {
+    return Dismissible(
+      key: Key('trip-category-dismiss-${category.id}'),
+      confirmDismiss: (direction) => _handleCategorySwipe(category, direction),
+      background: const _TripSwipeAction(
+        alignment: Alignment.centerLeft,
+        icon: Icons.edit_outlined,
+        label: 'Modifier',
+      ),
+      secondaryBackground: const _TripSwipeAction(
+        alignment: Alignment.centerRight,
+        icon: Icons.delete_outline,
+        label: 'Supprimer',
+        destructive: true,
+      ),
+      child: _TripCategoryHeader(
+        key: Key('trip-category-${category.id}'),
+        category: category,
+        progress: ProgressCalculator.forCategory(completeCategory),
+        expanded: _expandedCategoryId == category.id,
+        onTap: () => _toggleCategory(category.id),
+        onLongPress: () => _openCategoryDetails(category),
+        onIconTap: () => _openCategoryDetails(category),
+      ),
+    );
   }
 
   void _startEditing(TripItemModel item) {
@@ -1726,14 +1717,9 @@ class _TripMemberPageState extends State<_TripMemberPage> {
             return KeyedSubtree(
               key: ValueKey(row.stableKey),
               child: switch (row.kind) {
-                _TripMemberRowKind.category => _TripCategoryHeader(
-                  key: Key('trip-category-${row.category.id}'),
-                  category: row.category,
-                  progress: ProgressCalculator.forCategory(
-                    row.completeCategory,
-                  ),
-                  expanded: _expandedCategoryId == row.category.id,
-                  onTap: () => _toggleCategory(row.category.id),
+                _TripMemberRowKind.category => _buildCategoryHeader(
+                  row.category,
+                  row.completeCategory,
                 ),
                 _TripMemberRowKind.item => _TripItemRow(
                   key: Key('trip-item-${row.item!.id}'),
@@ -1768,6 +1754,23 @@ class _TripMemberPageState extends State<_TripMemberPage> {
               },
             );
           },
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(
+            child: _InlineTripCategoryAdder(
+              key: Key('trip-add-category-${widget.member.id}'),
+              controller: _categoryController,
+              focusNode: _categoryFocus,
+              adding: _addingCategory,
+              onAdd: _addCategory,
+            ),
+          ),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
       ],
@@ -1835,12 +1838,16 @@ class _TripCategoryHeader extends StatelessWidget {
     required this.progress,
     required this.expanded,
     required this.onTap,
+    required this.onLongPress,
+    required this.onIconTap,
   });
 
   final TripCategoryModel category;
   final ChecklistProgress progress;
   final bool expanded;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
+  final VoidCallback onIconTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1849,12 +1856,24 @@ class _TripCategoryHeader extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
               children: [
+                InkWell(
+                  key: Key('trip-category-icon-${category.id}'),
+                  onTap: onIconTap,
+                  borderRadius: BorderRadius.circular(AppRadius.field),
+                  child: SizedBox.square(
+                    dimension: 40,
+                    child: Center(
+                      child: CategoryIconView(icon: category.icon, size: 22),
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: Text(
                     category.name,
@@ -2136,6 +2155,135 @@ class _QuantityButton extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       onPressed: onPressed,
       icon: Icon(icon, size: 20),
+    );
+  }
+}
+
+class _InlineTripCategoryAdder extends StatefulWidget {
+  const _InlineTripCategoryAdder({
+    super.key,
+    required this.controller,
+    required this.focusNode,
+    required this.adding,
+    required this.onAdd,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool adding;
+  final Future<void> Function() onAdd;
+
+  @override
+  State<_InlineTripCategoryAdder> createState() =>
+      _InlineTripCategoryAdderState();
+}
+
+class _InlineTripCategoryAdderState extends State<_InlineTripCategoryAdder> {
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_collapseWhenEmpty);
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_collapseWhenEmpty);
+    super.dispose();
+  }
+
+  void _collapseWhenEmpty() {
+    if (!widget.focusNode.hasFocus &&
+        _editing &&
+        widget.controller.text.trim().isEmpty) {
+      setState(() => _editing = false);
+    }
+  }
+
+  void _activate() {
+    if (_editing) return;
+    setState(() => _editing = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.focusNode.requestFocus();
+    });
+  }
+
+  Future<void> _submit() async {
+    if (widget.controller.text.trim().isEmpty || widget.adding) return;
+    await widget.onAdd();
+    if (mounted && widget.controller.text.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.focusNode.requestFocus();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_editing) {
+      return InkWell(
+        key: const Key('trip-add-category-collapsed'),
+        onTap: _activate,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Ajouter une catégorie',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              IconButton.filledTonal(
+                tooltip: 'Ajouter une catégorie',
+                constraints: const BoxConstraints.tightFor(
+                  width: 40,
+                  height: 40,
+                ),
+                padding: EdgeInsets.zero,
+                onPressed: _activate,
+                icon: const Icon(Icons.add, size: 19),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            key: const Key('trip-add-category-field'),
+            controller: widget.controller,
+            focusNode: widget.focusNode,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _submit(),
+            onTapOutside: (_) => widget.focusNode.unfocus(),
+            decoration: const InputDecoration(
+              hintText: 'Ajouter une catégorie…',
+              isDense: true,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        IconButton.filledTonal(
+          key: const Key('trip-add-category-submit'),
+          tooltip: 'Ajouter',
+          constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+          padding: EdgeInsets.zero,
+          onPressed: widget.adding ? null : _submit,
+          icon: widget.adding
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.add),
+        ),
+      ],
     );
   }
 }

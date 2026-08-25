@@ -44,9 +44,10 @@ void main() {
       await tester.tap(find.text('Listes rapides').last);
       await _pumpData(tester);
 
-      expect(find.byType(Card), findsNothing);
-      expect(find.text('1/20'), findsOneWidget);
-      expect(find.text('0/1'), findsOneWidget);
+      expect(find.byType(Card), findsNWidgets(2));
+      expect(find.byType(LinearProgressIndicator), findsNWidgets(2));
+      expect(find.text('1/20'), findsNothing);
+      expect(find.text('0/1'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.tap(find.byKey(Key('quick-summary-$listId')));
       await _pumpData(tester);
@@ -188,7 +189,7 @@ void main() {
     await _pumpData(tester);
     await tester.tap(find.text('Listes rapides').last);
     await _pumpData(tester);
-    expect(find.text('Partagé'), findsOneWidget);
+    expect(find.text('Partagé'), findsNothing);
     expect(find.byKey(const Key('quick-join')), findsOneWidget);
     expect(
       Theme.of(tester.element(find.text('Liste partagée'))).brightness,

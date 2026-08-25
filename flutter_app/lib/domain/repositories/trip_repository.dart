@@ -35,5 +35,14 @@ abstract interface class TripRepository {
 
   Future<void> renameCategory(String categoryId, String name);
 
+  Future<String> addCategory({
+    required String tripId,
+    required String? memberId,
+    required String name,
+    String? icon,
+  });
+
+  Future<void> setCategoryIcon(String categoryId, String? icon);
+
   Future<void> removeCategory(String categoryId);
 }
