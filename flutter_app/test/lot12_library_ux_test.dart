@@ -57,6 +57,10 @@ void main() {
     await _pumpData(tester);
 
     expect(find.byKey(const Key('library-root-general')), findsOneWidget);
+    expect(
+      find.byKey(const Key('library-root-add-category-general')),
+      findsOneWidget,
+    );
     expect(find.textContaining('23 items'), findsWidgets);
     expect(find.byType(Card), findsNothing);
     final generalTitle = tester.widget<Text>(
@@ -86,19 +90,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.byKey(Key('library-category-page-$firstCategory')),
+      findsNothing,
+    );
+    final colors = Theme.of(
+      tester.element(
+        find.byKey(Key('library-category-header-surface-$firstCategory')),
+      ),
+    ).colorScheme;
+    expect(
+      tester
+          .widget<Material>(
+            find.byKey(Key('library-category-header-surface-$firstCategory')),
+          )
+          .color,
+      colors.surfaceContainer,
+    );
+    expect(
+      tester
+          .widget<Material>(
+            find.byKey(Key('library-category-items-surface-$firstCategory')),
+          )
+          .color,
+      colors.surfaceContainerLowest,
+    );
+    expect(find.byKey(Key('library-item-${itemIds.first}')), findsOneWidget);
+    expect(
+      find.byKey(Key('library-item-bullet-${itemIds.first}')),
       findsOneWidget,
     );
-    final pageTitle = tester.widget<Text>(
-      find.descendant(
-        of: find.byType(SliverAppBar),
-        matching: find.text(
-          'Accessoires de voyage au nom volontairement très long',
-        ),
-      ),
-    );
-    expect(pageTitle.style?.fontSize, 22);
-    expect(pageTitle.style?.fontWeight, FontWeight.w700);
-    expect(find.byKey(Key('library-item-${itemIds.first}')), findsOneWidget);
     expect(
       find.byKey(Key('library-item-minus-${itemIds.first}')),
       findsNothing,
@@ -135,9 +154,6 @@ void main() {
       findsNothing,
     );
 
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-
     await tester.scrollUntilVisible(
       find.byKey(Key('library-category-$secondCategory')),
       220,
@@ -147,6 +163,60 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(Key('library-item-${itemIds.first}')), findsNothing);
     expect(find.byKey(Key('library-item-$documentItem')), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(Key('library-add-item-collapsed-$secondCategory')),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(
+      tester.getTopLeft(find.text('Passeport')).dx,
+      closeTo(tester.getTopLeft(find.text('Ajouter un item')).dx, 0.5),
+    );
+    expect(tester.takeException(), isNull);
+
+    await _dispose(tester, dependencies);
+  });
+
+  testWidgets('Général permet d’ajouter une catégorie depuis la racine', (
+    tester,
+  ) async {
+    await _narrowScreen(tester, Brightness.light);
+    final database = AppDatabase(NativeDatabase.memory());
+    final library = DriftLibraryRepository(database);
+    final generalId = await library.createOwner(
+      name: 'Général',
+      kind: LibraryOwnerKind.general,
+      generationRole: GenerationRole.general,
+    );
+    final dependencies = await AppDependencies.create(
+      database: database,
+      autoSync: false,
+    );
+
+    await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
+    await _pumpData(tester);
+    await tester.tap(find.text('Bibliothèque'));
+    await _pumpData(tester);
+    await tester.tap(
+      find.byKey(const Key('library-root-add-category-general')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('library-root-add-category-general-field')),
+      'Santé',
+    );
+    await tester.tap(
+      find.byKey(const Key('library-root-add-category-general-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    final category = (await database.select(database.libraryCategories).get())
+        .singleWhere(
+          (candidate) =>
+              candidate.ownerId == generalId && candidate.name == 'Santé',
+        );
+    expect(category.deletedAt, isNull);
+    expect(find.byType(AlertDialog), findsNothing);
     expect(tester.takeException(), isNull);
 
     await _dispose(tester, dependencies);

@@ -1607,6 +1607,58 @@ class _TripMemberPageState extends State<_TripMemberPage> {
     );
   }
 
+  Widget _buildCategoryBlock(
+    TripCategoryModel category,
+    TripCategoryModel completeCategory,
+  ) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      key: ValueKey('category-block:${category.id}'),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Material(
+        key: Key('trip-category-items-surface-${category.id}'),
+        color: colors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildCategoryHeader(category, completeCategory),
+            if (_expandedCategoryId == category.id) ...[
+              ...category.items.map(
+                (item) => _TripItemRow(
+                  key: Key('trip-item-${item.id}'),
+                  item: item,
+                  editing: _editingItemId == item.id,
+                  editController: _editController,
+                  onCycle: () => widget.useCases.cycleItemStatus(item.id),
+                  onDecrease: item.quantity <= 1
+                      ? null
+                      : () => widget.useCases.changeItemQuantity(item.id, -1),
+                  onIncrease: item.quantity >= 99
+                      ? null
+                      : () => widget.useCases.changeItemQuantity(item.id, 1),
+                  onRename: () => _saveEditing(item.id),
+                  onCancelRename: () => setState(() => _editingItemId = null),
+                  onLongPress: () => _manageContexts(item),
+                  confirmDismiss: (direction) => _handleSwipe(item, direction),
+                ),
+              ),
+              _InlineTripItemAdder(
+                key: Key('trip-inline-adder-${category.id}'),
+                categoryId: category.id,
+                controller: _addController,
+                focusNode: _addFocus,
+                adding: _adding,
+                onAdd: () => _addItem(category),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   void _startEditing(TripItemModel item) {
     setState(() {
       _editingItemId = item.id;
@@ -1683,21 +1735,6 @@ class _TripMemberPageState extends State<_TripMemberPage> {
   @override
   Widget build(BuildContext context) {
     final progress = ProgressCalculator.forMember(widget.completeMember);
-    final rows = <_TripMemberRow>[];
-    for (final category in widget.member.categories) {
-      final completeCategory = widget.completeMember.categories.singleWhere(
-        (candidate) => candidate.id == category.id,
-      );
-      rows.add(_TripMemberRow.category(category, completeCategory));
-      if (_expandedCategoryId == category.id) {
-        rows.addAll(
-          category.items.map(
-            (item) => _TripMemberRow.item(category, completeCategory, item),
-          ),
-        );
-        rows.add(_TripMemberRow.adder(category, completeCategory));
-      }
-    }
     return CustomScrollView(
       key: Key('trip-member-page-${widget.member.id}'),
       slivers: [
@@ -1723,55 +1760,17 @@ class _TripMemberPageState extends State<_TripMemberPage> {
             child: _CompactProgress(progress: progress),
           ),
         ),
-        SliverList.builder(
-          itemCount: rows.length,
-          findChildIndexCallback: (key) {
-            final value = (key as ValueKey<String>).value;
-            final index = rows.indexWhere((row) => row.stableKey == value);
-            return index < 0 ? null : index;
-          },
-          itemBuilder: (context, index) {
-            final row = rows[index];
-            return KeyedSubtree(
-              key: ValueKey(row.stableKey),
-              child: switch (row.kind) {
-                _TripMemberRowKind.category => _buildCategoryHeader(
-                  row.category,
-                  row.completeCategory,
-                ),
-                _TripMemberRowKind.item => _TripItemRow(
-                  key: Key('trip-item-${row.item!.id}'),
-                  item: row.item!,
-                  editing: _editingItemId == row.item!.id,
-                  editController: _editController,
-                  onCycle: () => widget.useCases.cycleItemStatus(row.item!.id),
-                  onDecrease: row.item!.quantity <= 1
-                      ? null
-                      : () => widget.useCases.changeItemQuantity(
-                          row.item!.id,
-                          -1,
-                        ),
-                  onIncrease: row.item!.quantity >= 99
-                      ? null
-                      : () =>
-                            widget.useCases.changeItemQuantity(row.item!.id, 1),
-                  onRename: () => _saveEditing(row.item!.id),
-                  onCancelRename: () => setState(() => _editingItemId = null),
-                  onLongPress: () => _manageContexts(row.item!),
-                  confirmDismiss: (direction) =>
-                      _handleSwipe(row.item!, direction),
-                ),
-                _TripMemberRowKind.adder => _InlineTripItemAdder(
-                  key: Key('trip-inline-adder-${row.category.id}'),
-                  categoryId: row.category.id,
-                  controller: _addController,
-                  focusNode: _addFocus,
-                  adding: _adding,
-                  onAdd: () => _addItem(row.category),
-                ),
-              },
-            );
-          },
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          sliver: SliverList.builder(
+            itemCount: widget.member.categories.length,
+            itemBuilder: (context, index) {
+              final category = widget.member.categories[index];
+              final completeCategory = widget.completeMember.categories
+                  .singleWhere((candidate) => candidate.id == category.id);
+              return _buildCategoryBlock(category, completeCategory);
+            },
+          ),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(
@@ -1790,63 +1789,14 @@ class _TripMemberPageState extends State<_TripMemberPage> {
             ),
           ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: MediaQuery.paddingOf(context).bottom + AppSpacing.lg,
+          ),
+        ),
       ],
     );
   }
-}
-
-enum _TripMemberRowKind { category, item, adder }
-
-class _TripMemberRow {
-  const _TripMemberRow._(
-    this.kind,
-    this.category,
-    this.completeCategory,
-    this.item,
-  );
-
-  factory _TripMemberRow.category(
-    TripCategoryModel category,
-    TripCategoryModel completeCategory,
-  ) => _TripMemberRow._(
-    _TripMemberRowKind.category,
-    category,
-    completeCategory,
-    null,
-  );
-
-  factory _TripMemberRow.item(
-    TripCategoryModel category,
-    TripCategoryModel completeCategory,
-    TripItemModel item,
-  ) => _TripMemberRow._(
-    _TripMemberRowKind.item,
-    category,
-    completeCategory,
-    item,
-  );
-
-  factory _TripMemberRow.adder(
-    TripCategoryModel category,
-    TripCategoryModel completeCategory,
-  ) => _TripMemberRow._(
-    _TripMemberRowKind.adder,
-    category,
-    completeCategory,
-    null,
-  );
-
-  final _TripMemberRowKind kind;
-  final TripCategoryModel category;
-  final TripCategoryModel completeCategory;
-  final TripItemModel? item;
-
-  String get stableKey => switch (kind) {
-    _TripMemberRowKind.category => 'category:${category.id}',
-    _TripMemberRowKind.item => 'item:${item!.id}',
-    _TripMemberRowKind.adder => 'adder:${category.id}',
-  };
 }
 
 class _TripCategoryHeader extends StatelessWidget {
@@ -1871,7 +1821,8 @@ class _TripCategoryHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.transparent,
+      key: Key('trip-category-header-surface-${category.id}'),
+      color: colors.surfaceContainer,
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
@@ -2245,63 +2196,79 @@ class _InlineTripCategoryAdderState extends State<_InlineTripCategoryAdder> {
         onTap: _activate,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Ajouter une catégorie',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 52),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Ajouter une catégorie',
+                    style: AppTextScale.of(context).body.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
-              ),
-              IconButton.filledTonal(
-                tooltip: 'Ajouter une catégorie',
-                constraints: const BoxConstraints.tightFor(
-                  width: 40,
-                  height: 40,
+                IconButton.filledTonal(
+                  tooltip: 'Ajouter une catégorie',
+                  constraints: const BoxConstraints.tightFor(
+                    width: 40,
+                    height: 40,
+                  ),
+                  padding: EdgeInsets.zero,
+                  onPressed: _activate,
+                  icon: const Icon(Icons.add, size: 19),
                 ),
-                padding: EdgeInsets.zero,
-                onPressed: _activate,
-                icon: const Icon(Icons.add, size: 19),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
     }
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            key: const Key('trip-add-category-field'),
-            controller: widget.controller,
-            focusNode: widget.focusNode,
-            textCapitalization: TextCapitalization.sentences,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-            onTapOutside: (_) => widget.focusNode.unfocus(),
-            decoration: const InputDecoration(
-              hintText: 'Ajouter une catégorie…',
-              isDense: true,
+    return Padding(
+      padding: const EdgeInsets.only(left: 52),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              key: const Key('trip-add-category-field'),
+              controller: widget.controller,
+              focusNode: widget.focusNode,
+              style: AppTextScale.of(context).body,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              onTapOutside: (_) => widget.focusNode.unfocus(),
+              decoration: InputDecoration(
+                hintText: 'Ajouter une catégorie…',
+                hintStyle: AppTextScale.of(context).body.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                isDense: true,
+                filled: true,
+                fillColor: Colors.transparent,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        IconButton.filledTonal(
-          key: const Key('trip-add-category-submit'),
-          tooltip: 'Ajouter',
-          constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-          padding: EdgeInsets.zero,
-          onPressed: widget.adding ? null : _submit,
-          icon: widget.adding
-              ? const SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.add),
-        ),
-      ],
+          const SizedBox(width: AppSpacing.xs),
+          IconButton.filledTonal(
+            key: const Key('trip-add-category-submit'),
+            tooltip: 'Ajouter',
+            constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+            padding: EdgeInsets.zero,
+            onPressed: widget.adding ? null : _submit,
+            icon: widget.adding
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2391,7 +2358,7 @@ class _InlineTripItemAdderState extends State<_InlineTripItemAdder> {
                 Expanded(
                   child: Text(
                     'Ajouter un item',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: AppTextScale.of(context).body.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -2427,13 +2394,23 @@ class _InlineTripItemAdderState extends State<_InlineTripItemAdder> {
               key: Key('trip-add-item-${widget.categoryId}'),
               controller: widget.controller,
               focusNode: widget.focusNode,
+              style: AppTextScale.of(context).body,
               textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
               onTapOutside: (_) => widget.focusNode.unfocus(),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Ajouter un item…',
+                hintStyle: AppTextScale.of(context).body.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 isDense: true,
+                filled: true,
+                fillColor: Colors.transparent,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
           ),

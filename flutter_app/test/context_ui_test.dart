@@ -90,8 +90,6 @@ void main() {
 
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('library-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('library-contexts')));

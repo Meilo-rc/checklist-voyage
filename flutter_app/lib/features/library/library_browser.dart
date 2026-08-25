@@ -64,6 +64,8 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
                     setState(() => _generalExpanded = !_generalExpanded),
                 children: [
                   ...general.map(_buildOwner),
+                  if (general.isNotEmpty)
+                    _rootCategoryAdder(general.first, 'general'),
                   if (general.isEmpty)
                     _ownerAdder(
                       kind: LibraryOwnerKind.general,
@@ -99,6 +101,8 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
                     setState(() => _personalExpanded = !_personalExpanded),
                 children: [
                   ...personal.map(_buildOwner),
+                  if (personal.isNotEmpty)
+                    _rootCategoryAdder(personal.first, 'personal'),
                   if (personal.isEmpty)
                     _ownerAdder(
                       kind: LibraryOwnerKind.personal,
@@ -131,6 +135,18 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
           onError: widget.onMessage,
         ),
       );
+
+  Widget _rootCategoryAdder(LibraryOwnerModel owner, String scope) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+    child: _InlineLibraryAdder(
+      key: Key('library-root-add-category-$scope'),
+      label: 'Ajouter une catégorie',
+      fieldKey: Key('library-root-add-category-$scope-field'),
+      submitKey: Key('library-root-add-category-$scope-submit'),
+      onSubmit: (name) => widget.useCases.createCategory(owner.id, name),
+      onError: widget.onMessage,
+    ),
+  );
 
   Widget _buildOwner(LibraryOwnerModel owner) {
     if (_editingOwnerId == owner.id) {
@@ -366,7 +382,9 @@ class _LibraryUniversePage extends StatefulWidget {
 }
 
 class _LibraryUniversePageState extends State<_LibraryUniversePage> {
+  String? _expandedCategoryId;
   String? _editingCategoryId;
+  String? _editingItemId;
 
   Future<void> _openCategoryDetails(LibraryCategoryModel category) async {
     await Navigator.of(context).push<void>(
@@ -378,21 +396,12 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
           onRename: (name) => widget.useCases.renameCategory(category.id, name),
           onIconChanged: (icon) =>
               widget.useCases.setCategoryIcon(category.id, icon),
-          onDelete: () => widget.useCases.deleteCategory(category.id),
-        ),
-      ),
-    );
-  }
-
-  void _openCategory(LibraryCategoryModel category) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => _LibraryCategoryPage(
-          categoryId: category.id,
-          fallbackTitle: category.name,
-          useCases: widget.useCases,
-          onManageContexts: widget.onManageContexts,
-          onMessage: widget.onMessage,
+          onDelete: () async {
+            await widget.useCases.deleteCategory(category.id);
+            if (_expandedCategoryId == category.id && mounted) {
+              setState(() => _expandedCategoryId = null);
+            }
+          },
         ),
       ),
     );
@@ -400,45 +409,54 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
 
   @override
   Widget build(BuildContext context) {
-    final editing = _editingCategoryId != null;
+    final editing = _editingCategoryId != null || _editingItemId != null;
     return PopScope(
       canPop: !editing,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && editing) {
           setState(() {
             _editingCategoryId = null;
+            _editingItemId = null;
           });
         }
       },
       child: Scaffold(
         key: Key('library-${widget.kind.name}-page'),
-        body: StreamBuilder<List<LibraryOwnerModel>>(
-          stream: widget.useCases.watchLibrary(),
-          builder: (context, snapshot) {
-            final owners = (snapshot.data ?? const <LibraryOwnerModel>[])
-                .where(
-                  (owner) =>
-                      owner.kind == widget.kind &&
-                      (widget.ownerId == null || owner.id == widget.ownerId),
-                )
-                .toList(growable: false);
-            final rows = _buildRows(owners);
-            return CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  title: Text(
-                    widget.title,
-                    style: AppTextScale.of(context).pageTitle,
+        body: SafeArea(
+          child: StreamBuilder<List<LibraryOwnerModel>>(
+            stream: widget.useCases.watchLibrary(),
+            builder: (context, snapshot) {
+              final owners = (snapshot.data ?? const <LibraryOwnerModel>[])
+                  .where(
+                    (owner) =>
+                        owner.kind == widget.kind &&
+                        (widget.ownerId == null || owner.id == widget.ownerId),
+                  )
+                  .toList(growable: false);
+              final rows = _buildRows(owners);
+              return CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    pinned: true,
+                    title: Text(
+                      widget.title,
+                      style: AppTextScale.of(context).pageTitle,
+                    ),
                   ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                  sliver: SliverList.list(children: rows),
-                ),
-              ],
-            );
-          },
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                    sliver: SliverList.list(children: rows),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height:
+                          MediaQuery.paddingOf(context).bottom + AppSpacing.xl,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -473,12 +491,13 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
       rows.add(
         Padding(
           key: ValueKey('category-adder:${owner.id}'),
-          padding: const EdgeInsets.only(left: 8, bottom: 4),
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: _InlineLibraryAdder(
             key: Key('library-add-category-${owner.id}'),
             label: 'Ajouter une catégorie',
             fieldKey: Key('library-add-category-field-${owner.id}'),
             submitKey: Key('library-add-category-submit-${owner.id}'),
+            contentIndent: 52,
             onSubmit: (name) => widget.useCases.createCategory(owner.id, name),
             onError: widget.onMessage,
           ),
@@ -490,171 +509,96 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
 
   Widget _buildCategory(LibraryCategoryModel category) {
     if (_editingCategoryId == category.id) {
-      return _InlineRenameRow(
-        initialValue: category.name,
-        onCancel: () => setState(() => _editingCategoryId = null),
-        onSubmit: (name) async {
-          await widget.useCases.renameCategory(category.id, name);
-          if (mounted) setState(() => _editingCategoryId = null);
-        },
-        onError: widget.onMessage,
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+        child: Material(
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          clipBehavior: Clip.antiAlias,
+          child: _InlineRenameRow(
+            initialValue: category.name,
+            onCancel: () => setState(() => _editingCategoryId = null),
+            onSubmit: (name) async {
+              await widget.useCases.renameCategory(category.id, name);
+              if (mounted) setState(() => _editingCategoryId = null);
+            },
+            onError: widget.onMessage,
+          ),
+        ),
       );
     }
-    return Dismissible(
-      key: Key('library-category-dismiss-${category.id}'),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          setState(() => _editingCategoryId = category.id);
-          return false;
-        }
-        try {
-          await widget.useCases.deleteCategory(category.id);
-          return true;
-        } on Object catch (error) {
-          widget.onMessage(userMessageFor(error));
-          return false;
-        }
-      },
-      background: const _LibrarySwipeAction(
-        alignment: Alignment.centerLeft,
-        icon: Icons.edit_outlined,
-        label: 'Modifier',
-      ),
-      secondaryBackground: const _LibrarySwipeAction(
-        alignment: Alignment.centerRight,
-        icon: Icons.delete_outline,
-        label: 'Supprimer',
-        destructive: true,
-      ),
-      child: _CategoryHeader(
-        key: Key('library-category-${category.id}'),
-        category: category,
-        onTap: () => _openCategory(category),
-        onLongPress: () => _openCategoryDetails(category),
-        onIconTap: () => _openCategoryDetails(category),
-      ),
-    );
-  }
-}
-
-class _LibraryCategoryPage extends StatefulWidget {
-  const _LibraryCategoryPage({
-    required this.categoryId,
-    required this.fallbackTitle,
-    required this.useCases,
-    required this.onManageContexts,
-    required this.onMessage,
-  });
-
-  final String categoryId;
-  final String fallbackTitle;
-  final LibraryUseCases useCases;
-  final Future<void> Function(BuildContext, LibraryItemModel) onManageContexts;
-  final void Function(String) onMessage;
-
-  @override
-  State<_LibraryCategoryPage> createState() => _LibraryCategoryPageState();
-}
-
-class _LibraryCategoryPageState extends State<_LibraryCategoryPage> {
-  String? _editingItemId;
-
-  Future<void> _openDetails(LibraryCategoryModel category) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => CategoryDetailsPage(
-          categoryId: category.id,
-          initialName: category.name,
-          initialIcon: category.icon,
-          onRename: (name) => widget.useCases.renameCategory(category.id, name),
-          onIconChanged: (icon) =>
-              widget.useCases.setCategoryIcon(category.id, icon),
-          onDelete: () => widget.useCases.deleteCategory(category.id),
-        ),
-      ),
-    );
-    if (!mounted) return;
-    final exists = (await widget.useCases.loadLibrary()).any(
-      (owner) => owner.categories.any(
-        (candidate) => candidate.id == widget.categoryId,
-      ),
-    );
-    if (!exists && mounted) Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: _editingItemId == null,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _editingItemId != null) {
-          setState(() => _editingItemId = null);
-        }
-      },
-      child: StreamBuilder<List<LibraryOwnerModel>>(
-        stream: widget.useCases.watchLibrary(),
-        builder: (context, snapshot) {
-          LibraryCategoryModel? category;
-          for (final owner in snapshot.data ?? const <LibraryOwnerModel>[]) {
-            for (final candidate in owner.categories) {
-              if (candidate.id == widget.categoryId) category = candidate;
-            }
-          }
-          final current = category;
-          return Scaffold(
-            key: Key('library-category-page-${widget.categoryId}'),
-            body: CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  title: Text(
-                    current?.name ?? widget.fallbackTitle,
-                    style: AppTextScale.of(context).pageTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  actions: [
-                    if (current != null)
-                      IconButton(
-                        key: Key('library-category-details-${current.id}'),
-                        tooltip: 'Détails de la catégorie',
-                        onPressed: () => _openDetails(current),
-                        icon: CategoryIconView(icon: current.icon, size: 22),
-                      ),
-                  ],
-                ),
-                if (current == null)
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(child: Text('Catégorie supprimée.')),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                    sliver: SliverList.list(
-                      children: [
-                        ...current.items.map(_buildItem),
-                        _InlineLibraryAdder(
-                          key: Key('library-add-item-collapsed-${current.id}'),
-                          label: 'Ajouter un item',
-                          fieldKey: Key('library-add-item-${current.id}'),
-                          submitKey: Key(
-                            'library-add-item-submit-${current.id}',
-                          ),
-                          onSubmit: (name) => widget.useCases.createItem(
-                            categoryId: current.id,
-                            name: name,
-                            defaultQuantity: 1,
-                          ),
-                          onError: widget.onMessage,
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Material(
+        key: Key('library-category-items-surface-${category.id}'),
+        color: colors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Dismissible(
+              key: Key('library-category-dismiss-${category.id}'),
+              confirmDismiss: (direction) async {
+                if (direction == DismissDirection.startToEnd) {
+                  setState(() => _editingCategoryId = category.id);
+                  return false;
+                }
+                try {
+                  await widget.useCases.deleteCategory(category.id);
+                  if (_expandedCategoryId == category.id && mounted) {
+                    setState(() => _expandedCategoryId = null);
+                  }
+                  return true;
+                } on Object catch (error) {
+                  widget.onMessage(userMessageFor(error));
+                  return false;
+                }
+              },
+              background: const _LibrarySwipeAction(
+                alignment: Alignment.centerLeft,
+                icon: Icons.edit_outlined,
+                label: 'Modifier',
+              ),
+              secondaryBackground: const _LibrarySwipeAction(
+                alignment: Alignment.centerRight,
+                icon: Icons.delete_outline,
+                label: 'Supprimer',
+                destructive: true,
+              ),
+              child: _CategoryHeader(
+                key: Key('library-category-${category.id}'),
+                category: category,
+                expanded: _expandedCategoryId == category.id,
+                onTap: () => setState(() {
+                  _expandedCategoryId = _expandedCategoryId == category.id
+                      ? null
+                      : category.id;
+                  _editingItemId = null;
+                }),
+                onLongPress: () => _openCategoryDetails(category),
+                onIconTap: () => _openCategoryDetails(category),
+              ),
             ),
-          );
-        },
+            if (_expandedCategoryId == category.id) ...[
+              ...category.items.map(_buildItem),
+              _InlineLibraryAdder(
+                key: Key('library-add-item-collapsed-${category.id}'),
+                label: 'Ajouter un item',
+                fieldKey: Key('library-add-item-${category.id}'),
+                submitKey: Key('library-add-item-submit-${category.id}'),
+                contentIndent: 40,
+                onSubmit: (name) => widget.useCases.createItem(
+                  categoryId: category.id,
+                  name: name,
+                  defaultQuantity: 1,
+                ),
+                onError: widget.onMessage,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -719,12 +663,14 @@ class _CategoryHeader extends StatelessWidget {
   const _CategoryHeader({
     super.key,
     required this.category,
+    required this.expanded,
     required this.onTap,
     required this.onLongPress,
     required this.onIconTap,
   });
 
   final LibraryCategoryModel category;
+  final bool expanded;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback onIconTap;
@@ -732,7 +678,8 @@ class _CategoryHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context).colorScheme.surface,
+      key: Key('library-category-header-surface-${category.id}'),
+      color: Theme.of(context).colorScheme.surfaceContainer,
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
@@ -766,7 +713,7 @@ class _CategoryHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, size: 20),
+              Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 20),
               const SizedBox(width: 4),
             ],
           ),
@@ -797,37 +744,55 @@ class _LibraryItemRow extends StatelessWidget {
         onLongPress: onLongPress,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  item.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextScale.of(context).body,
-                ),
-              ),
-              if (quantity > 1) ...[
-                _QuantityButton(
-                  key: Key('library-item-minus-${item.id}'),
-                  icon: Icons.remove,
-                  tooltip: 'Diminuer la quantité',
-                  onPressed: () => onQuantityChanged(quantity - 1),
-                ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
                 SizedBox(
-                  width: 28,
-                  child: Text('$quantity', textAlign: TextAlign.center),
+                  key: Key('library-item-bullet-${item.id}'),
+                  width: 24,
+                  child: Center(
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextScale.of(context).body,
+                  ),
+                ),
+                if (quantity > 1) ...[
+                  _QuantityButton(
+                    key: Key('library-item-minus-${item.id}'),
+                    icon: Icons.remove,
+                    tooltip: 'Diminuer la quantité',
+                    onPressed: () => onQuantityChanged(quantity - 1),
+                  ),
+                  SizedBox(
+                    width: 28,
+                    child: Text('$quantity', textAlign: TextAlign.center),
+                  ),
+                ],
+                _QuantityButton(
+                  key: Key('library-item-plus-${item.id}'),
+                  icon: Icons.add,
+                  tooltip: 'Augmenter la quantité',
+                  onPressed: quantity >= 99
+                      ? null
+                      : () => onQuantityChanged(quantity + 1),
                 ),
               ],
-              _QuantityButton(
-                key: Key('library-item-plus-${item.id}'),
-                icon: Icons.add,
-                tooltip: 'Augmenter la quantité',
-                onPressed: quantity >= 99
-                    ? null
-                    : () => onQuantityChanged(quantity + 1),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -868,6 +833,7 @@ class _InlineLibraryAdder extends StatefulWidget {
     required this.submitKey,
     required this.onSubmit,
     required this.onError,
+    this.contentIndent = 0,
   });
 
   final String label;
@@ -875,6 +841,7 @@ class _InlineLibraryAdder extends StatefulWidget {
   final Key submitKey;
   final Future<void> Function(String) onSubmit;
   final void Function(String) onError;
+  final double contentIndent;
 
   @override
   State<_InlineLibraryAdder> createState() => _InlineLibraryAdderState();
@@ -934,68 +901,82 @@ class _InlineLibraryAdderState extends State<_InlineLibraryAdder> {
   Widget build(BuildContext context) {
     if (!_editing) {
       return Material(
-        color: Theme.of(context).colorScheme.surface,
+        color: Colors.transparent,
         child: InkWell(
           onTap: _open,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 44),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.label,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+            child: Padding(
+              padding: EdgeInsets.only(left: widget.contentIndent),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      style: AppTextScale.of(context).body.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox.square(
-                  dimension: 40,
-                  child: Icon(Icons.add, size: 19),
-                ),
-              ],
+                  const SizedBox.square(
+                    dimension: 40,
+                    child: Icon(Icons.add, size: 19),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       );
     }
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 44),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              key: widget.fieldKey,
-              controller: _controller,
-              focusNode: _focus,
-              autofocus: true,
-              textCapitalization: TextCapitalization.sentences,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _submit(),
-              onTapOutside: (_) => _focus.unfocus(),
-              decoration: InputDecoration(
-                hintText: widget.label,
-                isDense: true,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+    return Padding(
+      padding: EdgeInsets.only(left: widget.contentIndent),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: widget.fieldKey,
+                controller: _controller,
+                focusNode: _focus,
+                autofocus: true,
+                style: AppTextScale.of(context).body,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _submit(),
+                onTapOutside: (_) => _focus.unfocus(),
+                decoration: InputDecoration(
+                  hintText: widget.label,
+                  hintStyle: AppTextScale.of(context).body.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  isDense: true,
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                ),
               ),
             ),
-          ),
-          IconButton.filledTonal(
-            key: widget.submitKey,
-            tooltip: 'Ajouter',
-            onPressed: _saving ? null : _submit,
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-            padding: EdgeInsets.zero,
-            icon: _saving
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.add, size: 19),
-          ),
-        ],
+            IconButton.filledTonal(
+              key: widget.submitKey,
+              tooltip: 'Ajouter',
+              onPressed: _saving ? null : _submit,
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+              padding: EdgeInsets.zero,
+              icon: _saving
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add, size: 19),
+            ),
+          ],
+        ),
       ),
     );
   }

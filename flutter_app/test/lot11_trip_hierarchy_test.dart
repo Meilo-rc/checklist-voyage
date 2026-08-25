@@ -130,6 +130,25 @@ void main() {
       expect(categoryText.style?.fontWeight, FontWeight.w700);
       final itemText = tester.widget<Text>(find.text(shirt.name));
       expect(itemText.style?.fontSize, 14);
+      final colors = Theme.of(
+        tester.element(find.text(category.name)),
+      ).colorScheme;
+      expect(
+        tester
+            .widget<Material>(
+              find.byKey(Key('trip-category-header-surface-${category.id}')),
+            )
+            .color,
+        colors.surfaceContainer,
+      );
+      expect(
+        tester
+            .widget<Material>(
+              find.byKey(Key('trip-category-items-surface-${category.id}')),
+            )
+            .color,
+        colors.surfaceContainerLowest,
+      );
 
       final shirtRow = find.byKey(Key('trip-item-${shirt.id}'));
       expect(tester.getSize(shirtRow).height, lessThanOrEqualTo(48));
@@ -176,6 +195,10 @@ void main() {
         Key('trip-add-item-collapsed-${category.id}'),
       );
       await tester.ensureVisible(collapsedAdder);
+      expect(
+        tester.getTopLeft(find.text('T-shirt léger')).dx,
+        closeTo(tester.getTopLeft(find.text('Ajouter un item')).dx, 3),
+      );
       expect(find.byKey(Key('trip-add-item-${category.id}')), findsNothing);
       await tester.tap(collapsedAdder);
       await tester.pumpAndSettle();
@@ -396,28 +419,20 @@ void main() {
     await tester.tap(find.byKey(Key('trip-category-${category.id}')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Item 119'), findsNothing);
-    await tester.scrollUntilVisible(
-      find.text('Item 119'),
-      500,
-      scrollable: find.byType(Scrollable).last,
-    );
     expect(find.text('Item 119'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text(longItem.name),
-      500,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.ensureVisible(find.text('Item 119'));
+    await tester.pumpAndSettle();
+    expect(find.text('Item 119'), findsOneWidget);
+    await tester.ensureVisible(find.text(longItem.name));
+    await tester.pumpAndSettle();
     expect(
       tester.getSize(find.byKey(Key('trip-item-${longItem.id}'))).height,
       lessThanOrEqualTo(48),
     );
-    await tester.scrollUntilVisible(
-      find.byKey(Key('trip-add-item-collapsed-${category.id}')),
-      500,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.byKey(Key('trip-add-item-collapsed-${category.id}')));
+    final addItem = find.byKey(Key('trip-add-item-collapsed-${category.id}'));
+    await tester.ensureVisible(addItem);
+    await tester.pumpAndSettle();
+    await tester.tap(addItem);
     await tester.pumpAndSettle();
     expect(find.byKey(Key('trip-add-item-${category.id}')), findsOneWidget);
     await tester.enterText(
