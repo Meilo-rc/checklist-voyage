@@ -77,14 +77,30 @@ void main() {
       expect(find.text('Membres'), findsOneWidget);
       expect(find.byKey(const Key('trip-level-general')), findsOneWidget);
       expect(find.byKey(const Key('trip-level-members')), findsOneWidget);
+      final levelTitle = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const Key('trip-level-members')),
+          matching: find.text('Membres'),
+        ),
+      );
+      expect(levelTitle.style?.fontSize, 18);
+      expect(levelTitle.style?.fontWeight, FontWeight.w700);
       final memberRowText = tester.widget<Text>(
         find.descendant(
           of: find.byKey(Key('trip-member-${member.id}')),
           matching: find.text(member.name),
         ),
       );
-      expect(memberRowText.style?.fontSize, 20);
-      expect(memberRowText.style?.fontWeight, FontWeight.w600);
+      expect(memberRowText.style?.fontSize, 16);
+      expect(memberRowText.style?.fontWeight, FontWeight.w700);
+      final filterText = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const Key('trip-state-all')),
+          matching: find.text('Tout'),
+        ),
+      );
+      expect(filterText.style?.fontSize, 14);
+      expect(filterText.style?.fontWeight, FontWeight.w700);
       await tester.tap(find.byKey(Key('trip-member-${member.id}')));
       await tester.pumpAndSettle();
       _expectNoFlutterError(tester, 'page membre');
@@ -95,7 +111,7 @@ void main() {
           matching: find.text(member.name),
         ),
       );
-      expect(memberPageTitle.style?.fontSize, 24);
+      expect(memberPageTitle.style?.fontSize, 22);
       expect(memberPageTitle.style?.fontWeight, FontWeight.w700);
       await tester.tap(find.byKey(Key('trip-category-${category.id}')));
       await tester.pumpAndSettle();
@@ -110,8 +126,8 @@ void main() {
         Brightness.light,
       );
       final categoryText = tester.widget<Text>(find.text(category.name));
-      expect(categoryText.style?.fontSize, 19);
-      expect(categoryText.style?.fontWeight, FontWeight.w600);
+      expect(categoryText.style?.fontSize, 18);
+      expect(categoryText.style?.fontWeight, FontWeight.w700);
       final itemText = tester.widget<Text>(find.text(shirt.name));
       expect(itemText.style?.fontSize, 14);
 

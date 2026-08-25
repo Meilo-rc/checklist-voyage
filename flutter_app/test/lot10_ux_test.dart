@@ -414,9 +414,9 @@ void main() {
     await _pumpData(tester);
     await tester.tap(find.text('Bibliothèque'));
     await _pumpData(tester);
-    await tester.tap(find.byKey(const Key('library-root-general')));
+    await tester.tap(find.byKey(Key('library-member-$ownerId')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Accessoires'));
+    await tester.tap(find.byKey(Key('library-category-$categoryId')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(Key('library-add-item-collapsed-$categoryId')));

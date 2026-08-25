@@ -65,9 +65,9 @@ void main() {
 
     await tester.tapAt(const Offset(12, 100));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('library-root-general')));
+    await tester.tap(find.byKey(Key('library-member-$owner')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Accessoires'));
+    await tester.tap(find.byKey(Key('library-category-$category')));
     await tester.pumpAndSettle();
     await tester.longPress(find.byKey(Key('library-item-$item')));
     await tester.pumpAndSettle();
@@ -88,6 +88,8 @@ void main() {
     expect(association.contextId, contextId);
     expect(association.deletedAt, isNull);
 
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('library-menu')));

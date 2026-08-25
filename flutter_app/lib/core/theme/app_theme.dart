@@ -20,59 +20,64 @@ abstract final class AppColors {
   static const yellow = Color(0xFFF8AC34);
 }
 
+/// Echelle typographique unique de l'application, en pixels logiques Flutter.
+///
+/// Le facteur d'accessibilite Android reste applique par Flutter. Aucun style
+/// applicatif ne doit depasser [pageTitle].
 @immutable
-class AppHierarchyTextStyles extends ThemeExtension<AppHierarchyTextStyles> {
-  const AppHierarchyTextStyles({
-    this.tripMemberName = const TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.w600,
-    ),
-    this.tripMemberPageTitle = const TextStyle(
-      fontSize: 24,
+class AppTextScale extends ThemeExtension<AppTextScale> {
+  const AppTextScale({
+    this.pageTitle = const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+    this.sectionTitle = const TextStyle(
+      fontSize: 18,
       fontWeight: FontWeight.w700,
     ),
-    this.tripCategoryName = const TextStyle(
-      fontSize: 19,
-      fontWeight: FontWeight.w600,
+    this.hierarchyTitle = const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
     ),
+    this.body = const TextStyle(fontSize: 14),
+    this.filter = const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+    this.metadata = const TextStyle(fontSize: 12),
   });
 
-  final TextStyle tripMemberName;
-  final TextStyle tripMemberPageTitle;
-  final TextStyle tripCategoryName;
+  final TextStyle pageTitle;
+  final TextStyle sectionTitle;
+  final TextStyle hierarchyTitle;
+  final TextStyle body;
+  final TextStyle filter;
+  final TextStyle metadata;
 
-  static AppHierarchyTextStyles of(BuildContext context) =>
-      Theme.of(context).extension<AppHierarchyTextStyles>()!;
+  static AppTextScale of(BuildContext context) =>
+      Theme.of(context).extension<AppTextScale>()!;
 
   @override
-  AppHierarchyTextStyles copyWith({
-    TextStyle? tripMemberName,
-    TextStyle? tripMemberPageTitle,
-    TextStyle? tripCategoryName,
-  }) => AppHierarchyTextStyles(
-    tripMemberName: tripMemberName ?? this.tripMemberName,
-    tripMemberPageTitle: tripMemberPageTitle ?? this.tripMemberPageTitle,
-    tripCategoryName: tripCategoryName ?? this.tripCategoryName,
+  AppTextScale copyWith({
+    TextStyle? pageTitle,
+    TextStyle? sectionTitle,
+    TextStyle? hierarchyTitle,
+    TextStyle? body,
+    TextStyle? filter,
+    TextStyle? metadata,
+  }) => AppTextScale(
+    pageTitle: pageTitle ?? this.pageTitle,
+    sectionTitle: sectionTitle ?? this.sectionTitle,
+    hierarchyTitle: hierarchyTitle ?? this.hierarchyTitle,
+    body: body ?? this.body,
+    filter: filter ?? this.filter,
+    metadata: metadata ?? this.metadata,
   );
 
   @override
-  AppHierarchyTextStyles lerp(
-    covariant AppHierarchyTextStyles? other,
-    double t,
-  ) {
+  AppTextScale lerp(covariant AppTextScale? other, double t) {
     if (other == null) return this;
-    return AppHierarchyTextStyles(
-      tripMemberName: TextStyle.lerp(tripMemberName, other.tripMemberName, t)!,
-      tripMemberPageTitle: TextStyle.lerp(
-        tripMemberPageTitle,
-        other.tripMemberPageTitle,
-        t,
-      )!,
-      tripCategoryName: TextStyle.lerp(
-        tripCategoryName,
-        other.tripCategoryName,
-        t,
-      )!,
+    return AppTextScale(
+      pageTitle: TextStyle.lerp(pageTitle, other.pageTitle, t)!,
+      sectionTitle: TextStyle.lerp(sectionTitle, other.sectionTitle, t)!,
+      hierarchyTitle: TextStyle.lerp(hierarchyTitle, other.hierarchyTitle, t)!,
+      body: TextStyle.lerp(body, other.body, t)!,
+      filter: TextStyle.lerp(filter, other.filter, t)!,
+      metadata: TextStyle.lerp(metadata, other.metadata, t)!,
     );
   }
 }
@@ -121,38 +126,19 @@ abstract final class AppTheme {
       platform: TargetPlatform.android,
     );
     final baseText = dark ? typography.white : typography.black;
-    final contentText = _materialTextTheme(baseText).copyWith(
-      headlineSmall: baseText.headlineSmall?.copyWith(
-        fontSize: baseText.headlineSmall?.fontSize ?? 24,
-        fontWeight: FontWeight.w700,
-      ),
-      titleLarge: baseText.titleLarge?.copyWith(
-        fontSize: baseText.titleLarge?.fontSize ?? 22,
-        fontWeight: FontWeight.w700,
-      ),
-      titleMedium: baseText.titleMedium?.copyWith(
-        fontSize: baseText.titleMedium?.fontSize ?? 16,
-        fontWeight: FontWeight.w700,
-      ),
-      titleSmall: baseText.titleSmall?.copyWith(
-        fontSize: baseText.titleSmall?.fontSize ?? 14,
-        fontWeight: FontWeight.w700,
-      ),
-    );
+    final contentText = _appTextTheme(baseText);
     return baseTheme.copyWith(
       scaffoldBackgroundColor: colors.surface,
       textTheme: contentText,
-      extensions: const [AppHierarchyTextStyles()],
+      extensions: const [AppTextScale()],
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
         scrolledUnderElevation: 0,
         backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: baseText.titleLarge?.copyWith(
+        titleTextStyle: const AppTextScale().pageTitle.copyWith(
           color: colors.onSurface,
-          fontSize: baseText.titleLarge?.fontSize ?? 22,
-          fontWeight: FontWeight.w700,
         ),
       ),
       cardTheme: CardThemeData(
@@ -219,9 +205,8 @@ abstract final class AppTheme {
           ),
         ),
         labelTextStyle: WidgetStatePropertyAll(
-          baseText.labelMedium?.copyWith(
+          const AppTextScale().metadata.copyWith(
             color: colors.onSurface,
-            fontSize: baseText.labelMedium?.fontSize ?? 12,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -242,27 +227,28 @@ abstract final class AppTheme {
     );
   }
 
-  static TextTheme _materialTextTheme(TextTheme source) {
-    TextStyle resolve(TextStyle? style, double defaultSize) =>
+  static TextTheme _appTextTheme(TextTheme source) {
+    TextStyle resolve(TextStyle? style, double size, FontWeight weight) =>
         (style ?? const TextStyle()).copyWith(
-          fontSize: style?.fontSize ?? defaultSize,
+          fontSize: size,
+          fontWeight: weight,
         );
     return source.copyWith(
-      displayLarge: resolve(source.displayLarge, 57),
-      displayMedium: resolve(source.displayMedium, 45),
-      displaySmall: resolve(source.displaySmall, 36),
-      headlineLarge: resolve(source.headlineLarge, 32),
-      headlineMedium: resolve(source.headlineMedium, 28),
-      headlineSmall: resolve(source.headlineSmall, 24),
-      titleLarge: resolve(source.titleLarge, 22),
-      titleMedium: resolve(source.titleMedium, 16),
-      titleSmall: resolve(source.titleSmall, 14),
-      bodyLarge: resolve(source.bodyLarge, 16),
-      bodyMedium: resolve(source.bodyMedium, 14),
-      bodySmall: resolve(source.bodySmall, 12),
-      labelLarge: resolve(source.labelLarge, 14),
-      labelMedium: resolve(source.labelMedium, 12),
-      labelSmall: resolve(source.labelSmall, 11),
+      displayLarge: resolve(source.displayLarge, 22, FontWeight.w700),
+      displayMedium: resolve(source.displayMedium, 22, FontWeight.w700),
+      displaySmall: resolve(source.displaySmall, 22, FontWeight.w700),
+      headlineLarge: resolve(source.headlineLarge, 22, FontWeight.w700),
+      headlineMedium: resolve(source.headlineMedium, 22, FontWeight.w700),
+      headlineSmall: resolve(source.headlineSmall, 22, FontWeight.w700),
+      titleLarge: resolve(source.titleLarge, 22, FontWeight.w700),
+      titleMedium: resolve(source.titleMedium, 18, FontWeight.w700),
+      titleSmall: resolve(source.titleSmall, 16, FontWeight.w700),
+      bodyLarge: resolve(source.bodyLarge, 14, FontWeight.w400),
+      bodyMedium: resolve(source.bodyMedium, 14, FontWeight.w400),
+      bodySmall: resolve(source.bodySmall, 12, FontWeight.w400),
+      labelLarge: resolve(source.labelLarge, 14, FontWeight.w400),
+      labelMedium: resolve(source.labelMedium, 12, FontWeight.w400),
+      labelSmall: resolve(source.labelSmall, 12, FontWeight.w400),
     );
   }
 }

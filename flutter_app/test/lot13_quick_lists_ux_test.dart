@@ -48,6 +48,16 @@ void main() {
       expect(find.byType(LinearProgressIndicator), findsNWidgets(2));
       expect(find.text('1/20'), findsNothing);
       expect(find.text('0/1'), findsNothing);
+      final listTitle = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(Key('quick-summary-$listId')),
+          matching: find.text(
+            'Liste au nom volontairement très long pour le contrôle à 360 px',
+          ),
+        ),
+      );
+      expect(listTitle.style?.fontSize, 18);
+      expect(listTitle.style?.fontWeight, FontWeight.w700);
       expect(tester.takeException(), isNull);
       await tester.tap(find.byKey(Key('quick-summary-$listId')));
       await _pumpData(tester);

@@ -115,7 +115,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Détails catégorie'), findsOneWidget);
+      expect(find.text('Vêtements'), findsWidgets);
       expect(find.byKey(const Key('category-icon-grid')), findsOneWidget);
       await tester.tap(find.byKey(const Key('category-icon-beach')));
       await tester.pumpAndSettle();
@@ -127,6 +127,7 @@ void main() {
       await tester.tap(find.byKey(const Key('category-details-save')));
       await tester.pumpAndSettle();
       expect(renamed, 'Tenues');
+      expect(find.text('Tenues'), findsWidgets);
       await tester.scrollUntilVisible(
         find.byKey(const Key('category-details-delete')),
         300,
@@ -139,16 +140,40 @@ void main() {
     },
   );
 
-  test('la hiérarchie voyage grandit sans agrandir le contenu global', () {
+  test('l’échelle typographique reste strictement limitée à cinq tailles', () {
     final theme = AppTheme.light;
-    final hierarchy = theme.extension<AppHierarchyTextStyles>()!;
+    final scale = theme.extension<AppTextScale>()!;
     expect(theme.textTheme.bodyMedium!.fontSize, 14);
-    expect(theme.textTheme.bodyLarge!.fontSize, 16);
+    expect(theme.textTheme.bodyLarge!.fontSize, 14);
     expect(theme.appBarTheme.titleTextStyle!.fontSize, 22);
     expect(theme.navigationBarTheme.labelTextStyle!.resolve({})!.fontSize, 12);
-    expect(hierarchy.tripMemberName.fontSize, 20);
-    expect(hierarchy.tripMemberPageTitle.fontSize, 24);
-    expect(hierarchy.tripCategoryName.fontSize, 19);
+    expect(scale.pageTitle.fontSize, 22);
+    expect(scale.sectionTitle.fontSize, 18);
+    expect(scale.hierarchyTitle.fontSize, 16);
+    expect(scale.body.fontSize, 14);
+    expect(scale.filter.fontSize, 14);
+    expect(scale.metadata.fontSize, 12);
+    final materialSizes = <double?>[
+      theme.textTheme.displayLarge?.fontSize,
+      theme.textTheme.displayMedium?.fontSize,
+      theme.textTheme.displaySmall?.fontSize,
+      theme.textTheme.headlineLarge?.fontSize,
+      theme.textTheme.headlineMedium?.fontSize,
+      theme.textTheme.headlineSmall?.fontSize,
+      theme.textTheme.titleLarge?.fontSize,
+      theme.textTheme.titleMedium?.fontSize,
+      theme.textTheme.titleSmall?.fontSize,
+      theme.textTheme.bodyLarge?.fontSize,
+      theme.textTheme.bodyMedium?.fontSize,
+      theme.textTheme.bodySmall?.fontSize,
+      theme.textTheme.labelLarge?.fontSize,
+      theme.textTheme.labelMedium?.fontSize,
+      theme.textTheme.labelSmall?.fontSize,
+    ];
+    expect(
+      materialSizes.whereType<double>().every((size) => size <= 22),
+      isTrue,
+    );
     expect(theme.scaffoldBackgroundColor, const Color(0xFFF0F2F4));
     expect(theme.cardTheme.color, Colors.white);
   });

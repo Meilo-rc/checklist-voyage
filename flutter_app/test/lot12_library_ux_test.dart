@@ -57,14 +57,47 @@ void main() {
     await _pumpData(tester);
 
     expect(find.byKey(const Key('library-root-general')), findsOneWidget);
-    expect(find.textContaining('23 items'), findsOneWidget);
+    expect(find.textContaining('23 items'), findsWidgets);
     expect(find.byType(Card), findsNothing);
-    await tester.tap(find.byKey(const Key('library-root-general')));
+    final generalTitle = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const Key('library-root-general')),
+        matching: find.text('Général'),
+      ),
+    );
+    expect(generalTitle.style?.fontSize, 18);
+    expect(generalTitle.style?.fontWeight, FontWeight.w700);
+    await tester.tap(find.byKey(Key('library-member-$ownerId')));
     await tester.pumpAndSettle();
     expect(find.text('Ancien document'), findsNothing);
 
+    final categoryTitle = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(Key('library-category-$firstCategory')),
+        matching: find.text(
+          'Accessoires de voyage au nom volontairement très long',
+        ),
+      ),
+    );
+    expect(categoryTitle.style?.fontSize, 18);
+    expect(categoryTitle.style?.fontWeight, FontWeight.w700);
+
     await tester.tap(find.byKey(Key('library-category-$firstCategory')));
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(Key('library-category-page-$firstCategory')),
+      findsOneWidget,
+    );
+    final pageTitle = tester.widget<Text>(
+      find.descendant(
+        of: find.byType(SliverAppBar),
+        matching: find.text(
+          'Accessoires de voyage au nom volontairement très long',
+        ),
+      ),
+    );
+    expect(pageTitle.style?.fontSize, 22);
+    expect(pageTitle.style?.fontWeight, FontWeight.w700);
     expect(find.byKey(Key('library-item-${itemIds.first}')), findsOneWidget);
     expect(
       find.byKey(Key('library-item-minus-${itemIds.first}')),
@@ -101,6 +134,9 @@ void main() {
       find.byKey(Key('library-item-minus-${itemIds.first}')),
       findsNothing,
     );
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
       find.byKey(Key('library-category-$secondCategory')),
@@ -139,7 +175,7 @@ void main() {
     await _pumpData(tester);
     await tester.tap(find.text('Bibliothèque'));
     await _pumpData(tester);
-    await tester.tap(find.byKey(const Key('library-root-personal')));
+    await tester.tap(find.byKey(Key('library-member-$ownerId')));
     await tester.pumpAndSettle();
     expect(
       Theme.of(tester.element(find.text('Personnel').last)).brightness,
@@ -189,17 +225,15 @@ void main() {
     await _pumpData(tester);
     await tester.tap(find.text('Bibliothèque'));
     await _pumpData(tester);
-    await tester.tap(find.byKey(const Key('library-root-members')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('library-members-page')), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('library-add-member')));
+    await tester.tap(find.byKey(const Key('library-add-familyMember-owner')));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.byKey(const Key('library-add-member-field')),
+      find.byKey(const Key('library-add-familyMember-owner-field')),
       'Milo test',
     );
-    await tester.tap(find.byKey(const Key('library-add-member-submit')));
+    await tester.tap(
+      find.byKey(const Key('library-add-familyMember-owner-submit')),
+    );
     await tester.pumpAndSettle();
     final addedMember = (await database.select(database.libraryOwners).get())
         .singleWhere((owner) => owner.name == 'Milo test');

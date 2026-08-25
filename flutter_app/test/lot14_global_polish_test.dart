@@ -125,15 +125,13 @@ void main() {
 
       await tester.tap(find.text('Bibliothèque'));
       await _pumpData(tester);
-      await tester.tap(find.byKey(const Key('library-root-general')));
+      await tester.tap(find.byKey(Key('library-member-${ids.essentialOwner}')));
       await tester.pumpAndSettle();
       expect(find.text('Documents'), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('library-root-members')), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('library-root-members')));
-      await tester.pumpAndSettle();
       await tester.drag(
         find.byKey(Key('library-member-${ids.participantOwner}')),
         const Offset(280, 0),
@@ -149,18 +147,17 @@ void main() {
         find.byKey(const Key('library-inline-rename-field')),
         findsNothing,
       );
-      expect(find.byKey(const Key('library-members-page')), findsOneWidget);
-      await tester.tap(find.text('Alex'));
+      expect(find.byKey(const Key('library-root-members')), findsOneWidget);
+      await tester.tap(
+        find.byKey(Key('library-member-${ids.participantOwner}')),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Vêtements'), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('library-members-page')), findsOneWidget);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
       expect(find.byKey(const Key('library-root-personal')), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('library-root-personal')));
+      await tester.tap(find.byKey(Key('library-member-${ids.personalOwner}')));
       await tester.pumpAndSettle();
       expect(find.text('Personnel'), findsWidgets);
       await tester.binding.handlePopRoute();

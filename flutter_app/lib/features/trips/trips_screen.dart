@@ -1121,13 +1121,14 @@ class _TripLevelBlock extends StatelessWidget {
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall,
+                          style: AppTextScale.of(context).sectionTitle,
                         ),
                       ),
                       Text(
                         '${progress.completed}/${progress.total}',
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(color: colors.onSurfaceVariant),
+                        style: AppTextScale.of(
+                          context,
+                        ).metadata.copyWith(color: colors.onSurfaceVariant),
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Icon(
@@ -1184,12 +1185,15 @@ class _TripNavigationRow extends StatelessWidget {
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: AppHierarchyTextStyles.of(context).tripMemberName,
+        style: AppTextScale.of(context).hierarchyTitle,
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('${progress.completed}/${progress.total}'),
+          Text(
+            '${progress.completed}/${progress.total}',
+            style: AppTextScale.of(context).metadata,
+          ),
           const SizedBox(width: AppSpacing.xs),
           const Icon(Icons.chevron_right, size: 20),
         ],
@@ -1213,9 +1217,9 @@ class _CompactProgress extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Text(
           '${progress.completed}/${progress.total} · ${progress.percent} %',
-          style: Theme.of(
+          style: AppTextScale.of(
             context,
-          ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+          ).metadata.copyWith(color: colors.onSurfaceVariant),
         ),
       ],
     );
@@ -1285,7 +1289,10 @@ class _TripFilters extends StatelessWidget {
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
                         key: Key('trip-state-${state.name}'),
-                        label: Text(_stateFilterLabel(state)),
+                        label: Text(
+                          _stateFilterLabel(state),
+                          style: AppTextScale.of(context).filter,
+                        ),
                         selected: filter.state == state,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         visualDensity: const VisualDensity(
@@ -1319,7 +1326,10 @@ class _TripFilters extends StatelessWidget {
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
                         key: Key(_personFilterKey(option.filter)),
-                        label: Text(option.label),
+                        label: Text(
+                          option.label,
+                          style: AppTextScale.of(context).filter,
+                        ),
                         selected: filter.person == option.filter,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         visualDensity: const VisualDensity(
@@ -1699,7 +1709,7 @@ class _TripMemberPageState extends State<_TripMemberPage> {
           ),
           title: Text(
             widget.member.name,
-            style: AppHierarchyTextStyles.of(context).tripMemberPageTitle,
+            style: AppTextScale.of(context).pageTitle,
           ),
         ),
         SliverPadding(
@@ -1887,7 +1897,7 @@ class _TripCategoryHeader extends StatelessWidget {
                     category.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppHierarchyTextStyles.of(context).tripCategoryName,
+                    style: AppTextScale.of(context).sectionTitle,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),

@@ -35,7 +35,7 @@ class _QuickListSummaryRow extends StatelessWidget {
                     summary.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: AppTextScale.of(context).sectionTitle,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   LinearProgressIndicator(
@@ -93,7 +93,10 @@ class _QuickProgressHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Text('${progress.completed}/${progress.total}'),
+            Text(
+              '${progress.completed}/${progress.total}',
+              style: AppTextScale.of(context).metadata,
+            ),
             if (onReset != null)
               IconButton(
                 key: const Key('quick-reset'),

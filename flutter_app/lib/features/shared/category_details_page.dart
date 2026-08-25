@@ -120,6 +120,7 @@ class CategoryDetailsPage extends StatefulWidget {
 class _CategoryDetailsPageState extends State<CategoryDetailsPage> {
   late final TextEditingController _nameController;
   late String? _icon;
+  late String _displayName;
   bool _savingName = false;
   bool _deleting = false;
 
@@ -127,6 +128,7 @@ class _CategoryDetailsPageState extends State<CategoryDetailsPage> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName);
+    _displayName = widget.initialName;
     _icon = widget.initialIcon?.replaceAll('.svg', '');
   }
 
@@ -148,7 +150,10 @@ class _CategoryDetailsPageState extends State<CategoryDetailsPage> {
     setState(() => _savingName = true);
     try {
       await widget.onRename(name);
-      if (mounted) FocusScope.of(context).unfocus();
+      if (mounted) {
+        setState(() => _displayName = name);
+        FocusScope.of(context).unfocus();
+      }
     } on Object catch (error) {
       if (mounted) _message(error);
     } finally {
@@ -185,7 +190,14 @@ class _CategoryDetailsPageState extends State<CategoryDetailsPage> {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
       key: Key('category-details-${widget.categoryId}'),
-      appBar: AppBar(title: const Text('Détails catégorie')),
+      appBar: AppBar(
+        title: Text(
+          _displayName,
+          style: AppTextScale.of(context).pageTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
