@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Petite valise ou sac rose</title>
+  <defs>
+    <clipPath id="sac-clip"><path d="M80 576H442C486 576 522 612 522 656V814C522 858 486 894 442 894H80C36 894 0 858 0 814V656C0 612 36 576 80 576Z"/></clipPath>
+  </defs>
+  <path d="M128 596V532C128 504 150 482 178 482H344C372 482 394 504 394 532V596" fill="none" stroke="#000000" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M128 596V532C128 504 150 482 178 482H344C372 482 394 504 394 532V596" fill="none" stroke="#F98FA6" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M80 576H442C486 576 522 612 522 656V814C522 858 486 894 442 894H80C36 894 0 858 0 814V656C0 612 36 576 80 576Z" fill="#FC657E" stroke="#000000" stroke-width="20"/>
+  <g clip-path="url(#sac-clip)">
+    <rect x="100" y="566" width="22" height="338" fill="#000000"/><rect x="122" y="566" width="30" height="338" fill="#F98FA6"/><rect x="152" y="566" width="22" height="338" fill="#000000"/>
+    <rect x="348" y="566" width="22" height="338" fill="#000000"/><rect x="370" y="566" width="30" height="338" fill="#F98FA6"/><rect x="400" y="566" width="22" height="338" fill="#000000"/>
+  </g>
+  <rect x="212" y="628" width="98" height="22" rx="11" fill="#000000"/>
+</svg>

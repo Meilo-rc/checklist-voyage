@@ -15,6 +15,7 @@ class TripFormInitialData {
     this.transportOwnerIds = const {},
     this.lodgingOwnerIds = const {},
     this.contextIds = const {},
+    this.personalCategoryIds = const {},
   });
 
   final String name;
@@ -25,6 +26,7 @@ class TripFormInitialData {
   final Set<String> transportOwnerIds;
   final Set<String> lodgingOwnerIds;
   final Set<String> contextIds;
+  final Set<String> personalCategoryIds;
 }
 
 class TripFormResult {
@@ -37,6 +39,7 @@ class TripFormResult {
     required this.transportOwnerIds,
     required this.lodgingOwnerIds,
     required this.contextIds,
+    required this.personalCategoryIds,
   });
 
   final String name;
@@ -47,6 +50,7 @@ class TripFormResult {
   final Set<String> transportOwnerIds;
   final Set<String> lodgingOwnerIds;
   final Set<String> contextIds;
+  final Set<String> personalCategoryIds;
 }
 
 class TripForm extends StatefulWidget {
@@ -77,6 +81,7 @@ class _TripFormState extends State<TripForm> {
   late Set<String> _transports;
   late Set<String> _lodgings;
   late Set<String> _contexts;
+  late Set<String> _personalCategories;
   DateTime? _startDate;
   DateTime? _endDate;
   String? _error;
@@ -92,6 +97,7 @@ class _TripFormState extends State<TripForm> {
     _transports = Set.of(initial.transportOwnerIds);
     _lodgings = Set.of(initial.lodgingOwnerIds);
     _contexts = Set.of(initial.contextIds);
+    _personalCategories = Set.of(initial.personalCategoryIds);
   }
 
   @override
@@ -143,6 +149,7 @@ class _TripFormState extends State<TripForm> {
         transportOwnerIds: Set.unmodifiable(_transports),
         lodgingOwnerIds: Set.unmodifiable(_lodgings),
         contextIds: Set.unmodifiable(_contexts),
+        personalCategoryIds: Set.unmodifiable(_personalCategories),
       ),
     );
   }
@@ -167,6 +174,20 @@ class _TripFormState extends State<TripForm> {
         .toList(growable: false);
     final contexts = widget.contexts
         .map((context) => SelectionChoice(id: context.id, label: context.name))
+        .toList(growable: false);
+    final personalCategories = widget.owners
+        .where(
+          (owner) =>
+              owner.kind == LibraryOwnerKind.personal &&
+              owner.linkedParticipantOwnerId != null &&
+              _participants.contains(owner.linkedParticipantOwnerId),
+        )
+        .expand(
+          (owner) => owner.categories.map(
+            (category) =>
+                SelectionChoice(id: category.id, label: category.name),
+          ),
+        )
         .toList(growable: false);
     final essentialCount = widget.owners
         .where((owner) => owner.generationRole == GenerationRole.essential)
@@ -240,9 +261,19 @@ class _TripFormState extends State<TripForm> {
                       choices: participants,
                       selectedIds: _participants,
                       enabled: widget.selectionsEditable,
-                      onChanged: (value) =>
-                          setState(() => _participants = value),
+                      onChanged: _setParticipants,
                     ),
+                    if (personalCategories.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      SelectionChipGroup(
+                        title: 'Personnel',
+                        choices: personalCategories,
+                        selectedIds: _personalCategories,
+                        enabled: widget.selectionsEditable,
+                        onChanged: (value) =>
+                            setState(() => _personalCategories = value),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.lg),
                     SelectionChipGroup(
                       title: 'Transport',
@@ -312,4 +343,23 @@ class _TripFormState extends State<TripForm> {
 
   SelectionChoice _choice(LibraryOwnerModel owner) =>
       SelectionChoice(id: owner.id, label: owner.name);
+
+  void _setParticipants(Set<String> participants) {
+    final allowedPersonalCategories = widget.owners
+        .where(
+          (owner) =>
+              owner.kind == LibraryOwnerKind.personal &&
+              owner.linkedParticipantOwnerId != null &&
+              participants.contains(owner.linkedParticipantOwnerId),
+        )
+        .expand((owner) => owner.categories)
+        .map((category) => category.id)
+        .toSet();
+    setState(() {
+      _participants = participants;
+      _personalCategories = _personalCategories.intersection(
+        allowedPersonalCategories,
+      );
+    });
+  }
 }

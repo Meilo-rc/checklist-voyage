@@ -121,6 +121,7 @@ void main() {
           transportOwnerIds: {ids.flightOwner, ids.trainOwner},
           lodgingOwnerIds: {ids.hotelOwner, ids.campingOwner},
           contextIds: {beach},
+          personalCategoryIds: {ids.personalCategory},
         ),
       );
       var source = (await dependencies.trips.watchTrip(sourceId).first)!;

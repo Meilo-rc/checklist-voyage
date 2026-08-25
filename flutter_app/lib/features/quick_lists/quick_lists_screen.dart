@@ -140,27 +140,53 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
                       tooltip: 'Rejoindre avec un code',
                       icon: const Icon(Icons.group_add_outlined),
                     ),
+                  PopupMenuButton<String>(
+                    key: const Key('quick-root-menu'),
+                    tooltip: 'Plus d’options',
+                    position: PopupMenuPosition.under,
+                    onSelected: (_) =>
+                        setState(() => _showArchives = !_showArchives),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        height: 44,
+                        value: 'archives',
+                        child: Row(
+                          children: [
+                            Icon(
+                              _showArchives
+                                  ? Icons.checklist_outlined
+                                  : Icons.archive_outlined,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(_showArchives ? 'Mes listes' : 'Archives'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
-                  child: SegmentedButton<bool>(
-                    key: const Key('quick-archive-tabs'),
-                    segments: const [
-                      ButtonSegment(value: false, label: Text('Mes listes')),
-                      ButtonSegment(value: true, label: Text('Archives')),
-                    ],
-                    selected: {_showArchives},
-                    showSelectedIcon: false,
-                    style: const ButtonStyle(
-                      visualDensity: VisualDensity.compact,
+              if (_showArchives)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.archive_outlined,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Archives',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
                     ),
-                    onSelectionChanged: (selection) =>
-                        setState(() => _showArchives = selection.single),
                   ),
                 ),
-              ),
               if (visible.isEmpty)
                 SliverToBoxAdapter(
                   child: Padding(

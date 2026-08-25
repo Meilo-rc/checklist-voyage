@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Éléments décoratifs colorés</title>
+  <g fill="#70D6F9"><rect x="74" y="364" width="72" height="28" rx="14"/><rect x="96" y="342" width="28" height="72" rx="14"/></g>
+  <circle cx="237" cy="236" r="15" fill="#F5C84C"/>
+  <path d="M908 78C914 102 924 112 948 118C924 124 914 134 908 158C902 134 892 124 868 118C892 112 902 102 908 78Z" fill="#F5C84C"/>
+  <circle cx="1010" cy="266" r="15" fill="#87D147"/>
+  <path d="M698 946C702 962 710 970 726 974C710 978 702 986 698 1002C694 986 686 978 670 974C686 970 694 962 698 946Z" fill="#FC657E"/>
+</svg>

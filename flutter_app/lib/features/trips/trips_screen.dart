@@ -80,6 +80,7 @@ class _TripsScreenState extends State<TripsScreen> {
           transportOwnerIds: result.transportOwnerIds,
           lodgingOwnerIds: result.lodgingOwnerIds,
           contextIds: result.contextIds,
+          personalCategoryIds: result.personalCategoryIds,
         ),
       );
       if (mounted) setState(() => _selectedTripId = id);
@@ -88,6 +89,14 @@ class _TripsScreenState extends State<TripsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(userMessageFor(error))));
+    }
+  }
+
+  Future<void> _handleEntryAction(_TripEntryAction action) async {
+    if (action == _TripEntryAction.create) {
+      await _createTrip();
+    } else {
+      await _join();
     }
   }
 
@@ -112,6 +121,7 @@ class _TripsScreenState extends State<TripsScreen> {
             transportOwnerIds: trip.selectedTransportOwnerIds,
             lodgingOwnerIds: trip.selectedLodgingOwnerIds,
             contextIds: trip.selectedContextIds,
+            personalCategoryIds: trip.selectedPersonalCategoryIds,
           ),
         ),
       ),
@@ -205,151 +215,279 @@ class _TripsScreenState extends State<TripsScreen> {
           setState(() => _showArchives = false);
         }
       },
-      child: DestinationScaffold(
-        title: 'Voyages',
-        actions: [
-          if (widget.sharedDocuments != null)
-            IconButton(
-              key: const Key('trip-join'),
-              onPressed: _join,
-              tooltip: 'Rejoindre avec un code',
-              icon: const Icon(Icons.group_add_outlined),
-            ),
-        ],
-        child: StreamBuilder<List<TripSummary>>(
-          stream: widget.watchTrips(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return const EmptyDestination(
-                icon: Icons.error_outline,
-                title: 'Voyages indisponibles',
-                message: 'Impossible de charger les données locales.',
-              );
-            }
-            final trips = snapshot.data ?? const [];
-            final now = DateTime.now();
-            final upcoming = trips
-                .where(
-                  (trip) =>
-                      TripArchiveClassifier.classify(trip, now) ==
-                      TripCollection.upcoming,
-                )
-                .toList(growable: false);
-            final ongoing = trips
-                .where(
-                  (trip) =>
-                      TripArchiveClassifier.classify(trip, now) ==
-                      TripCollection.ongoing,
-                )
-                .toList(growable: false);
-            final archives =
-                trips
+      child: Stack(
+        children: [
+          DestinationScaffold(
+            title: 'Checklist Voyage',
+            actions: [
+              PopupMenuButton<String>(
+                key: const Key('trip-root-menu'),
+                tooltip: 'Plus d’options',
+                position: PopupMenuPosition.under,
+                onSelected: (_) =>
+                    setState(() => _showArchives = !_showArchives),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    height: 44,
+                    value: 'archives',
+                    child: Row(
+                      children: [
+                        Icon(
+                          _showArchives
+                              ? Icons.luggage_outlined
+                              : Icons.archive_outlined,
+                          size: 20,
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Text(_showArchives ? 'Voyages actifs' : 'Archives'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            child: StreamBuilder<List<TripSummary>>(
+              stream: widget.watchTrips(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const EmptyDestination(
+                    icon: Icons.error_outline,
+                    title: 'Voyages indisponibles',
+                    message: 'Impossible de charger les données locales.',
+                  );
+                }
+                final trips = snapshot.data ?? const [];
+                final now = DateTime.now();
+                final upcoming = trips
                     .where(
                       (trip) =>
                           TripArchiveClassifier.classify(trip, now) ==
-                          TripCollection.archived,
+                          TripCollection.upcoming,
                     )
-                    .toList()
-                  ..sort(
-                    (a, b) => TripArchiveClassifier.archiveSortDate(
-                      b,
-                    ).compareTo(TripArchiveClassifier.archiveSortDate(a)),
-                  );
-            final hasActive = upcoming.isNotEmpty || ongoing.isNotEmpty;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+                    .toList(growable: false);
+                final ongoing = trips
+                    .where(
+                      (trip) =>
+                          TripArchiveClassifier.classify(trip, now) ==
+                          TripCollection.ongoing,
+                    )
+                    .toList(growable: false);
+                final archives =
+                    trips
+                        .where(
+                          (trip) =>
+                              TripArchiveClassifier.classify(trip, now) ==
+                              TripCollection.archived,
+                        )
+                        .toList()
+                      ..sort(
+                        (a, b) => TripArchiveClassifier.archiveSortDate(
+                          b,
+                        ).compareTo(TripArchiveClassifier.archiveSortDate(a)),
+                      );
+                final hasActive = upcoming.isNotEmpty || ongoing.isNotEmpty;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!_showArchives) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.field),
+                        child: AspectRatio(
+                          aspectRatio: 4 / 3,
+                          child: Image.asset(
+                            'assets/images/checklist.webp',
+                            key: const Key('trip-home-hero'),
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+                    if (_showArchives) ...[
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.archive_outlined,
+                            size: 20,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            'Archives',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      if (archives.isEmpty)
+                        const EmptyDestination(
+                          icon: Icons.archive_outlined,
+                          title: 'Aucune archive',
+                          message: 'Les voyages terminés apparaîtront ici.',
+                        )
+                      else
+                        ...archives.map(
+                          (trip) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.sm,
+                            ),
+                            child: _TripSummaryCard(
+                              trip: trip,
+                              archived: true,
+                              onTap: () =>
+                                  setState(() => _selectedTripId = trip.id),
+                              onAction: (action) =>
+                                  _handleCardAction(trip, action),
+                            ),
+                          ),
+                        ),
+                    ] else if (!hasActive)
+                      const EmptyDestination(
+                        icon: Icons.luggage_outlined,
+                        title: 'Aucun voyage actif',
+                        message: 'Créez un voyage depuis votre bibliothèque.',
+                      )
+                    else ...[
+                      if (ongoing.isNotEmpty) ...[
+                        Text(
+                          'En cours',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        ...ongoing.map(
+                          (trip) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.sm,
+                            ),
+                            child: _TripSummaryCard(
+                              trip: trip,
+                              archived: false,
+                              onTap: () =>
+                                  setState(() => _selectedTripId = trip.id),
+                              onAction: (action) =>
+                                  _handleCardAction(trip, action),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (upcoming.isNotEmpty) ...[
+                        if (ongoing.isNotEmpty)
+                          const SizedBox(height: AppSpacing.md),
+                        Text(
+                          'À venir',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        ...upcoming.map(
+                          (trip) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.sm,
+                            ),
+                            child: _TripSummaryCard(
+                              trip: trip,
+                              archived: false,
+                              onTap: () =>
+                                  setState(() => _selectedTripId = trip.id),
+                              onAction: (action) =>
+                                  _handleCardAction(trip, action),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                    const SizedBox(height: 76),
+                  ],
+                );
+              },
+            ),
+          ),
+          if (!_showArchives)
+            Positioned(
+              right: AppSpacing.md,
+              bottom: AppSpacing.md,
+              child: _TripEntryFab(
+                canJoin: widget.sharedDocuments != null,
+                onSelected: _handleEntryAction,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _TripEntryAction { create, join }
+
+class _TripEntryFab extends StatefulWidget {
+  const _TripEntryFab({required this.canJoin, required this.onSelected});
+
+  final bool canJoin;
+  final ValueChanged<_TripEntryAction> onSelected;
+
+  @override
+  State<_TripEntryFab> createState() => _TripEntryFabState();
+}
+
+class _TripEntryFabState extends State<_TripEntryFab> {
+  final _menuKey = GlobalKey<PopupMenuButtonState<_TripEntryAction>>();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return KeyedSubtree(
+      key: const Key('trip-fab-menu'),
+      child: PopupMenuButton<_TripEntryAction>(
+        key: _menuKey,
+        tooltip: 'Ajouter ou rejoindre un voyage',
+        position: PopupMenuPosition.over,
+        onSelected: widget.onSelected,
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            height: 44,
+            value: _TripEntryAction.create,
+            child: Row(
               children: [
-                SegmentedButton<bool>(
-                  key: const Key('trip-archive-tabs'),
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Voyages')),
-                    ButtonSegment(value: true, label: Text('Archives')),
-                  ],
-                  selected: {_showArchives},
-                  onSelectionChanged: (selection) =>
-                      setState(() => _showArchives = selection.single),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                if (!_showArchives) ...[
-                  FilledButton.icon(
-                    key: const Key('trip-create'),
-                    onPressed: _createTrip,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Nouveau voyage'),
+                Icon(Icons.add_location_alt_outlined, size: 20),
+                SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    'Créer un voyage',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-                if (_showArchives)
-                  if (archives.isEmpty)
-                    const EmptyDestination(
-                      icon: Icons.archive_outlined,
-                      title: 'Aucune archive',
-                      message: 'Les voyages terminés apparaîtront ici.',
-                    )
-                  else
-                    ...archives.map(
-                      (trip) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: _TripSummaryCard(
-                          trip: trip,
-                          archived: true,
-                          onTap: () =>
-                              setState(() => _selectedTripId = trip.id),
-                          onAction: (action) => _handleCardAction(trip, action),
-                        ),
-                      ),
-                    )
-                else if (!hasActive)
-                  const EmptyDestination(
-                    icon: Icons.luggage_outlined,
-                    title: 'Aucun voyage actif',
-                    message: 'Créez un voyage depuis votre bibliothèque.',
-                  )
-                else ...[
-                  if (ongoing.isNotEmpty) ...[
-                    Text(
-                      'En cours',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    ...ongoing.map(
-                      (trip) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: _TripSummaryCard(
-                          trip: trip,
-                          archived: false,
-                          onTap: () =>
-                              setState(() => _selectedTripId = trip.id),
-                          onAction: (action) => _handleCardAction(trip, action),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (upcoming.isNotEmpty) ...[
-                    if (ongoing.isNotEmpty)
-                      const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'À venir',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    ...upcoming.map(
-                      (trip) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: _TripSummaryCard(
-                          trip: trip,
-                          archived: false,
-                          onTap: () =>
-                              setState(() => _selectedTripId = trip.id),
-                          onAction: (action) => _handleCardAction(trip, action),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+                ),
               ],
-            );
-          },
+            ),
+          ),
+          if (widget.canJoin)
+            const PopupMenuItem(
+              height: 44,
+              value: _TripEntryAction.join,
+              child: Row(
+                children: [
+                  Icon(Icons.group_add_outlined, size: 20),
+                  SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      'Rejoindre avec un code',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        child: FloatingActionButton(
+          heroTag: null,
+          tooltip: 'Ajouter ou rejoindre un voyage',
+          onPressed: () => _menuKey.currentState?.showButtonMenu(),
+          backgroundColor: colors.primary,
+          foregroundColor: colors.onPrimary,
+          child: const Icon(Icons.add),
         ),
       ),
     );
@@ -856,7 +994,7 @@ class _TripDetailState extends State<_TripDetail> {
   }
 }
 
-class _TripOverview extends StatelessWidget {
+class _TripOverview extends StatefulWidget {
   const _TripOverview({
     required this.trip,
     required this.progress,
@@ -882,11 +1020,23 @@ class _TripOverview extends StatelessWidget {
   final ValueChanged<String> onMemberSelected;
 
   @override
+  State<_TripOverview> createState() => _TripOverviewState();
+}
+
+class _TripOverviewState extends State<_TripOverview> {
+  bool _generalExpanded = true;
+  bool _membersExpanded = true;
+  bool _personalExpanded = true;
+
+  @override
   Widget build(BuildContext context) {
-    final general = visibleMembers
+    final personal = widget.visibleMembers
+        .where((member) => member.groupKind == TripMemberGroupKind.personal)
+        .toList(growable: false);
+    final general = widget.visibleMembers
         .where((member) => member.groupKind == TripMemberGroupKind.general)
         .toList(growable: false);
-    final family = visibleMembers
+    final family = widget.visibleMembers
         .where((member) => member.groupKind == TripMemberGroupKind.family)
         .toList(growable: false);
     return CustomScrollView(
@@ -895,11 +1045,15 @@ class _TripOverview extends StatelessWidget {
         SliverAppBar(
           pinned: true,
           leading: IconButton(
-            onPressed: onBack,
+            onPressed: widget.onBack,
             icon: const Icon(Icons.arrow_back),
           ),
-          title: Text(trip.destination.isEmpty ? trip.name : trip.destination),
-          actions: actions,
+          title: Text(
+            widget.trip.destination.isEmpty
+                ? widget.trip.name
+                : widget.trip.destination,
+          ),
+          actions: widget.actions,
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(
@@ -910,15 +1064,19 @@ class _TripOverview extends StatelessWidget {
           ),
           sliver: SliverList.list(
             children: [
-              if (trip.startDate != null ||
-                  trip.endDate != null ||
-                  trip.v1ShareReady) ...[
+              if (widget.trip.startDate != null ||
+                  widget.trip.endDate != null ||
+                  widget.trip.v1ShareReady) ...[
                 Row(
                   children: [
-                    if (trip.startDate != null || trip.endDate != null)
+                    if (widget.trip.startDate != null ||
+                        widget.trip.endDate != null)
                       Expanded(
                         child: Text(
-                          compactTripPeriodLabel(trip.startDate, trip.endDate),
+                          compactTripPeriodLabel(
+                            widget.trip.startDate,
+                            widget.trip.endDate,
+                          ),
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: Theme.of(
@@ -929,7 +1087,7 @@ class _TripOverview extends StatelessWidget {
                       )
                     else
                       const Spacer(),
-                    if (trip.v1ShareReady)
+                    if (widget.trip.v1ShareReady)
                       Text(
                         'Partagé',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -940,31 +1098,61 @@ class _TripOverview extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
               ],
-              _CompactProgress(progress: progress),
+              _CompactProgress(progress: widget.progress),
               const SizedBox(height: AppSpacing.md),
               _TripFilters(
-                filter: filter,
-                personOptions: personOptions,
-                onStateChanged: onStateChanged,
-                onPersonChanged: onPersonChanged,
+                filter: widget.filter,
+                personOptions: widget.personOptions,
+                onStateChanged: widget.onStateChanged,
+                onPersonChanged: widget.onPersonChanged,
               ),
               const SizedBox(height: AppSpacing.md),
-              if (visibleMembers.isEmpty)
-                _EmptyTripFilter(filter: filter, personOptions: personOptions)
+              if (widget.visibleMembers.isEmpty)
+                _EmptyTripFilter(
+                  filter: widget.filter,
+                  personOptions: widget.personOptions,
+                )
               else ...[
                 if (general.isNotEmpty)
-                  _TripLevelSection(
+                  _TripLevelBlock(
+                    key: const Key('trip-level-general'),
+                    icon: Icons.public_outlined,
                     title: 'Général',
                     members: general,
-                    trip: trip,
-                    onSelected: onMemberSelected,
+                    trip: widget.trip,
+                    expanded: _generalExpanded,
+                    onToggle: () =>
+                        setState(() => _generalExpanded = !_generalExpanded),
+                    onSelected: widget.onMemberSelected,
                   ),
+                if (general.isNotEmpty && family.isNotEmpty)
+                  const SizedBox(height: AppSpacing.sm),
                 if (family.isNotEmpty)
-                  _TripLevelSection(
+                  _TripLevelBlock(
+                    key: const Key('trip-level-members'),
+                    icon: Icons.group_outlined,
                     title: 'Membres',
                     members: family,
-                    trip: trip,
-                    onSelected: onMemberSelected,
+                    trip: widget.trip,
+                    expanded: _membersExpanded,
+                    onToggle: () =>
+                        setState(() => _membersExpanded = !_membersExpanded),
+                    onSelected: widget.onMemberSelected,
+                  ),
+                if ((general.isNotEmpty || family.isNotEmpty) &&
+                    personal.isNotEmpty)
+                  const SizedBox(height: AppSpacing.sm),
+                if (personal.isNotEmpty)
+                  _TripLevelBlock(
+                    key: const Key('trip-level-personal'),
+                    icon: Icons.person_outline,
+                    title: 'Personnel',
+                    members: personal,
+                    trip: widget.trip,
+                    expanded: _personalExpanded,
+                    onToggle: () =>
+                        setState(() => _personalExpanded = !_personalExpanded),
+                    onSelected: widget.onMemberSelected,
                   ),
               ],
             ],
@@ -975,44 +1163,117 @@ class _TripOverview extends StatelessWidget {
   }
 }
 
-class _TripLevelSection extends StatelessWidget {
-  const _TripLevelSection({
+class _TripLevelBlock extends StatelessWidget {
+  const _TripLevelBlock({
+    super.key,
+    required this.icon,
     required this.title,
     required this.members,
     required this.trip,
+    required this.expanded,
+    required this.onToggle,
     required this.onSelected,
   });
 
+  final IconData icon;
   final String title;
   final List<TripMemberModel> members;
   final TripDetailModel trip;
+  final bool expanded;
+  final VoidCallback onToggle;
   final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(
-            top: AppSpacing.sm,
-            bottom: AppSpacing.xs,
-          ),
-          child: Text(title, style: Theme.of(context).textTheme.titleSmall),
-        ),
-        ...members.map((member) {
-          final complete = trip.members.singleWhere(
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final completeMembers = members
+        .map(
+          (member) => trip.members.singleWhere(
             (candidate) => candidate.id == member.id,
-          );
-          final progress = ProgressCalculator.forMember(complete);
-          return _TripNavigationRow(
-            key: Key('trip-member-${member.id}'),
-            title: member.name,
-            progress: progress,
-            onTap: () => onSelected(member.id),
-          );
-        }),
-      ],
+          ),
+        )
+        .toList(growable: false);
+    final progress = ChecklistProgress(
+      total: completeMembers
+          .map(ProgressCalculator.forMember)
+          .fold(0, (sum, value) => sum + value.total),
+      completed: completeMembers
+          .map(ProgressCalculator.forMember)
+          .fold(0, (sum, value) => sum + value.completed),
+    );
+    final headerColor = Color.alphaBlend(
+      colors.primary.withValues(alpha: dark ? 0.18 : 0.13),
+      colors.surfaceContainerLow,
+    );
+    return Material(
+      color: colors.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ColoredBox(
+            color: headerColor,
+            child: InkWell(
+              key: Key('trip-level-${title.toLowerCase()}-toggle'),
+              onTap: onToggle,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 50),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(icon, size: 21, color: colors.primary),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ),
+                      Text(
+                        '${progress.completed}/${progress.total}',
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: colors.onSurfaceVariant),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Icon(
+                        expanded ? Icons.expand_less : Icons.expand_more,
+                        size: 20,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (expanded)
+            ...members.indexed.expand((entry) {
+              final (index, member) = entry;
+              final complete = completeMembers[index];
+              final memberProgress = ProgressCalculator.forMember(complete);
+              return [
+                if (index > 0) const Divider(height: 1, indent: 48),
+                _TripNavigationRow(
+                  key: Key('trip-member-${member.id}'),
+                  icon: title == 'Membres' || title == 'Personnel'
+                      ? Icons.person_outline
+                      : Icons.folder_outlined,
+                  title: member.name,
+                  progress: memberProgress,
+                  onTap: () => onSelected(member.id),
+                ),
+              ];
+            }),
+        ],
+      ),
     );
   }
 }
@@ -1020,11 +1281,13 @@ class _TripLevelSection extends StatelessWidget {
 class _TripNavigationRow extends StatelessWidget {
   const _TripNavigationRow({
     super.key,
+    required this.icon,
     required this.title,
     required this.progress,
     required this.onTap,
   });
 
+  final IconData icon;
   final String title;
   final ChecklistProgress progress;
   final VoidCallback onTap;
@@ -1034,7 +1297,8 @@ class _TripNavigationRow extends StatelessWidget {
     return ListTile(
       dense: true,
       visualDensity: const VisualDensity(vertical: -2),
-      contentPadding: EdgeInsets.zero,
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      leading: Icon(icon, size: 20),
       title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

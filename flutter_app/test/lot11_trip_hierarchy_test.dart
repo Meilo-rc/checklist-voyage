@@ -73,6 +73,8 @@ void main() {
       expect(find.text(compactTripPeriodLabel(start, end)), findsOneWidget);
       expect(find.text('Général'), findsWidgets);
       expect(find.text('Membres'), findsOneWidget);
+      expect(find.byKey(const Key('trip-level-general')), findsOneWidget);
+      expect(find.byKey(const Key('trip-level-members')), findsOneWidget);
       await tester.tap(find.byKey(Key('trip-member-${member.id}')));
       await tester.pumpAndSettle();
       expect(find.byKey(Key('trip-member-page-${member.id}')), findsOneWidget);

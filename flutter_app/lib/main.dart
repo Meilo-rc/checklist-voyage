@@ -8,5 +8,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final appVersion = await const AppVersionGateway().load();
   final dependencies = await AppDependencies.create();
-  runApp(ChecklistApp(dependencies: dependencies, appVersion: appVersion));
+  runApp(
+    ChecklistApp(
+      dependencies: dependencies,
+      appVersion: appVersion,
+      showLaunchAnimation: true,
+    ),
+  );
 }

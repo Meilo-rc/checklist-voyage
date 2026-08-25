@@ -245,9 +245,11 @@ class DriftTripRepository implements TripRepository {
             id: member.id,
             name: member.name,
             sourceOwnerId: member.sourceOwnerId,
-            groupKind: member.groupKind == 'family'
-                ? TripMemberGroupKind.family
-                : TripMemberGroupKind.general,
+            groupKind: switch (member.groupKind) {
+              'family' => TripMemberGroupKind.family,
+              'personal' => TripMemberGroupKind.personal,
+              _ => TripMemberGroupKind.general,
+            },
             categories: categories
                 .where((category) => category.memberId == member.id)
                 .map(mapCategory)
@@ -294,6 +296,10 @@ class DriftTripRepository implements TripRepository {
           .where((choice) => choice.choiceKind == 'lodging')
           .map((choice) => choice.choiceId)
           .toSet(),
+      selectedPersonalCategoryIds: choices
+          .where((choice) => choice.choiceKind == 'personal_category')
+          .map((choice) => choice.choiceId)
+          .toSet(),
       members: mappedMembers,
       archivedAt: trip.archivedAt,
       shared: trip.shareState == 'shared',
@@ -313,7 +319,7 @@ class DriftTripRepository implements TripRepository {
     final now = DateTime.now().toUtc();
     await _database.transaction(() async {
       final snapshot = await _loadLibrarySnapshot();
-      _validateOwnerChoices(snapshot.owners, request);
+      _validateOwnerChoices(snapshot, request);
       await _validateContexts(request.contextIds);
 
       await _database
@@ -608,9 +614,10 @@ class DriftTripRepository implements TripRepository {
   }
 
   void _validateOwnerChoices(
-    List<LibraryOwner> owners,
+    _LibrarySnapshot snapshot,
     CreateTripRequest request,
   ) {
+    final owners = snapshot.owners;
     final byId = {for (final owner in owners) owner.id: owner};
 
     bool valid(Set<String> ids, bool Function(LibraryOwner) accepts) =>
@@ -636,6 +643,21 @@ class DriftTripRepository implements TripRepository {
     )) {
       throw ArgumentError('Logement invalide.');
     }
+    final personalCategoriesAreValid = request.personalCategoryIds.every((id) {
+      final category = snapshot.categoryById[id];
+      if (category == null) return false;
+      final owner = snapshot.ownerById[category.ownerId];
+      return owner != null &&
+          owner.kind == 'personal' &&
+          owner.syncScope == 'personal_local' &&
+          owner.linkedParticipantOwnerId != null &&
+          request.participantOwnerIds.contains(owner.linkedParticipantOwnerId);
+    });
+    if (!personalCategoriesAreValid) {
+      throw ArgumentError(
+        'Une catégorie Personnel exige la participation de son propriétaire.',
+      );
+    }
   }
 
   Future<void> _validateContexts(Set<String> contextIds) async {
@@ -658,6 +680,7 @@ class DriftTripRepository implements TripRepository {
       MapEntry('transport', request.transportOwnerIds),
       MapEntry('lodging', request.lodgingOwnerIds),
       MapEntry('context', request.contextIds),
+      MapEntry('personal_category', request.personalCategoryIds),
     ]) {
       for (final choiceId in entry.value.toList()..sort()) {
         await _database
@@ -717,6 +740,25 @@ class DriftTripRepository implements TripRepository {
       }
     }
 
+    final personalCategories =
+        request.personalCategoryIds
+            .map((id) => snapshot.categoryById[id])
+            .whereType<LibraryCategory>()
+            .toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
+    for (final category in personalCategories) {
+      final owner = snapshot.ownerById[category.ownerId]!;
+      for (final item in snapshot.itemsForCategory(category.id)) {
+        result.add(
+          snapshot.contribution(
+            item: item,
+            targetOwner: owner,
+            reason: _Reason('personal', category.id, item.id),
+          ),
+        );
+      }
+    }
+
     if (request.contextIds.isEmpty) return result;
     final contextAssociations =
         snapshot.associations
@@ -745,8 +787,9 @@ class DriftTripRepository implements TripRepository {
       } else if (owner.kind == 'personal') {
         final linkedId = owner.linkedParticipantOwnerId;
         if (linkedId != null &&
-            request.participantOwnerIds.contains(linkedId)) {
-          targetOwner = snapshot.ownerById[linkedId];
+            request.participantOwnerIds.contains(linkedId) &&
+            request.personalCategoryIds.contains(category.id)) {
+          targetOwner = owner;
         }
       } else {
         targetOwner = owner;
@@ -833,7 +876,11 @@ class DriftTripRepository implements TripRepository {
             id: memberId,
             tripId: tripId,
             sourceOwnerId: Value(owner.id),
-            groupKind: owner.kind == 'family_member' ? 'family' : 'general',
+            groupKind: switch (owner.kind) {
+              'family_member' => 'family',
+              'personal' => 'personal',
+              _ => 'general',
+            },
             name: owner.name,
             icon: Value(owner.icon),
             createdAt: now,
@@ -1128,6 +1175,9 @@ class _LibrarySnapshot {
     return items.where((item) => categoryIds.contains(item.categoryId));
   }
 
+  Iterable<LibraryItem> itemsForCategory(String categoryId) =>
+      items.where((item) => item.categoryId == categoryId);
+
   _Contribution contribution({
     required LibraryItem item,
     required LibraryOwner targetOwner,
@@ -1201,6 +1251,7 @@ GenerationReasonKind _reasonKind(String value) => switch (value) {
   'transport' => GenerationReasonKind.transport,
   'lodging' => GenerationReasonKind.lodging,
   'context' => GenerationReasonKind.context,
+  'personal' => GenerationReasonKind.personal,
   _ => GenerationReasonKind.legacy,
 };
 

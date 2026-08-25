@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/presentation/user_message.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/backup/safety_backup_file_gateway.dart';
 import '../../data/backup/v1_safety_backup_service.dart';
 import '../../domain/models/checklist_models.dart';
@@ -374,53 +375,81 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
+  Future<void> _handleSecondaryAction(String action) async {
+    if (action == 'contexts') {
+      await _openContextCatalog();
+    } else if (action == 'import') {
+      await _pickBackup();
+    } else if (action == 'export') {
+      await _exportSafetyBackup();
+    } else if (action == 'restore') {
+      await _restoreSafetyBackup();
+    } else if (action == 'add-owner') {
+      await _createOwner();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DestinationScaffold(
       title: 'Bibliothèque',
       actions: [
         _SyncControl(syncCoordinator: widget.syncCoordinator),
-        IconButton(
-          key: const Key('library-contexts'),
-          onPressed: _openContextCatalog,
-          tooltip: 'Gérer les contextes',
-          icon: const Icon(Icons.interests_outlined),
-        ),
-        IconButton(
-          key: const Key('library-import'),
-          onPressed: widget.importViewModel.loading ? null : _pickBackup,
-          tooltip: 'Importer une sauvegarde Web',
-          icon: widget.importViewModel.loading
-              ? const SizedBox.square(
-                  dimension: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.file_download_outlined),
-        ),
         PopupMenuButton<String>(
-          key: const Key('library-safety-backup-menu'),
-          tooltip: 'Sauvegarde de sécurité V1',
-          onSelected: (action) async {
-            if (action == 'export') {
-              await _exportSafetyBackup();
-            } else if (action == 'restore') {
-              await _restoreSafetyBackup();
-            }
-          },
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: 'export', child: Text('Exporter sécurité V1')),
+          key: const Key('library-menu'),
+          tooltip: 'Plus d’options',
+          position: PopupMenuPosition.under,
+          onSelected: _handleSecondaryAction,
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              key: Key('library-contexts'),
+              height: 44,
+              value: 'contexts',
+              child: _LibraryMenuItem(
+                icon: Icons.interests_outlined,
+                label: 'Gérer les contextes',
+              ),
+            ),
             PopupMenuItem(
+              key: const Key('library-import'),
+              height: 44,
+              value: 'import',
+              enabled: !widget.importViewModel.loading,
+              child: const _LibraryMenuItem(
+                icon: Icons.file_download_outlined,
+                label: 'Importer une sauvegarde Web',
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              key: Key('library-export-safety'),
+              height: 44,
+              value: 'export',
+              child: _LibraryMenuItem(
+                icon: Icons.upload_file_outlined,
+                label: 'Exporter sécurité V1',
+              ),
+            ),
+            PopupMenuItem(
+              key: Key('library-restore-safety'),
+              height: 44,
               value: 'restore',
-              child: Text('Restaurer sécurité V1'),
+              child: _LibraryMenuItem(
+                icon: Icons.restore_outlined,
+                label: 'Restaurer sécurité V1',
+              ),
+            ),
+            PopupMenuDivider(),
+            PopupMenuItem(
+              key: Key('library-add-owner'),
+              height: 44,
+              value: 'add-owner',
+              child: _LibraryMenuItem(
+                icon: Icons.add,
+                label: 'Ajouter un groupe',
+              ),
             ),
           ],
-          icon: const Icon(Icons.security_outlined),
-        ),
-        IconButton(
-          key: const Key('library-add-owner'),
-          onPressed: _createOwner,
-          tooltip: 'Ajouter un groupe',
-          icon: const Icon(Icons.add),
         ),
       ],
       child: LibraryBrowser(
@@ -429,6 +458,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
         onLinkPersonalOwner: _linkPersonalOwner,
         onMessage: _message,
       ),
+    );
+  }
+}
+
+class _LibraryMenuItem extends StatelessWidget {
+  const _LibraryMenuItem({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 20),
+        const SizedBox(width: AppSpacing.md),
+        Flexible(child: Text(label)),
+      ],
     );
   }
 }

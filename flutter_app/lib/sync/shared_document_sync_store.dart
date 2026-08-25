@@ -142,6 +142,7 @@ class SharedDocumentSyncStore {
           UNION ALL
           SELECT 4, 'trip_choice', id FROM trip_generation_choices
           WHERE trip_id = ? AND deleted_at IS NULL
+            AND choice_kind <> 'personal_category'
           ORDER BY rank, entity_id
         ''',
           variables: List.generate(5, (_) => Variable.withString(tripId)),
@@ -296,7 +297,8 @@ class SharedDocumentSyncStore {
       'trip_item' =>
         'SELECT COUNT(*) AS count FROM trip_items WHERE id = ? AND trip_id = ?',
       'trip_choice' =>
-        'SELECT COUNT(*) AS count FROM trip_generation_choices WHERE id = ? AND trip_id = ?',
+        'SELECT COUNT(*) AS count FROM trip_generation_choices '
+            "WHERE id = ? AND trip_id = ? AND choice_kind <> 'personal_category'",
       'quick_list' =>
         'SELECT COUNT(*) AS count FROM quick_lists WHERE id = ? AND id = ?',
       'quick_list_item' =>
@@ -335,11 +337,12 @@ class SharedDocumentSyncStore {
         final row = await (database.select(
           database.tripMembers,
         )..where((entry) => entry.id.equals(entityId))).getSingle();
+        final personal = row.groupKind == 'personal';
         return {
           'trip_id': row.tripId,
           'group_kind': row.groupKind,
-          'name': row.name,
-          'icon': row.icon,
+          'name': personal ? 'Personnel' : row.name,
+          'icon': personal ? null : row.icon,
         };
       case 'trip_category':
         final row = await (database.select(

@@ -29,8 +29,12 @@ void main() {
 
       await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('trip-create')));
+      await tester.tap(find.byKey(const Key('trip-fab-menu')));
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Créer un voyage'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
       await tester.enterText(
         find.byKey(const Key('trip-destination')),
         'Grenoble',
@@ -50,9 +54,11 @@ void main() {
         await tester.tap(find.text(choice).last);
         await tester.pumpAndSettle();
       }
+      expect(tester.takeException(), isNull);
       await tester.ensureVisible(find.byKey(const Key('trip-submit')));
       await tester.tap(find.byKey(const Key('trip-submit')));
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
 
       expect(find.text('Grenoble'), findsWidgets);
       expect(find.text('Essentiel'), findsOneWidget);
@@ -74,7 +80,6 @@ void main() {
         ),
         isTrue,
       );
-      expect(tester.takeException(), isNull);
 
       await tester.tap(find.text('Listes rapides').last);
       await tester.pumpAndSettle();

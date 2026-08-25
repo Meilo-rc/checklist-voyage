@@ -24,6 +24,7 @@ void main() {
         _request(
           participants: {fixture.maloneOwner},
           contexts: {fixture.beach, fixture.pool},
+          personalCategories: {fixture.personalCategory},
         ),
       );
       final trip = (await trips.loadTrip(tripId))!;
@@ -37,7 +38,11 @@ void main() {
       expect(_item(trip, 'Parasol').category.name, 'Accessoires');
       expect(_item(trip, 'Maillot').category.name, 'Vêtements');
       expect(_item(trip, 'Objet personnel').category.name, 'Personnel');
-      expect(_item(trip, 'Objet personnel').member.name, 'Malone');
+      expect(
+        _item(trip, 'Objet personnel').member.groupKind,
+        TripMemberGroupKind.personal,
+      );
+      expect(trip.selectedPersonalCategoryIds, {fixture.personalCategory});
 
       final passport = _item(trip, 'Passeport').item;
       expect(passport.sourceLibraryItemIds, [fixture.passportItem]);
@@ -316,12 +321,14 @@ class _ContextFixture {
     required this.beach,
     required this.pool,
     required this.passportItem,
+    required this.personalCategory,
   });
 
   final String maloneOwner;
   final String beach;
   final String pool;
   final String passportItem;
+  final String personalCategory;
 }
 
 Future<_ContextFixture> _seedContextGeneration(
@@ -387,6 +394,7 @@ Future<_ContextFixture> _seedContextGeneration(
     beach: beach,
     pool: pool,
     passportItem: essential.item,
+    personalCategory: personalCategory,
   );
 }
 
@@ -420,6 +428,7 @@ CreateTripRequest _request({
   Set<String> transports = const {},
   Set<String> lodgings = const {},
   Set<String> contexts = const {},
+  Set<String> personalCategories = const {},
   bool essentials = true,
 }) => CreateTripRequest(
   name: 'Test',
@@ -430,6 +439,7 @@ CreateTripRequest _request({
   transportOwnerIds: transports,
   lodgingOwnerIds: lodgings,
   contextIds: contexts,
+  personalCategoryIds: personalCategories,
   includeEssentials: essentials,
 );
 

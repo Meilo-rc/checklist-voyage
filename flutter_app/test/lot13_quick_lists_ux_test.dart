@@ -195,12 +195,9 @@ void main() {
       Brightness.dark,
     );
 
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('quick-archive-tabs')),
-        matching: find.text('Archives'),
-      ),
-    );
+    await tester.tap(find.byKey(const Key('quick-root-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Archives'));
     await tester.pumpAndSettle();
     expect(find.byKey(Key('quick-summary-$archivedId')), findsOneWidget);
     await tester.tap(find.byKey(Key('quick-summary-$archivedId')));

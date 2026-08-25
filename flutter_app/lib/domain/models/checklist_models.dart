@@ -10,6 +10,7 @@ enum GenerationReasonKind {
   transport,
   lodging,
   context,
+  personal,
   legacy,
 }
 
@@ -76,6 +77,7 @@ class CreateTripRequest {
     required this.transportOwnerIds,
     required this.lodgingOwnerIds,
     this.contextIds = const {},
+    this.personalCategoryIds = const {},
     this.includeEssentials = true,
   });
 
@@ -87,6 +89,7 @@ class CreateTripRequest {
   final Set<String> transportOwnerIds;
   final Set<String> lodgingOwnerIds;
   final Set<String> contextIds;
+  final Set<String> personalCategoryIds;
   final bool includeEssentials;
 }
 
@@ -185,7 +188,7 @@ class TripMemberModel {
   final List<TripCategoryModel> categories;
 }
 
-enum TripMemberGroupKind { general, family }
+enum TripMemberGroupKind { general, family, personal }
 
 class TripDetailModel {
   const TripDetailModel({
@@ -199,6 +202,7 @@ class TripDetailModel {
     this.selectedParticipantOwnerIds = const {},
     this.selectedTransportOwnerIds = const {},
     this.selectedLodgingOwnerIds = const {},
+    this.selectedPersonalCategoryIds = const {},
     this.archivedAt,
     this.shared = false,
     this.v1ShareReady = false,
@@ -214,6 +218,7 @@ class TripDetailModel {
   final Set<String> selectedParticipantOwnerIds;
   final Set<String> selectedTransportOwnerIds;
   final Set<String> selectedLodgingOwnerIds;
+  final Set<String> selectedPersonalCategoryIds;
   final List<TripMemberModel> members;
   final DateTime? archivedAt;
   final bool shared;

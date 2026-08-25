@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:checklist_voyage_v1/app/app_dependencies.dart';
 import 'package:checklist_voyage_v1/app/checklist_app.dart';
+import 'package:checklist_voyage_v1/core/theme/app_theme.dart';
 import 'package:checklist_voyage_v1/data/local/app_database.dart';
 import 'package:checklist_voyage_v1/data/repositories/drift_context_repository.dart';
 import 'package:checklist_voyage_v1/data/repositories/drift_library_repository.dart';
@@ -33,11 +34,22 @@ void main() {
 
     expect(find.text('Voyages'), findsWidgets);
     expect(find.text('Aucun voyage actif'), findsOneWidget);
-    expect(find.byKey(const Key('trip-create')), findsOneWidget);
-    expect(find.byType(FloatingActionButton), findsNothing);
-    expect(find.byKey(const Key('trip-archive-tabs')), findsOneWidget);
+    expect(find.text('Checklist Voyage'), findsOneWidget);
+    expect(find.byKey(const Key('trip-home-hero')), findsOneWidget);
+    expect(find.byKey(const Key('trip-fab-menu')), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byKey(const Key('trip-root-menu')), findsOneWidget);
     expect(find.text('Bibliothèque'), findsOneWidget);
     expect(find.text('Listes rapides'), findsOneWidget);
+    expect(AppColors.primary, const Color(0xFF44C3F8));
+    expect(AppColors.pink, const Color(0xFFE71345));
+    expect(AppColors.yellow, const Color(0xFFF8AC34));
+    await tester.tap(find.byKey(const Key('trip-fab-menu')));
+    await tester.pumpAndSettle();
+    expect(find.text('Créer un voyage'), findsOneWidget);
+    expect(find.text('Rejoindre avec un code'), findsOneWidget);
+    await tester.tapAt(const Offset(8, 120));
+    await tester.pumpAndSettle();
     expect(
       Theme.of(tester.element(find.text('Aucun voyage actif'))).brightness,
       Brightness.light,
@@ -66,7 +78,7 @@ void main() {
     expect(theme.brightness, Brightness.dark);
     expect(theme.colorScheme.surface.computeLuminance(), lessThan(0.05));
     expect(find.text('Voyages'), findsWidgets);
-    expect(find.byKey(const Key('trip-create')), findsOneWidget);
+    expect(find.byKey(const Key('trip-fab-menu')), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await _dispose(tester, dependencies);
@@ -191,12 +203,9 @@ void main() {
       await tester.tap(find.byIcon(Icons.arrow_back));
       await _pumpData(tester);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byKey(const Key('trip-archive-tabs')),
-          matching: find.text('Archives'),
-        ),
-      );
+      await tester.tap(find.byKey(const Key('trip-root-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Archives'));
       await tester.pumpAndSettle();
       expect(find.byKey(Key('trip-summary-$pastId')), findsOneWidget);
       expect(find.text('Terminé'), findsNothing);
@@ -242,7 +251,9 @@ void main() {
 
       await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
       await _pumpData(tester);
-      await tester.tap(find.byKey(const Key('trip-create')));
+      await tester.tap(find.byKey(const Key('trip-fab-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Créer un voyage'));
       await tester.pumpAndSettle();
 
       expect(find.byType(TripForm), findsOneWidget);

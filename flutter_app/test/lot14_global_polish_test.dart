@@ -51,12 +51,9 @@ void main() {
     expect(find.byKey(const Key('quick-lists-root')), findsOneWidget);
     expect(find.byKey(Key('quick-summary-$listId')), findsOneWidget);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('quick-archive-tabs')),
-        matching: find.text('Archives'),
-      ),
-    );
+    await tester.tap(find.byKey(const Key('quick-root-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Archives'));
     await tester.pumpAndSettle();
     expect(find.byKey(Key('quick-summary-$archivedId')), findsOneWidget);
     await tester.binding.handlePopRoute();
@@ -77,104 +74,102 @@ void main() {
     await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
     await _pumpData(tester);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('trip-archive-tabs')),
-        matching: find.text('Archives'),
-      ),
-    );
+    await tester.tap(find.byKey(const Key('trip-root-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Archives'));
     await tester.pumpAndSettle();
     expect(find.text('Aucune archive'), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('trip-create')), findsOneWidget);
+    expect(find.byKey(const Key('trip-fab-menu')), findsOneWidget);
     expect(find.text('Aucun voyage actif'), findsOneWidget);
 
     await _dispose(tester, dependencies);
   });
 
-  testWidgets('Retour Android respecte les hiérarchies Voyage et Bibliothèque', (
-    tester,
-  ) async {
-    await _narrowScreen(tester);
-    final database = AppDatabase(NativeDatabase.memory());
-    final ids = await seedReferenceLibrary(DriftLibraryRepository(database));
-    final dependencies = await AppDependencies.create(database: database);
-    final tripId = await dependencies.trips.createTrip(
-      CreateTripRequest(
-        name: 'Navigation',
-        destination: 'Lyon',
-        startDate: DateTime.now().subtract(const Duration(days: 1)),
-        endDate: DateTime.now().add(const Duration(days: 1)),
-        participantOwnerIds: {ids.participantOwner},
-        transportOwnerIds: {ids.flightOwner},
-        lodgingOwnerIds: {ids.hotelOwner},
-      ),
-    );
-    final alexTripMember = (await dependencies.trips.watchTrip(tripId).first)!
-        .members
-        .singleWhere((member) => member.name == 'Alex');
+  testWidgets(
+    'Retour Android respecte les hiérarchies Voyage et Bibliothèque',
+    (tester) async {
+      await _narrowScreen(tester);
+      final database = AppDatabase(NativeDatabase.memory());
+      final ids = await seedReferenceLibrary(DriftLibraryRepository(database));
+      final dependencies = await AppDependencies.create(database: database);
+      final tripId = await dependencies.trips.createTrip(
+        CreateTripRequest(
+          name: 'Navigation',
+          destination: 'Lyon',
+          startDate: DateTime.now().subtract(const Duration(days: 1)),
+          endDate: DateTime.now().add(const Duration(days: 1)),
+          participantOwnerIds: {ids.participantOwner},
+          transportOwnerIds: {ids.flightOwner},
+          lodgingOwnerIds: {ids.hotelOwner},
+        ),
+      );
+      final alexTripMember = (await dependencies.trips.watchTrip(tripId).first)!
+          .members
+          .singleWhere((member) => member.name == 'Alex');
 
-    await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
-    await _pumpData(tester);
-    await tester.tap(find.byKey(Key('trip-summary-$tripId')));
-    await _pumpData(tester);
-    await tester.tap(find.byKey(Key('trip-member-${alexTripMember.id}')));
-    await tester.pumpAndSettle();
-    expect(find.text('Vêtements'), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('trip-overview')), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.byKey(Key('trip-summary-$tripId')), findsOneWidget);
+      await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
+      await _pumpData(tester);
+      await tester.tap(find.byKey(Key('trip-summary-$tripId')));
+      await _pumpData(tester);
+      await tester.tap(find.byKey(Key('trip-member-${alexTripMember.id}')));
+      await tester.pumpAndSettle();
+      expect(find.text('Vêtements'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('trip-overview')), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(Key('trip-summary-$tripId')), findsOneWidget);
 
-    await tester.tap(find.text('Bibliothèque'));
-    await _pumpData(tester);
-    await tester.tap(find.byKey(const Key('library-root-general')));
-    await tester.pumpAndSettle();
-    expect(find.text('Documents'), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('library-root-members')), findsOneWidget);
+      await tester.tap(find.text('Bibliothèque'));
+      await _pumpData(tester);
+      await tester.tap(find.byKey(const Key('library-root-general')));
+      await tester.pumpAndSettle();
+      expect(find.text('Documents'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('library-root-members')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('library-root-members')));
-    await tester.pumpAndSettle();
-    await tester.drag(
-      find.byKey(Key('library-member-${ids.participantOwner}')),
-      const Offset(280, 0),
-    );
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const Key('library-inline-rename-field')),
-      findsOneWidget,
-    );
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const Key('library-inline-rename-field')),
-      findsNothing,
-    );
-    expect(find.byKey(const Key('library-members-page')), findsOneWidget);
-    await tester.tap(find.text('Alex'));
-    await tester.pumpAndSettle();
-    expect(find.text('Vêtements'), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('library-members-page')), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('library-root-personal')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('library-root-members')));
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(Key('library-member-${ids.participantOwner}')),
+        const Offset(280, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('library-inline-rename-field')),
+        findsOneWidget,
+      );
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('library-inline-rename-field')),
+        findsNothing,
+      );
+      expect(find.byKey(const Key('library-members-page')), findsOneWidget);
+      await tester.tap(find.text('Alex'));
+      await tester.pumpAndSettle();
+      expect(find.text('Vêtements'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('library-members-page')), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('library-root-personal')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('library-root-personal')));
-    await tester.pumpAndSettle();
-    expect(find.text('Personnel'), findsWidgets);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('library-root-general')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('library-root-personal')));
+      await tester.pumpAndSettle();
+      expect(find.text('Personnel'), findsWidgets);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('library-root-general')), findsOneWidget);
 
-    await _dispose(tester, dependencies);
-  });
+      await _dispose(tester, dependencies);
+    },
+  );
 
   testWidgets('les ajouts rapides successifs conservent le focus', (
     tester,

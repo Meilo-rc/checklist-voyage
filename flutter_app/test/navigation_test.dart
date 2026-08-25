@@ -27,7 +27,7 @@ void main() {
     expect(find.byKey(const Key('library-root-members')), findsOneWidget);
     expect(find.byKey(const Key('library-root-personal')), findsOneWidget);
     expect(find.text('Mode local-first actif'), findsNothing);
-    expect(find.byIcon(Icons.file_download_outlined), findsOneWidget);
+    expect(find.byKey(const Key('library-menu')), findsOneWidget);
 
     await tester.tap(find.text('Listes rapides'));
     await tester.pumpAndSettle();

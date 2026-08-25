@@ -12,6 +12,7 @@ class ReferenceLibraryIds {
     required this.hotelOwner,
     required this.campingOwner,
     required this.personalOwner,
+    required this.personalCategory,
     required this.personalItem,
   });
 
@@ -24,6 +25,7 @@ class ReferenceLibraryIds {
   final String hotelOwner;
   final String campingOwner;
   final String personalOwner;
+  final String personalCategory;
   final String personalItem;
 }
 
@@ -110,6 +112,7 @@ Future<ReferenceLibraryIds> seedReferenceLibrary(
     hotelOwner: hotelOwner,
     campingOwner: campingOwner,
     personalOwner: personalOwner,
+    personalCategory: personalCategory,
     personalItem: personalItem,
   );
 }

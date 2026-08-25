@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:checklist_voyage_v1/data/local/app_database.dart';
+import 'package:checklist_voyage_v1/data/repositories/drift_library_repository.dart';
 import 'package:checklist_voyage_v1/data/repositories/drift_quick_list_repository.dart';
 import 'package:checklist_voyage_v1/data/repositories/drift_trip_repository.dart';
 import 'package:checklist_voyage_v1/domain/models/checklist_models.dart';
@@ -85,6 +86,82 @@ void main() {
       expect(sent, isNot(contains(fixture.personalItemId)));
       expect(sent, isNot(contains(fixture.personalContextId)));
       expect(sent, isNot(contains('Catégorie secrète')));
+    },
+  );
+
+  test(
+    'un choix Personnel génère puis partage uniquement une copie autonome',
+    () async {
+      final remote = InMemorySharedDocumentRemote();
+      final a = await _Installation.memory(
+        remote,
+        '10000000-0000-4000-8000-000000000011',
+      );
+      final b = await _Installation.memory(
+        remote,
+        '20000000-0000-4000-8000-000000000012',
+      );
+      addTearDown(a.close);
+      addTearDown(b.close);
+      final library = DriftLibraryRepository(a.database);
+      final participantId = await library.createOwner(
+        name: 'Malone',
+        kind: LibraryOwnerKind.familyMember,
+        generationRole: GenerationRole.participant,
+      );
+      final personalOwnerId = await library.createOwner(
+        name: 'Personnel Malone',
+        kind: LibraryOwnerKind.personal,
+        generationRole: GenerationRole.participant,
+        linkedParticipantOwnerId: participantId,
+      );
+      final personalCategoryId = await library.createCategory(
+        personalOwnerId,
+        'Documents privés',
+      );
+      final personalItemId = await library.createItem(
+        categoryId: personalCategoryId,
+        name: 'Carte privée utile',
+        defaultQuantity: 1,
+      );
+      final tripId = await a.trips.createTrip(
+        CreateTripRequest(
+          name: 'Séjour',
+          destination: 'Nice',
+          startDate: null,
+          endDate: null,
+          participantOwnerIds: {participantId},
+          transportOwnerIds: const {},
+          lodgingOwnerIds: const {},
+          personalCategoryIds: {personalCategoryId},
+          includeEssentials: false,
+        ),
+      );
+
+      final access = await a.sync.shareTrip(tripId);
+      await b.sync.join(access.shareCode);
+      final copy = (await b.trips.loadTrip(tripId))!;
+
+      expect(copy.selectedPersonalCategoryIds, isEmpty);
+      expect(copy.members.single.groupKind, TripMemberGroupKind.personal);
+      expect(copy.members.single.name, 'Personnel');
+      expect(copy.members.single.categories.single.name, 'Divers');
+      expect(
+        copy.members.single.categories.single.items.single.name,
+        'Carte privée utile',
+      );
+      expect(
+        copy.members.single.categories.single.items.single.sources,
+        isEmpty,
+      );
+      final sent = jsonEncode(
+        remote.operations(tripId).map((op) => op.operation.toJson()).toList(),
+      );
+      expect(sent, isNot(contains(personalOwnerId)));
+      expect(sent, isNot(contains(personalCategoryId)));
+      expect(sent, isNot(contains(personalItemId)));
+      expect(sent, isNot(contains('Documents privés')));
+      expect(sent, isNot(contains('personal_category')));
     },
   );
 

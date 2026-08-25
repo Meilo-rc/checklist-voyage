@@ -14,10 +14,13 @@ abstract final class AppRadius {
   static const double pill = 999;
 }
 
-abstract final class AppTheme {
-  static const _primary = Color(0xFF245C4F);
-  static const _secondary = Color(0xFFE29B52);
+abstract final class AppColors {
+  static const primary = Color(0xFF44C3F8);
+  static const pink = Color(0xFFE71345);
+  static const yellow = Color(0xFFF8AC34);
+}
 
+abstract final class AppTheme {
   static ThemeData get light => _build(Brightness.light);
 
   static ThemeData get dark => _build(Brightness.dark);
@@ -25,17 +28,27 @@ abstract final class AppTheme {
   static ThemeData _build(Brightness brightness) {
     final dark = brightness == Brightness.dark;
     final generated = ColorScheme.fromSeed(
-      seedColor: _primary,
+      seedColor: AppColors.primary,
       brightness: brightness,
     );
     final colors = generated.copyWith(
-      primary: dark ? generated.primary : _primary,
-      secondary: _secondary,
-      surface: dark ? const Color(0xFF101613) : const Color(0xFFF8F9F7),
-      surfaceContainerLowest: dark ? const Color(0xFF0C110F) : Colors.white,
+      primary: AppColors.primary,
+      onPrimary: const Color(0xFF003545),
+      primaryContainer: dark
+          ? const Color(0xFF174D61)
+          : const Color(0xFFC9F0FF),
+      onPrimaryContainer: dark
+          ? const Color(0xFFD5F3FF)
+          : const Color(0xFF003545),
+      secondary: AppColors.pink,
+      onSecondary: Colors.white,
+      tertiary: AppColors.yellow,
+      onTertiary: const Color(0xFF3D2800),
+      surface: dark ? const Color(0xFF101416) : const Color(0xFFF8FAFB),
+      surfaceContainerLowest: dark ? const Color(0xFF0B0F11) : Colors.white,
       surfaceContainerLow: dark
-          ? const Color(0xFF18211D)
-          : const Color(0xFFF0F2EF),
+          ? const Color(0xFF182024)
+          : const Color(0xFFF0F4F6),
     );
     final outline = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppRadius.field),

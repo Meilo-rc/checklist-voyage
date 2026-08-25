@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Détails noirs et rainures de la grande valise</title>
+  <rect x="532" y="334" width="222" height="20" rx="10" fill="#000000"/>
+  <rect x="440" y="394" width="74" height="432" rx="37" fill="#000000"/>
+  <rect x="460" y="414" width="34" height="392" rx="17" fill="#3CAADC"/>
+  <rect x="550" y="394" width="74" height="432" rx="37" fill="#000000"/>
+  <rect x="570" y="414" width="34" height="392" rx="17" fill="#3CAADC"/>
+  <rect x="660" y="394" width="74" height="432" rx="37" fill="#000000"/>
+  <rect x="680" y="414" width="34" height="392" rx="17" fill="#3CAADC"/>
+  <rect x="770" y="394" width="74" height="432" rx="37" fill="#000000"/>
+  <rect x="790" y="414" width="34" height="392" rx="17" fill="#3CAADC"/>
+</svg>

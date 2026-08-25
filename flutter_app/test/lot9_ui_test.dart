@@ -52,12 +52,9 @@ void main() {
     expect(find.byKey(Key('trip-summary-$futureId')), findsOneWidget);
     expect(find.byKey(Key('trip-summary-$pastId')), findsNothing);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('trip-archive-tabs')),
-        matching: find.text('Archives'),
-      ),
-    );
+    await tester.tap(find.byKey(const Key('trip-root-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Archives'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byKey(Key('trip-summary-$futureId')), findsNothing);
     expect(find.byKey(Key('trip-summary-$pastId')), findsOneWidget);
@@ -85,12 +82,9 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pump(const Duration(milliseconds: 300));
     await _showListBody(tester);
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('trip-archive-tabs')),
-        matching: find.text('Voyages'),
-      ),
-    );
+    await tester.tap(find.byKey(const Key('trip-root-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Voyages actifs'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(Key('trip-summary-$futureId')));
     await _pumpData(tester);
@@ -152,12 +146,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await _showListBody(tester);
     expect(find.byKey(Key('quick-summary-$listId')), findsNothing);
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const Key('quick-archive-tabs')),
-        matching: find.text('Archives'),
-      ),
-    );
+    await tester.tap(find.byKey(const Key('quick-root-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Archives'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byKey(Key('quick-summary-$listId')), findsOneWidget);
     await tester.tap(find.byKey(Key('quick-summary-$listId')));

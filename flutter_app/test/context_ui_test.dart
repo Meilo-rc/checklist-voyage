@@ -36,6 +36,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bibliothèque'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('library-menu')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('library-contexts')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('context-create')));
@@ -87,6 +89,8 @@ void main() {
     expect(association.deletedAt, isNull);
 
     await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('library-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('library-contexts')));
     await tester.pumpAndSettle();

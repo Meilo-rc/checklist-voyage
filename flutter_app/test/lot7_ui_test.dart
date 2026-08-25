@@ -38,6 +38,8 @@ void main() {
 
     await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(Key('trip-summary-$tripId')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(Key('trip-summary-$tripId')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('trip-share')));
