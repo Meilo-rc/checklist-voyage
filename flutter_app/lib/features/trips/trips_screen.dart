@@ -2018,20 +2018,22 @@ class _TripCategoryHeader extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
               children: [
-                if (category.icon != null) ...[
-                  InkWell(
-                    key: Key('trip-category-icon-${category.id}'),
-                    onTap: onIconTap,
-                    borderRadius: BorderRadius.circular(AppRadius.field),
-                    child: SizedBox.square(
-                      dimension: 32,
-                      child: Center(
-                        child: CategoryIconView(icon: category.icon, size: 22),
+                InkWell(
+                  key: Key('trip-category-icon-${category.id}'),
+                  onTap: onIconTap,
+                  borderRadius: BorderRadius.circular(AppRadius.field),
+                  child: SizedBox.square(
+                    dimension: 32,
+                    child: Center(
+                      child: CategoryIconView(
+                        icon: category.icon,
+                        size: 22,
+                        fallbackIcon: Icons.folder_outlined,
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                ],
+                ),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     category.name,

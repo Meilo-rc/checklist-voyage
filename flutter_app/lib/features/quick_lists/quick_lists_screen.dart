@@ -394,10 +394,24 @@ class _QuickListDetailState extends State<_QuickListDetail> {
                   onPressed: widget.onBack,
                   icon: const Icon(Icons.arrow_back),
                 ),
-                title: Text(
-                  list.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                title: Row(
+                  children: [
+                    CategoryIconView(
+                      key: Key('quick-detail-icon-${list.id}'),
+                      icon: list.icon,
+                      size: 23,
+                      fallbackIcon: Icons.list_alt_outlined,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        list.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextScale.of(context).pageTitle,
+                      ),
+                    ),
+                  ],
                 ),
                 actions: [
                   if (widget.sharedDocuments != null)

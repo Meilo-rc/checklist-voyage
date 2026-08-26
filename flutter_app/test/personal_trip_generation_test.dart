@@ -151,6 +151,11 @@ void main() {
         includeEssentials: false,
       ),
     );
+    final generatedTrip = (await dependencies.trips.watchTrip(tripId).first)!;
+    final personalMember = generatedTrip.members.singleWhere(
+      (member) => member.groupKind == TripMemberGroupKind.personal,
+    );
+    final personalCategory = personalMember.categories.single;
 
     await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
     await tester.pumpAndSettle();
@@ -164,6 +169,14 @@ void main() {
     await tester.tap(find.byKey(const Key('trip-level-personnel-toggle')));
     await tester.pumpAndSettle();
     expect(find.text('Personnel Malone'), findsNothing);
+    await tester.tap(find.byKey(const Key('trip-level-personnel-toggle')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('trip-member-${personalMember.id}')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(Key('trip-category-icon-${personalCategory.id}')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());

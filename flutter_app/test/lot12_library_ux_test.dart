@@ -341,6 +341,10 @@ void main() {
       Theme.of(tester.element(find.text('Personnel').last)).brightness,
       Brightness.dark,
     );
+    expect(
+      find.byKey(Key('library-category-icon-$categoryId')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(Key('library-category-$categoryId')));
     await tester.pumpAndSettle();

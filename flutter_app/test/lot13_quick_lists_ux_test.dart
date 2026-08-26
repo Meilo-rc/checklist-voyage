@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:checklist_voyage_v1/app/app_dependencies.dart';
 import 'package:checklist_voyage_v1/app/checklist_app.dart';
 import 'package:checklist_voyage_v1/data/local/app_database.dart';
+import 'package:checklist_voyage_v1/features/shared/category_details_page.dart';
 import 'package:checklist_voyage_v1/sync/in_memory_shared_document_remote.dart';
 import 'package:checklist_voyage_v1/sync/in_memory_sync_remote.dart';
 
@@ -23,6 +24,7 @@ void main() {
       final listId = await dependencies.quickLists.create(
         'Liste au nom volontairement très long pour le contrôle à 360 px',
       );
+      await dependencies.quickLists.setIcon(listId, 'shopping');
       final checkedId = await dependencies.quickLists.addItem(
         listId,
         'Premier item au nom volontairement très long',
@@ -61,6 +63,10 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.byKey(Key('quick-summary-$listId')));
       await _pumpData(tester);
+      final detailIcon = tester.widget<CategoryIconView>(
+        find.byKey(Key('quick-detail-icon-$listId')),
+      );
+      expect(detailIcon.icon, 'shopping');
 
       await tester.scrollUntilVisible(
         find.byKey(Key('quick-item-toggle-$checkedId')),
