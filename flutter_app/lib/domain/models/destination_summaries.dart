@@ -46,12 +46,14 @@ class QuickListSummary {
   const QuickListSummary({
     required this.id,
     required this.name,
+    required this.icon,
     required this.archivedAt,
     required this.shared,
   });
 
   final String id;
   final String name;
+  final String icon;
   final DateTime? archivedAt;
   final bool shared;
 }

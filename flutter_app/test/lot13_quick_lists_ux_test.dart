@@ -185,6 +185,7 @@ void main() {
       autoSync: false,
     );
     final sharedId = await dependencies.quickLists.create('Liste partagée');
+    await dependencies.quickLists.setIcon(sharedId, 'shopping');
     await dependencies.quickLists.addItem(sharedId, 'Item partagé');
     await dependencies.sharedDocuments.shareQuickList(sharedId);
     final archivedId = await dependencies.quickLists.create('Liste archivée');
@@ -202,6 +203,10 @@ void main() {
     expect(find.text('Partagé'), findsNothing);
     expect(find.byKey(const Key('quick-join')), findsOneWidget);
     expect(
+      (await dependencies.quickLists.load(sharedId))!.icon,
+      'shopping',
+    );
+    expect(
       Theme.of(tester.element(find.text('Liste partagée'))).brightness,
       Brightness.dark,
     );
@@ -211,10 +216,12 @@ void main() {
     await tester.tap(find.text('Archives'));
     await tester.pumpAndSettle();
     expect(find.byKey(Key('quick-summary-$archivedId')), findsOneWidget);
-    await tester.tap(find.byKey(Key('quick-summary-$archivedId')));
+    await tester.longPress(find.byKey(Key('quick-summary-$archivedId')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('quick-actions')));
-    await tester.pumpAndSettle();
+    expect(
+      find.byKey(Key('hierarchy-actions-$archivedId')),
+      findsOneWidget,
+    );
     expect(find.text('Restaurer'), findsOneWidget);
     await tester.tap(find.text('Dupliquer'));
     await _pumpData(tester);
@@ -225,6 +232,7 @@ void main() {
     );
     expect(duplicate.shareState, 'local');
     expect(duplicate.shareCode, isNull);
+    expect(duplicate.icon, 'liste');
     final duplicateItems = await (database.select(
       database.quickListItems,
     )..where((item) => item.quickListId.equals(duplicate.id))).get();

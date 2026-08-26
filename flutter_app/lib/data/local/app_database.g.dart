@@ -6630,6 +6630,16 @@ class $QuickListsTable extends QuickLists
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
+  @override
+  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
+    'icon',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('liste'),
+  );
   static const VerificationMeta _shareStateMeta = const VerificationMeta(
     'shareState',
   );
@@ -6726,6 +6736,7 @@ class $QuickListsTable extends QuickLists
   List<GeneratedColumn> get $columns => [
     id,
     name,
+    icon,
     shareState,
     remoteRecordId,
     shareCode,
@@ -6759,6 +6770,12 @@ class $QuickListsTable extends QuickLists
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
+    }
+    if (data.containsKey('icon')) {
+      context.handle(
+        _iconMeta,
+        icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
+      );
     }
     if (data.containsKey('share_state')) {
       context.handle(
@@ -6838,6 +6855,10 @@ class $QuickListsTable extends QuickLists
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      icon: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon'],
+      )!,
       shareState: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}share_state'],
@@ -6882,6 +6903,7 @@ class $QuickListsTable extends QuickLists
 class QuickList extends DataClass implements Insertable<QuickList> {
   final String id;
   final String name;
+  final String icon;
   final String shareState;
   final String? remoteRecordId;
   final String? shareCode;
@@ -6893,6 +6915,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
   const QuickList({
     required this.id,
     required this.name,
+    required this.icon,
     required this.shareState,
     this.remoteRecordId,
     this.shareCode,
@@ -6907,6 +6930,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
+    map['icon'] = Variable<String>(icon);
     map['share_state'] = Variable<String>(shareState);
     if (!nullToAbsent || remoteRecordId != null) {
       map['remote_record_id'] = Variable<String>(remoteRecordId);
@@ -6932,6 +6956,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     return QuickListsCompanion(
       id: Value(id),
       name: Value(name),
+      icon: Value(icon),
       shareState: Value(shareState),
       remoteRecordId: remoteRecordId == null && nullToAbsent
           ? const Value.absent()
@@ -6961,6 +6986,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     return QuickList(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      icon: serializer.fromJson<String>(json['icon']),
       shareState: serializer.fromJson<String>(json['shareState']),
       remoteRecordId: serializer.fromJson<String?>(json['remoteRecordId']),
       shareCode: serializer.fromJson<String?>(json['shareCode']),
@@ -6977,6 +7003,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
+      'icon': serializer.toJson<String>(icon),
       'shareState': serializer.toJson<String>(shareState),
       'remoteRecordId': serializer.toJson<String?>(remoteRecordId),
       'shareCode': serializer.toJson<String?>(shareCode),
@@ -6991,6 +7018,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
   QuickList copyWith({
     String? id,
     String? name,
+    String? icon,
     String? shareState,
     Value<String?> remoteRecordId = const Value.absent(),
     Value<String?> shareCode = const Value.absent(),
@@ -7002,6 +7030,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
   }) => QuickList(
     id: id ?? this.id,
     name: name ?? this.name,
+    icon: icon ?? this.icon,
     shareState: shareState ?? this.shareState,
     remoteRecordId: remoteRecordId.present
         ? remoteRecordId.value
@@ -7019,6 +7048,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     return QuickList(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      icon: data.icon.present ? data.icon.value : this.icon,
       shareState: data.shareState.present
           ? data.shareState.value
           : this.shareState,
@@ -7045,6 +7075,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
     return (StringBuffer('QuickList(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('icon: $icon, ')
           ..write('shareState: $shareState, ')
           ..write('remoteRecordId: $remoteRecordId, ')
           ..write('shareCode: $shareCode, ')
@@ -7061,6 +7092,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
   int get hashCode => Object.hash(
     id,
     name,
+    icon,
     shareState,
     remoteRecordId,
     shareCode,
@@ -7076,6 +7108,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
       (other is QuickList &&
           other.id == this.id &&
           other.name == this.name &&
+          other.icon == this.icon &&
           other.shareState == this.shareState &&
           other.remoteRecordId == this.remoteRecordId &&
           other.shareCode == this.shareCode &&
@@ -7089,6 +7122,7 @@ class QuickList extends DataClass implements Insertable<QuickList> {
 class QuickListsCompanion extends UpdateCompanion<QuickList> {
   final Value<String> id;
   final Value<String> name;
+  final Value<String> icon;
   final Value<String> shareState;
   final Value<String?> remoteRecordId;
   final Value<String?> shareCode;
@@ -7101,6 +7135,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
   const QuickListsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.icon = const Value.absent(),
     this.shareState = const Value.absent(),
     this.remoteRecordId = const Value.absent(),
     this.shareCode = const Value.absent(),
@@ -7114,6 +7149,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
   QuickListsCompanion.insert({
     required String id,
     required String name,
+    this.icon = const Value.absent(),
     this.shareState = const Value.absent(),
     this.remoteRecordId = const Value.absent(),
     this.shareCode = const Value.absent(),
@@ -7130,6 +7166,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
   static Insertable<QuickList> custom({
     Expression<String>? id,
     Expression<String>? name,
+    Expression<String>? icon,
     Expression<String>? shareState,
     Expression<String>? remoteRecordId,
     Expression<String>? shareCode,
@@ -7143,6 +7180,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (icon != null) 'icon': icon,
       if (shareState != null) 'share_state': shareState,
       if (remoteRecordId != null) 'remote_record_id': remoteRecordId,
       if (shareCode != null) 'share_code': shareCode,
@@ -7158,6 +7196,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
   QuickListsCompanion copyWith({
     Value<String>? id,
     Value<String>? name,
+    Value<String>? icon,
     Value<String>? shareState,
     Value<String?>? remoteRecordId,
     Value<String?>? shareCode,
@@ -7171,6 +7210,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
     return QuickListsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
+      icon: icon ?? this.icon,
       shareState: shareState ?? this.shareState,
       remoteRecordId: remoteRecordId ?? this.remoteRecordId,
       shareCode: shareCode ?? this.shareCode,
@@ -7191,6 +7231,9 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
+    }
+    if (icon.present) {
+      map['icon'] = Variable<String>(icon.value);
     }
     if (shareState.present) {
       map['share_state'] = Variable<String>(shareState.value);
@@ -7227,6 +7270,7 @@ class QuickListsCompanion extends UpdateCompanion<QuickList> {
     return (StringBuffer('QuickListsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('icon: $icon, ')
           ..write('shareState: $shareState, ')
           ..write('remoteRecordId: $remoteRecordId, ')
           ..write('shareCode: $shareCode, ')
@@ -17240,6 +17284,7 @@ typedef $$QuickListsTableCreateCompanionBuilder =
     QuickListsCompanion Function({
       required String id,
       required String name,
+      Value<String> icon,
       Value<String> shareState,
       Value<String?> remoteRecordId,
       Value<String?> shareCode,
@@ -17254,6 +17299,7 @@ typedef $$QuickListsTableUpdateCompanionBuilder =
     QuickListsCompanion Function({
       Value<String> id,
       Value<String> name,
+      Value<String> icon,
       Value<String> shareState,
       Value<String?> remoteRecordId,
       Value<String?> shareCode,
@@ -17304,6 +17350,11 @@ class $$QuickListsTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icon => $composableBuilder(
+    column: $table.icon,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17392,6 +17443,11 @@ class $$QuickListsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get icon => $composableBuilder(
+    column: $table.icon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get shareState => $composableBuilder(
     column: $table.shareState,
     builder: (column) => ColumnOrderings(column),
@@ -17447,6 +17503,9 @@ class $$QuickListsTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get icon =>
+      $composableBuilder(column: $table.icon, builder: (column) => column);
 
   GeneratedColumn<String> get shareState => $composableBuilder(
     column: $table.shareState,
@@ -17538,6 +17597,7 @@ class $$QuickListsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<String> icon = const Value.absent(),
                 Value<String> shareState = const Value.absent(),
                 Value<String?> remoteRecordId = const Value.absent(),
                 Value<String?> shareCode = const Value.absent(),
@@ -17550,6 +17610,7 @@ class $$QuickListsTableTableManager
               }) => QuickListsCompanion(
                 id: id,
                 name: name,
+                icon: icon,
                 shareState: shareState,
                 remoteRecordId: remoteRecordId,
                 shareCode: shareCode,
@@ -17564,6 +17625,7 @@ class $$QuickListsTableTableManager
               ({
                 required String id,
                 required String name,
+                Value<String> icon = const Value.absent(),
                 Value<String> shareState = const Value.absent(),
                 Value<String?> remoteRecordId = const Value.absent(),
                 Value<String?> shareCode = const Value.absent(),
@@ -17576,6 +17638,7 @@ class $$QuickListsTableTableManager
               }) => QuickListsCompanion.insert(
                 id: id,
                 name: name,
+                icon: icon,
                 shareState: shareState,
                 remoteRecordId: remoteRecordId,
                 shareCode: shareCode,

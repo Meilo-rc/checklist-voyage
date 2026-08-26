@@ -9,6 +9,7 @@ import '../../domain/models/progress.dart';
 import '../../domain/usecases/quick_list_use_cases.dart';
 import '../../domain/usecases/shared_document_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
+import '../shared/category_details_page.dart';
 
 part 'quick_list_widgets.dart';
 
@@ -52,34 +53,6 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
     }
   }
 
-  Future<String?> _askName(String title, {String initial = ''}) async {
-    final controller = TextEditingController(text: initial);
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          key: const Key('quick-rename-input'),
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Nom'),
-          onSubmitted: (_) => Navigator.pop(context, controller.text),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            key: const Key('quick-rename-submit'),
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Valider'),
-          ),
-        ],
-      ),
-    ).whenComplete(controller.dispose);
-  }
-
   Future<void> _create(String name) async {
     final id = await widget.useCases.create(name);
     if (mounted) setState(() => _selectedListId = id);
@@ -99,6 +72,56 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
     }
   }
 
+  Future<void> _shareSummary(QuickListSummary summary) async {
+    final sharing = widget.sharedDocuments;
+    if (sharing == null) return;
+    try {
+      final list = await widget.useCases.load(summary.id);
+      if (list == null) return;
+      final code = list.v1ShareReady
+          ? list.shareCode
+          : (await sharing.shareQuickList(list.id)).shareCode;
+      if (mounted && code != null) await _showQuickCode(context, code);
+    } on Object catch (error) {
+      if (mounted) _message(userMessageFor(error));
+    }
+  }
+
+  Future<void> _openListActions(QuickListSummary list) =>
+      showHierarchyEntityActionsSheet(
+        context,
+        entityId: list.id,
+        entityLabel: 'Liste rapide',
+        initialName: list.name,
+        initialIcon: list.icon,
+        onRename: (name) => widget.useCases.rename(list.id, name),
+        onIconChanged: (icon) =>
+            widget.useCases.setIcon(list.id, icon ?? 'liste'),
+        onDelete: () => widget.useCases.delete(list.id),
+        extraActions: [
+          if (widget.sharedDocuments != null)
+            HierarchyEntityAction(
+              label: 'Partager',
+              icon: Icons.share_outlined,
+              onPressed: () => _shareSummary(list),
+            ),
+          HierarchyEntityAction(
+            label: list.archivedAt == null ? 'Archiver' : 'Restaurer',
+            icon: list.archivedAt == null
+                ? Icons.archive_outlined
+                : Icons.unarchive_outlined,
+            onPressed: () => list.archivedAt == null
+                ? widget.useCases.archive(list.id)
+                : widget.useCases.restore(list.id),
+          ),
+          HierarchyEntityAction(
+            label: 'Dupliquer',
+            icon: Icons.copy_outlined,
+            onPressed: () => _duplicate(list.id),
+          ),
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
     final selected = _selectedListId;
@@ -109,7 +132,6 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
         useCases: widget.useCases,
         onBack: () => setState(() => _selectedListId = null),
         onDuplicate: _duplicate,
-        askName: _askName,
         sharedDocuments: widget.sharedDocuments,
       );
     }
@@ -219,6 +241,7 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
                         summary: list,
                         useCases: widget.useCases,
                         onTap: () => setState(() => _selectedListId = list.id),
+                        onLongPress: () => _openListActions(list),
                       );
                     },
                   ),
@@ -254,7 +277,6 @@ class _QuickListDetail extends StatefulWidget {
     required this.useCases,
     required this.onBack,
     required this.onDuplicate,
-    required this.askName,
     required this.sharedDocuments,
   });
 
@@ -262,7 +284,6 @@ class _QuickListDetail extends StatefulWidget {
   final QuickListUseCases useCases;
   final VoidCallback onBack;
   final Future<void> Function(String) onDuplicate;
-  final Future<String?> Function(String, {String initial}) askName;
   final SharedDocumentUseCases? sharedDocuments;
 
   @override
@@ -289,24 +310,43 @@ class _QuickListDetailState extends State<_QuickListDetail> {
     }
   }
 
-  Future<void> _handleAction(String action, QuickListDetailModel list) async {
-    if (action == 'rename') {
-      final name = await widget.askName(
-        'Renommer la liste',
-        initial: list.name,
+  Future<void> _openActions(QuickListDetailModel list) =>
+      showHierarchyEntityActionsSheet(
+        context,
+        entityId: list.id,
+        entityLabel: 'Liste rapide',
+        initialName: list.name,
+        initialIcon: list.icon,
+        onRename: (name) => widget.useCases.rename(list.id, name),
+        onIconChanged: (icon) =>
+            widget.useCases.setIcon(list.id, icon ?? 'liste'),
+        onDelete: () async {
+          await widget.useCases.delete(list.id);
+          widget.onBack();
+        },
+        extraActions: [
+          if (widget.sharedDocuments != null)
+            HierarchyEntityAction(
+              label: 'Partager',
+              icon: Icons.share_outlined,
+              onPressed: () => _share(list),
+            ),
+          HierarchyEntityAction(
+            label: list.archivedAt == null ? 'Archiver' : 'Restaurer',
+            icon: list.archivedAt == null
+                ? Icons.archive_outlined
+                : Icons.unarchive_outlined,
+            onPressed: () => list.archivedAt == null
+                ? widget.useCases.archive(list.id)
+                : widget.useCases.restore(list.id),
+          ),
+          HierarchyEntityAction(
+            label: 'Dupliquer',
+            icon: Icons.copy_outlined,
+            onPressed: () => widget.onDuplicate(list.id),
+          ),
+        ],
       );
-      if (name != null) await widget.useCases.rename(list.id, name);
-    } else if (action == 'duplicate') {
-      await widget.onDuplicate(list.id);
-    } else if (action == 'archive') {
-      await widget.useCases.archive(list.id);
-    } else if (action == 'restore') {
-      await widget.useCases.restore(list.id);
-    } else if (action == 'delete') {
-      await widget.useCases.delete(list.id);
-      widget.onBack();
-    }
-  }
 
   Future<bool> _handleSwipe(
     QuickListItemModel item,
@@ -371,39 +411,11 @@ class _QuickListDetailState extends State<_QuickListDetail> {
                       icon: const Icon(Icons.share_outlined),
                       onPressed: () => _share(list),
                     ),
-                  PopupMenuButton<String>(
+                  IconButton(
                     key: const Key('quick-actions'),
-                    position: PopupMenuPosition.under,
-                    onSelected: (action) => _handleAction(action, list),
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        height: 44,
-                        value: 'rename',
-                        child: Text('Renommer'),
-                      ),
-                      const PopupMenuItem(
-                        height: 44,
-                        value: 'duplicate',
-                        child: Text('Dupliquer'),
-                      ),
-                      if (list.archivedAt == null)
-                        const PopupMenuItem(
-                          height: 44,
-                          value: 'archive',
-                          child: Text('Archiver'),
-                        )
-                      else
-                        const PopupMenuItem(
-                          height: 44,
-                          value: 'restore',
-                          child: Text('Restaurer'),
-                        ),
-                      const PopupMenuItem(
-                        height: 44,
-                        value: 'delete',
-                        child: Text('Supprimer'),
-                      ),
-                    ],
+                    tooltip: 'Administrer la liste',
+                    onPressed: () => _openActions(list),
+                    icon: const Icon(Icons.more_vert),
                   ),
                 ],
               ),

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:crypto/crypto.dart';
 
 import 'package:checklist_voyage_v1/app/app_dependencies.dart';
 import 'package:checklist_voyage_v1/data/local/app_database.dart';
@@ -55,7 +56,7 @@ void main() {
     );
     final info = source.safetyBackup.inspect(backup);
     expect(info.installationId, sourceInstallation);
-    expect(info.schemaVersion, 7);
+    expect(info.schemaVersion, 8);
     expect(info.count('trips'), 2);
     expect(info.count('quick_lists'), 1);
     expect(info.count('sync_documents'), 1);
@@ -134,6 +135,42 @@ void main() {
       throwsA(isA<FormatException>()),
     );
     expect(await dependencies.localData.getInstallationId(), before);
+  });
+
+  test('restaure une sauvegarde v7 et applique l’icône liste', () async {
+    final sourceDatabase = AppDatabase(NativeDatabase.memory());
+    final source = await AppDependencies.create(
+      database: sourceDatabase,
+      syncRemote: InMemorySyncRemote(),
+      documentRemote: InMemorySharedDocumentRemote(),
+      autoSync: false,
+    );
+    addTearDown(source.close);
+    final listId = await source.quickLists.create('Sauvegarde v7');
+    final exported = await source.safetyBackup.exportBytes();
+    final decoded = jsonDecode(utf8.decode(exported)) as Map<String, dynamic>;
+    decoded.remove('sha256');
+    decoded['databaseSchemaVersion'] = 7;
+    final tables = decoded['tables'] as Map<String, dynamic>;
+    final quickLists = tables['quick_lists'] as List<dynamic>;
+    for (final row in quickLists) {
+      (row as Map<String, dynamic>).remove('icon');
+    }
+    decoded['sha256'] = sha256.convert(utf8.encode(jsonEncode(decoded))).toString();
+    final legacy = Uint8List.fromList(utf8.encode(jsonEncode(decoded)));
+
+    final targetDatabase = AppDatabase(NativeDatabase.memory());
+    final target = await AppDependencies.create(
+      database: targetDatabase,
+      syncRemote: InMemorySyncRemote(),
+      documentRemote: InMemorySharedDocumentRemote(),
+      autoSync: false,
+    );
+    addTearDown(target.close);
+
+    final info = await target.safetyBackup.restoreBytes(legacy);
+    expect(info.schemaVersion, 7);
+    expect((await target.quickLists.load(listId))!.icon, 'liste');
   });
 }
 

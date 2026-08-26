@@ -6,11 +6,13 @@ class _QuickListSummaryRow extends StatelessWidget {
     required this.summary,
     required this.useCases,
     required this.onTap,
+    required this.onLongPress,
   });
 
   final QuickListSummary summary;
   final QuickListUseCases useCases;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -26,16 +28,29 @@ class _QuickListSummaryRow extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.card),
             onTap: onTap,
+            onLongPress: onLongPress,
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    summary.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextScale.of(context).sectionTitle,
+                  Row(
+                    children: [
+                      CategoryIconView(
+                        icon: summary.icon,
+                        size: 22,
+                        fallbackIcon: Icons.list_alt_outlined,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          summary.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextScale.of(context).sectionTitle,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   LinearProgressIndicator(

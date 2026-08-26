@@ -230,7 +230,10 @@ void main() {
       await tester.tap(find.byKey(const Key('hierarchy-save-category-1')));
       await tester.pumpAndSettle();
       expect(renamed, 'Tenues');
+      expect(find.byKey(const Key('hierarchy-actions-category-1')), findsNothing);
 
+      await tester.tap(find.byKey(const Key('open-actions')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('hierarchy-icon-category-1')));
       await tester.pumpAndSettle();
       final grid = tester.widget<GridView>(
@@ -246,6 +249,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(selectedIcon, 'beach');
+      expect(find.byKey(const Key('hierarchy-actions-category-1')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('open-actions')));
+      await tester.pumpAndSettle();
       expect(delete, findsOneWidget);
       await tester.tap(delete);
       await tester.pumpAndSettle();
@@ -253,4 +260,49 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('le tiroir reste ouvert si le nom ou l’icône échoue', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              key: const Key('open-failing-actions'),
+              onPressed: () => showHierarchyEntityActionsSheet(
+                context,
+                entityId: 'failure',
+                entityLabel: 'Catégorie',
+                initialName: 'Erreur',
+                initialIcon: 'liste',
+                onRename: (_) async => throw StateError('échec nom'),
+                onIconChanged: (_) async => throw StateError('échec icône'),
+                onDelete: () async {},
+              ),
+              child: const Text('Ouvrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('open-failing-actions')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hierarchy-save-failure')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('hierarchy-actions-failure')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('hierarchy-icon-failure')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('hierarchy-icon-choice-beach')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('hierarchy-actions-failure')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

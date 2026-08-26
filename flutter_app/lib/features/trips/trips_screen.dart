@@ -1712,53 +1712,18 @@ class _TripMemberPageState extends State<_TripMemberPage> {
     );
   }
 
-  Future<bool> _handleCategorySwipe(
-    TripCategoryModel category,
-    DismissDirection direction,
-  ) async {
-    if (direction == DismissDirection.startToEnd) {
-      await _openCategoryDetails(category);
-      return false;
-    }
-    try {
-      await widget.useCases.removeCategory(category.id);
-      if (_expandedCategoryId == category.id && mounted) {
-        setState(() => _expandedCategoryId = null);
-      }
-      return true;
-    } on Object catch (error) {
-      _message(userMessageFor(error));
-      return false;
-    }
-  }
-
   Widget _buildCategoryHeader(
     TripCategoryModel category,
     TripCategoryModel completeCategory,
   ) {
-    return Dismissible(
-      key: Key('trip-category-dismiss-${category.id}'),
-      confirmDismiss: (direction) => _handleCategorySwipe(category, direction),
-      background: const _TripSwipeAction(
-        alignment: Alignment.centerLeft,
-        icon: Icons.edit_outlined,
-        label: 'Modifier',
-      ),
-      secondaryBackground: const _TripSwipeAction(
-        alignment: Alignment.centerRight,
-        icon: Icons.delete_outline,
-        label: 'Supprimer',
-        destructive: true,
-      ),
-      child: _TripCategoryHeader(
-        key: Key('trip-category-${category.id}'),
-        category: category,
-        progress: ProgressCalculator.forCategory(completeCategory),
-        expanded: _expandedCategoryId == category.id,
-        onTap: () => _toggleCategory(category.id),
-        onLongPress: () => _openCategoryDetails(category),
-        onIconTap: () => _openCategoryDetails(category),
-      ),
+    return _TripCategoryHeader(
+      key: Key('trip-category-${category.id}'),
+      category: category,
+      progress: ProgressCalculator.forCategory(completeCategory),
+      expanded: _expandedCategoryId == category.id,
+      onTap: () => _toggleCategory(category.id),
+      onLongPress: () => _openCategoryDetails(category),
+      onIconTap: () => _openCategoryDetails(category),
     );
   }
 
@@ -2085,6 +2050,7 @@ class _TripItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final done = item.status == TripItemStatus.done;
+    final checked = item.status == TripItemStatus.checked;
     final textColor = switch (item.status) {
       TripItemStatus.todo => colors.onSurface,
       TripItemStatus.checked => colors.onSurfaceVariant,
@@ -2162,6 +2128,9 @@ class _TripItemRow extends StatelessWidget {
                                 decoration: done
                                     ? TextDecoration.lineThrough
                                     : null,
+                                fontStyle: checked
+                                    ? FontStyle.italic
+                                    : FontStyle.normal,
                               ),
                         ),
                 ),

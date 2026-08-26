@@ -28,33 +28,25 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
   bool _generalExpanded = true;
   bool _membersExpanded = true;
   bool _personalExpanded = true;
-  String? _editingOwnerId;
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: _editingOwnerId == null,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && _editingOwnerId != null) {
-          setState(() => _editingOwnerId = null);
-        }
-      },
-      child: StreamBuilder<List<LibraryOwnerModel>>(
-        stream: widget.useCases.watchLibrary(),
-        builder: (context, snapshot) {
-          final owners = snapshot.data ?? const <LibraryOwnerModel>[];
-          final general = owners
-              .where((owner) => owner.kind == LibraryOwnerKind.general)
-              .toList(growable: false);
-          final members = owners
-              .where((owner) => owner.kind == LibraryOwnerKind.familyMember)
-              .toList(growable: false);
-          final personal = owners
-              .where((owner) => owner.kind == LibraryOwnerKind.personal)
-              .toList(growable: false);
-          return Column(
-            key: const Key('library-root'),
-            children: [
+    return StreamBuilder<List<LibraryOwnerModel>>(
+      stream: widget.useCases.watchLibrary(),
+      builder: (context, snapshot) {
+        final owners = snapshot.data ?? const <LibraryOwnerModel>[];
+        final general = owners
+            .where((owner) => owner.kind == LibraryOwnerKind.general)
+            .toList(growable: false);
+        final members = owners
+            .where((owner) => owner.kind == LibraryOwnerKind.familyMember)
+            .toList(growable: false);
+        final personal = owners
+            .where((owner) => owner.kind == LibraryOwnerKind.personal)
+            .toList(growable: false);
+        return Column(
+          key: const Key('library-root'),
+          children: [
               _LibraryLevelBlock(
                 key: const Key('library-root-general'),
                 title: 'Général',
@@ -104,10 +96,9 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
                   ),
                 ],
               ),
-            ],
-          );
-        },
-      ),
+          ],
+        );
+      },
     );
   }
 
@@ -131,53 +122,11 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
       );
 
   Widget _buildOwner(LibraryOwnerModel owner) {
-    if (_editingOwnerId == owner.id) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        child: _InlineRenameRow(
-          initialValue: owner.name,
-          onCancel: () => setState(() => _editingOwnerId = null),
-          onSubmit: (name) async {
-            await widget.useCases.renameOwner(owner.id, name);
-            if (mounted) setState(() => _editingOwnerId = null);
-          },
-          onError: widget.onMessage,
-        ),
-      );
-    }
-    final row = _LibraryOwnerRow(
+    return _LibraryOwnerRow(
       key: Key('library-member-${owner.id}'),
       owner: owner,
       onTap: () => _openOwner(owner),
       onLongPress: () => _openGroupActions(owner),
-    );
-    return Dismissible(
-      key: Key('library-group-dismiss-${owner.id}'),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          setState(() => _editingOwnerId = owner.id);
-          return false;
-        }
-        try {
-          await widget.useCases.deleteOwner(owner.id);
-          return true;
-        } on Object catch (error) {
-          widget.onMessage(userMessageFor(error));
-          return false;
-        }
-      },
-      background: const _LibrarySwipeAction(
-        alignment: Alignment.centerLeft,
-        icon: Icons.edit_outlined,
-        label: 'Modifier',
-      ),
-      secondaryBackground: const _LibrarySwipeAction(
-        alignment: Alignment.centerRight,
-        icon: Icons.delete_outline,
-        label: 'Supprimer',
-        destructive: true,
-      ),
-      child: row,
     );
   }
 
@@ -402,7 +351,6 @@ class _LibraryUniversePage extends StatefulWidget {
 
 class _LibraryUniversePageState extends State<_LibraryUniversePage> {
   String? _expandedCategoryId;
-  String? _editingCategoryId;
   String? _editingItemId;
 
   Future<void> _openCategoryDetails(LibraryCategoryModel category) async {
@@ -426,13 +374,12 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
 
   @override
   Widget build(BuildContext context) {
-    final editing = _editingCategoryId != null || _editingItemId != null;
+    final editing = _editingItemId != null;
     return PopScope(
       canPop: !editing,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && editing) {
           setState(() {
-            _editingCategoryId = null;
             _editingItemId = null;
           });
         }
@@ -544,25 +491,6 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
   }
 
   Widget _buildCategory(LibraryCategoryModel category) {
-    if (_editingCategoryId == category.id) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Material(
-          color: Theme.of(context).colorScheme.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          clipBehavior: Clip.antiAlias,
-          child: _InlineRenameRow(
-            initialValue: category.name,
-            onCancel: () => setState(() => _editingCategoryId = null),
-            onSubmit: (name) async {
-              await widget.useCases.renameCategory(category.id, name);
-              if (mounted) setState(() => _editingCategoryId = null);
-            },
-            onError: widget.onMessage,
-          ),
-        ),
-      );
-    }
     final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -574,48 +502,18 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Dismissible(
-              key: Key('library-category-dismiss-${category.id}'),
-              confirmDismiss: (direction) async {
-                if (direction == DismissDirection.startToEnd) {
-                  setState(() => _editingCategoryId = category.id);
-                  return false;
-                }
-                try {
-                  await widget.useCases.deleteCategory(category.id);
-                  if (_expandedCategoryId == category.id && mounted) {
-                    setState(() => _expandedCategoryId = null);
-                  }
-                  return true;
-                } on Object catch (error) {
-                  widget.onMessage(userMessageFor(error));
-                  return false;
-                }
-              },
-              background: const _LibrarySwipeAction(
-                alignment: Alignment.centerLeft,
-                icon: Icons.edit_outlined,
-                label: 'Modifier',
-              ),
-              secondaryBackground: const _LibrarySwipeAction(
-                alignment: Alignment.centerRight,
-                icon: Icons.delete_outline,
-                label: 'Supprimer',
-                destructive: true,
-              ),
-              child: _CategoryHeader(
-                key: Key('library-category-${category.id}'),
-                category: category,
-                expanded: _expandedCategoryId == category.id,
-                onTap: () => setState(() {
-                  _expandedCategoryId = _expandedCategoryId == category.id
-                      ? null
-                      : category.id;
-                  _editingItemId = null;
-                }),
-                onLongPress: () => _openCategoryDetails(category),
-                onIconTap: () => _openCategoryDetails(category),
-              ),
+            _CategoryHeader(
+              key: Key('library-category-${category.id}'),
+              category: category,
+              expanded: _expandedCategoryId == category.id,
+              onTap: () => setState(() {
+                _expandedCategoryId = _expandedCategoryId == category.id
+                    ? null
+                    : category.id;
+                _editingItemId = null;
+              }),
+              onLongPress: () => _openCategoryDetails(category),
+              onIconTap: () => _openCategoryDetails(category),
             ),
             if (_expandedCategoryId == category.id) ...[
               ...category.items.map(_buildItem),

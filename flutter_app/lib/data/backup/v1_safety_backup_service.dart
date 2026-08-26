@@ -150,7 +150,10 @@ class V1SafetyBackupService {
         'Ce fichier n’est pas une sauvegarde V1 compatible.',
       );
     }
-    if (decoded['databaseSchemaVersion'] != _database.schemaVersion) {
+    final backupSchemaVersion = decoded['databaseSchemaVersion'];
+    if (backupSchemaVersion is! int ||
+        backupSchemaVersion < 7 ||
+        backupSchemaVersion > _database.schemaVersion) {
       throw FormatException(
         'Schéma incompatible : attendu ${_database.schemaVersion}.',
       );

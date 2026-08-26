@@ -384,6 +384,7 @@ class SharedDocumentSyncStore {
         )..where((entry) => entry.id.equals(entityId))).getSingle();
         return {
           'name': row.name,
+          'icon': row.icon,
           'archived_at': row.archivedAt?.toIso8601String(),
         };
       case 'quick_list_item':
@@ -684,12 +685,18 @@ class SharedDocumentSyncStore {
             );
       case 'quick_list':
         final document = await this.document(op.libraryId);
+        final currentList = await (database.select(
+          database.quickLists,
+        )..where((row) => row.id.equals(op.entityId))).getSingleOrNull();
         await database
             .into(database.quickLists)
             .insertOnConflictUpdate(
               QuickListsCompanion.insert(
                 id: op.entityId,
                 name: p['name']! as String,
+                icon: Value(
+                  (p['icon'] as String?) ?? currentList?.icon ?? 'liste',
+                ),
                 archivedAt: Value(_date(p['archived_at'])),
                 shareState: const Value('shared'),
                 remoteRecordId: Value(op.libraryId),

@@ -1,4 +1,4 @@
--- Contrat de schéma V1, mis à jour avec le schéma Drift v7 utilisé au lot 9.
+-- Contrat de schéma V1, mis à jour avec le schéma Drift v8 utilisé en RC9.
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE installation_settings (
@@ -145,6 +145,7 @@ CREATE TABLE trip_generation_choices (
 CREATE TABLE quick_lists (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  icon TEXT NOT NULL DEFAULT 'liste',
   share_state TEXT NOT NULL DEFAULT 'local' CHECK (share_state IN ('local', 'sharing', 'shared', 'sync_error')),
   remote_record_id TEXT,
   share_code TEXT,

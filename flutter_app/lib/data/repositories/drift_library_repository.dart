@@ -320,6 +320,7 @@ class DriftLibraryRepository implements LibraryRepository {
               id: id,
               ownerId: ownerId,
               name: _requiredName(name),
+              icon: const Value('categorie'),
               createdAt: now,
               updatedAtLocal: now,
             ),
@@ -327,7 +328,7 @@ class DriftLibraryRepository implements LibraryRepository {
       await _sync.recordUpsert('library_category', id, {
         'owner_id': ownerId,
         'name': _requiredName(name),
-        'icon': null,
+        'icon': 'categorie',
       });
     });
     return id;

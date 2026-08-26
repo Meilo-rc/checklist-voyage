@@ -9,7 +9,7 @@ import 'package:checklist_voyage_v1/data/repositories/drift_local_data_repositor
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('une base vierge crée le schéma Drift v7 complet', () async {
+  test('une base vierge crée le schéma Drift v8 complet', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
@@ -20,7 +20,7 @@ void main() {
         .get();
     final names = tables.map((row) => row.read<String>('name')).toSet();
 
-    expect(database.schemaVersion, 7);
+    expect(database.schemaVersion, 8);
     expect(
       names,
       containsAll(<String>{
@@ -72,7 +72,7 @@ void main() {
           .get();
       final names = tables.map((row) => row.read<String>('name')).toSet();
 
-      expect(version.read<int>('user_version'), 7);
+      expect(version.read<int>('user_version'), 8);
       expect(names, contains('installation_settings'));
       expect(names, contains('sync_tombstones'));
       expect(names, contains('library_owners'));
@@ -134,7 +134,7 @@ void main() {
     final version = await database
         .customSelect('PRAGMA user_version')
         .getSingle();
-    expect(version.read<int>('user_version'), 7);
+    expect(version.read<int>('user_version'), 8);
   });
 
   test('la migration Drift v6 vers v7 conserve et archive les documents', () async {
@@ -187,11 +187,47 @@ void main() {
         .customSelect('PRAGMA user_version')
         .getSingle();
 
-    expect(version.read<int>('user_version'), 7);
+    expect(version.read<int>('user_version'), 8);
     expect(trip.name, 'Conservé');
     expect(trip.archivedAt, isNull);
     expect(list.name, 'Conservée');
     expect(list.archivedAt, isNull);
+    expect(list.icon, 'liste');
+  });
+
+  test('la migration Drift v7 vers v8 conserve les listes et ajoute liste', () async {
+    final executor = NativeDatabase.memory(
+      setup: (raw) {
+        raw.execute('''
+          CREATE TABLE quick_lists (
+            id TEXT PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL,
+            share_state TEXT NOT NULL DEFAULT 'local',
+            remote_record_id TEXT UNIQUE,
+            share_code TEXT UNIQUE,
+            remote_revision INTEGER,
+            archived_at INTEGER,
+            created_at INTEGER NOT NULL,
+            updated_at_local INTEGER NOT NULL,
+            deleted_at INTEGER
+          )
+        ''');
+        raw.execute(
+          "INSERT INTO quick_lists (id, name, created_at, updated_at_local) VALUES ('list-v7', 'Conservée v7', 0, 0)",
+        );
+        raw.execute('PRAGMA user_version = 7');
+      },
+    );
+    final database = AppDatabase(executor);
+    addTearDown(database.close);
+
+    final list = await database.select(database.quickLists).getSingle();
+    final version = await database.customSelect('PRAGMA user_version').getSingle();
+
+    expect(version.read<int>('user_version'), 8);
+    expect(list.id, 'list-v7');
+    expect(list.name, 'Conservée v7');
+    expect(list.icon, 'liste');
   });
 
   test('l UUID installation reste stable dans une base persistante', () async {

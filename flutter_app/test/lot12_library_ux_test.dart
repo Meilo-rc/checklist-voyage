@@ -74,6 +74,13 @@ void main() {
     );
     expect(generalTitle.style?.fontSize, 18);
     expect(generalTitle.style?.fontWeight, FontWeight.w700);
+    expect(
+      find.ancestor(
+        of: find.byKey(Key('library-member-$ownerId')),
+        matching: find.byType(Dismissible),
+      ),
+      findsNothing,
+    );
     await tester.tap(find.byKey(Key('library-member-$ownerId')));
     await tester.pumpAndSettle();
     expect(find.text('Ancien document'), findsNothing);
@@ -88,6 +95,13 @@ void main() {
     );
     expect(categoryTitle.style?.fontSize, 18);
     expect(categoryTitle.style?.fontWeight, FontWeight.w700);
+    expect(
+      find.ancestor(
+        of: find.byKey(Key('library-category-$firstCategory')),
+        matching: find.byType(Dismissible),
+      ),
+      findsNothing,
+    );
 
     await tester.tap(find.byKey(Key('library-category-$firstCategory')));
     await tester.pumpAndSettle();
@@ -269,6 +283,10 @@ void main() {
       );
       await database.delete(database.syncOutbox).go();
       final categoryId = await library.createCategory(generalId, 'Santé');
+      expect(
+        (await database.select(database.libraryCategories).getSingle()).icon,
+        'categorie',
+      );
       final outbox = await database.select(database.syncOutbox).get();
       expect(
         outbox.where(
@@ -361,7 +379,7 @@ void main() {
       'UPDATE library_owners SET icon = ? WHERE id = ?',
       ['male', memberId],
     );
-    await library.createCategory(memberId, 'Vêtements');
+    final clothesId = await library.createCategory(memberId, 'Vêtements');
     final dependencies = await AppDependencies.create(
       database: database,
       autoSync: false,
@@ -384,22 +402,18 @@ void main() {
     await tester.pumpAndSettle();
     final addedMember = (await database.select(database.libraryOwners).get())
         .singleWhere((owner) => owner.name == 'Milo test');
-    await tester.drag(
-      find.byKey(Key('library-member-${addedMember.id}')),
-      const Offset(280, 0),
-    );
+    await tester.longPress(find.byKey(Key('library-member-${addedMember.id}')));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.byKey(const Key('library-inline-rename-field')),
+      find.byKey(Key('hierarchy-name-${addedMember.id}')),
       'Milo renommé',
     );
-    await tester.tap(find.byTooltip('Valider'));
+    await tester.tap(find.byKey(Key('hierarchy-save-${addedMember.id}')));
     await tester.pumpAndSettle();
     expect(find.text('Milo renommé'), findsOneWidget);
-    await tester.drag(
-      find.byKey(Key('library-member-${addedMember.id}')),
-      const Offset(-320, 0),
-    );
+    await tester.longPress(find.byKey(Key('library-member-${addedMember.id}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('hierarchy-delete-${addedMember.id}')));
     await tester.pumpAndSettle();
     expect(
       (await database.select(database.libraryOwners).get())
@@ -413,16 +427,13 @@ void main() {
     expect(find.text('Vêtements'), findsOneWidget);
     expect(find.byType(ExpansionTile), findsNothing);
 
-    await tester.drag(
-      find.byKey(findCategoryKey(await library.loadLibrary(), 'Vêtements')),
-      const Offset(280, 0),
-    );
+    await tester.longPress(find.byKey(Key('library-category-$clothesId')));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.byKey(const Key('library-inline-rename-field')),
+      find.byKey(Key('hierarchy-name-$clothesId')),
       'Tenues',
     );
-    await tester.tap(find.byTooltip('Valider'));
+    await tester.tap(find.byKey(Key('hierarchy-save-$clothesId')));
     await tester.pumpAndSettle();
     expect(find.text('Tenues'), findsOneWidget);
 
@@ -438,10 +449,11 @@ void main() {
         (await database.select(database.libraryCategories).get()).singleWhere(
           (category) => category.name == 'Santé',
         );
-    await tester.drag(
+    await tester.longPress(
       find.byKey(Key('library-category-${addedCategory.id}')),
-      const Offset(-320, 0),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('hierarchy-delete-${addedCategory.id}')));
     await tester.pumpAndSettle();
     expect(
       (await database.select(database.libraryCategories).get())

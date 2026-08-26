@@ -287,6 +287,7 @@ void main() {
     );
     addTearDown(dependencies.close);
     final sourceId = await dependencies.quickLists.create('Cabine');
+    await dependencies.quickLists.setIcon(sourceId, 'suitcase');
     final charger = await dependencies.quickLists.addItem(
       sourceId,
       'Chargeur',
@@ -307,6 +308,7 @@ void main() {
 
     expect(duplicateId, isNot(sourceId));
     expect(duplicate.name, 'Cabine — copie');
+    expect(duplicate.icon, 'suitcase');
     expect(
       duplicate.items
           .map((item) => item.id)
@@ -453,6 +455,7 @@ void main() {
     );
     await trips.archiveTrip(sourceTrip);
     final sourceList = await lists.createQuickList('Persistante');
+    await lists.setQuickListIcon(sourceList, 'beach');
     await lists.addItem(listId: sourceList, name: 'Objet', quantity: 4);
     final duplicateList = await lists.duplicateQuickList(sourceList);
     await lists.archiveQuickList(sourceList);
@@ -464,6 +467,9 @@ void main() {
     expect((await trips.loadTrip(sourceTrip))!.archivedAt, isNotNull);
     expect(await trips.loadTrip(duplicateTrip), isNotNull);
     expect((await lists.loadQuickList(sourceList))!.archivedAt, isNotNull);
+    expect((await lists.loadQuickList(sourceList))!.icon, 'beach');
+    expect((await lists.loadQuickList(duplicateList))!.icon, 'beach');
+    expect((await lists.loadQuickList(duplicateList))!.shared, isFalse);
     expect((await lists.loadQuickList(sourceList))!.items.single.quantity, 4);
     expect(
       (await lists.loadQuickList(duplicateList))!.items.single.quantity,

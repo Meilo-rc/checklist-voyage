@@ -29,6 +29,7 @@ void main() {
 
       final tripId = await a.trips.createTrip(_emptyTrip('Local'));
       final listId = await a.quickLists.createQuickList('Locale');
+      await a.quickLists.setQuickListIcon(listId, 'beach');
       await a.quickLists.addItem(listId: listId, name: 'Pain', quantity: 1);
 
       expect(remote.documentCount, 0);
@@ -36,6 +37,7 @@ void main() {
       expect(await a.database.select(a.database.syncOutbox).get(), isEmpty);
       expect((await a.trips.loadTrip(tripId))!.shared, isFalse);
       expect((await a.quickLists.loadQuickList(listId))!.shared, isFalse);
+      expect((await a.quickLists.loadQuickList(listId))!.icon, 'beach');
     },
   );
 
@@ -243,6 +245,7 @@ void main() {
     addTearDown(b.close);
 
     final listId = await a.quickLists.createQuickList('Courses');
+    await a.quickLists.setQuickListIcon(listId, 'shopping');
     final itemId = await a.quickLists.addItem(
       listId: listId,
       name: 'Eau',
@@ -250,6 +253,7 @@ void main() {
     );
     final access = await a.sync.shareQuickList(listId);
     await b.sync.join(access.shareCode);
+    expect((await b.quickLists.loadQuickList(listId))!.icon, 'shopping');
     expect(
       (await b.quickLists.loadQuickList(listId))!.items.single.quantity,
       2,
@@ -264,6 +268,15 @@ void main() {
     var item = (await a.quickLists.loadQuickList(listId))!.items.single;
     expect(item.isChecked, isTrue);
     expect(item.quantity, 3);
+
+    remote.online = false;
+    await b.quickLists.setQuickListIcon(listId, 'beach');
+    expect((await a.quickLists.loadQuickList(listId))!.icon, 'shopping');
+    remote.online = true;
+    await b.sync.syncAll();
+    await a.sync.syncAll();
+    expect((await a.quickLists.loadQuickList(listId))!.icon, 'beach');
+    expect((await b.quickLists.loadQuickList(listId))!.icon, 'beach');
 
     await a.quickLists.reset(listId);
     await a.sync.syncAll();

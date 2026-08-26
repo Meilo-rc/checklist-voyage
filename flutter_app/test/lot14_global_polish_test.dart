@@ -132,19 +132,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('library-root-members')), findsOneWidget);
 
-      await tester.drag(
+      await tester.longPress(
         find.byKey(Key('library-member-${ids.participantOwner}')),
-        const Offset(280, 0),
       );
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const Key('library-inline-rename-field')),
+        find.byKey(Key('hierarchy-actions-${ids.participantOwner}')),
         findsOneWidget,
       );
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const Key('library-inline-rename-field')),
+        find.byKey(Key('hierarchy-actions-${ids.participantOwner}')),
         findsNothing,
       );
       expect(find.byKey(const Key('library-root-members')), findsOneWidget);

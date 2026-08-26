@@ -9,6 +9,9 @@ class QuickListUseCases {
   Stream<QuickListDetailModel?> watchQuickList(String id) =>
       _repository.watchQuickList(id);
 
+  Future<QuickListDetailModel?> load(String id) =>
+      _repository.loadQuickList(id);
+
   Future<String> create(String name) => _repository.createQuickList(name);
 
   Future<String> duplicate(String id) => _repository.duplicateQuickList(id);
@@ -19,6 +22,9 @@ class QuickListUseCases {
 
   Future<void> rename(String id, String name) =>
       _repository.renameQuickList(id, name);
+
+  Future<void> setIcon(String id, String icon) =>
+      _repository.setQuickListIcon(id, icon);
 
   Future<void> delete(String id) => _repository.deleteQuickList(id);
 

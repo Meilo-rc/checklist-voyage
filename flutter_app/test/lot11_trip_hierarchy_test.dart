@@ -136,6 +136,13 @@ void main() {
       expect(memberPageTitle.style?.fontWeight, FontWeight.w700);
       await tester.tap(find.byKey(Key('trip-category-${category.id}')));
       await tester.pumpAndSettle();
+      expect(
+        find.ancestor(
+          of: find.byKey(Key('trip-category-${category.id}')),
+          matching: find.byType(Dismissible),
+        ),
+        findsNothing,
+      );
       _expectNoFlutterError(tester, 'catégorie ouverte');
       expect(find.byKey(Key('trip-member-page-${member.id}')), findsOneWidget);
       expect(
@@ -422,6 +429,7 @@ void main() {
     );
     var healthText = tester.widget<Text>(find.text(healthItem.name));
     expect(healthText.style?.decoration, isNot(TextDecoration.lineThrough));
+    expect(healthText.style?.fontStyle, FontStyle.italic);
     expect(
       tester.getTopLeft(find.text(healthItem.name)).dy,
       greaterThan(tester.getTopLeft(find.text(medicine.name)).dy),

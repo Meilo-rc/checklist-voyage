@@ -252,6 +252,7 @@ class QuickListDetailModel {
   const QuickListDetailModel({
     required this.id,
     required this.name,
+    required this.icon,
     required this.items,
     this.archivedAt,
     this.shared = false,
@@ -261,6 +262,7 @@ class QuickListDetailModel {
 
   final String id;
   final String name;
+  final String icon;
   final List<QuickListItemModel> items;
   final DateTime? archivedAt;
   final bool shared;

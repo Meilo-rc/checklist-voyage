@@ -18,6 +18,8 @@ abstract interface class QuickListRepository {
 
   Future<void> renameQuickList(String listId, String name);
 
+  Future<void> setQuickListIcon(String listId, String icon);
+
   Future<void> deleteQuickList(String listId);
 
   Future<String> addItem({

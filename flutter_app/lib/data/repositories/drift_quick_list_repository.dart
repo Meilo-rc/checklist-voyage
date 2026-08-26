@@ -29,6 +29,7 @@ class DriftQuickListRepository implements QuickListRepository {
             (row) => QuickListSummary(
               id: row.id,
               name: row.name,
+              icon: row.icon,
               archivedAt: row.archivedAt,
               shared: row.shareState == 'shared',
             ),
@@ -81,6 +82,7 @@ class DriftQuickListRepository implements QuickListRepository {
     return QuickListDetailModel(
       id: list.id,
       name: list.name,
+      icon: list.icon,
       items: items
           .map(
             (item) => QuickListItemModel(
@@ -140,6 +142,7 @@ class DriftQuickListRepository implements QuickListRepository {
             QuickListsCompanion.insert(
               id: duplicateId,
               name: '${source.name} — copie',
+              icon: Value(source.icon),
               shareState: const Value('local'),
               remoteRecordId: const Value(null),
               shareCode: const Value(null),
@@ -203,6 +206,23 @@ class DriftQuickListRepository implements QuickListRepository {
       )..where((row) => row.id.equals(listId) & row.deletedAt.isNull())).write(
         QuickListsCompanion(
           name: Value(_requiredName(name)),
+          updatedAtLocal: Value(DateTime.now().toUtc()),
+        ),
+      );
+      if (await _isShared(listId)) {
+        await _sync.recordUpsert(listId, 'quick_list', listId);
+      }
+    });
+  }
+
+  @override
+  Future<void> setQuickListIcon(String listId, String icon) async {
+    await _database.transaction(() async {
+      await (_database.update(
+        _database.quickLists,
+      )..where((row) => row.id.equals(listId) & row.deletedAt.isNull())).write(
+        QuickListsCompanion(
+          icon: Value(icon),
           updatedAtLocal: Value(DateTime.now().toUtc()),
         ),
       );

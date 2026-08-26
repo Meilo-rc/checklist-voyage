@@ -192,6 +192,7 @@ class TripGenerationChoices extends Table {
 class QuickLists extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
+  TextColumn get icon => text().withDefault(const Constant('liste'))();
   TextColumn get shareState => text().withDefault(const Constant('local'))();
   TextColumn get remoteRecordId => text().nullable().unique()();
   TextColumn get shareCode => text().nullable().unique()();
@@ -359,7 +360,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -491,6 +492,9 @@ class AppDatabase extends _$AppDatabase {
             quickLists.archivedAt,
           );
         }
+      }
+      if (from < 8 && await _tableExists('quick_lists')) {
+        await _addColumnIfMissing(migrator, quickLists, quickLists.icon);
       }
     },
     beforeOpen: (details) async {
