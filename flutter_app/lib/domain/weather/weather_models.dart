@@ -111,48 +111,11 @@ class WeatherDay {
   );
 }
 
-class WeatherMapPoint {
-  const WeatherMapPoint({
-    required this.id,
-    required this.coordinates,
-    required this.days,
-    this.isDestination = false,
-  });
-
-  final String id;
-  final WeatherCoordinates coordinates;
-  final Map<String, WeatherDay> days;
-  final bool isDestination;
-
-  Map<String, Object?> toJson() => {
-    'id': id,
-    'coordinates': coordinates.toJson(),
-    'is_destination': isDestination,
-    'days': days.map((key, value) => MapEntry(key, value.toJson())),
-  };
-
-  factory WeatherMapPoint.fromJson(Map<String, Object?> json) =>
-      WeatherMapPoint(
-        id: json['id'] as String,
-        coordinates: WeatherCoordinates.fromJson(
-          (json['coordinates'] as Map).cast<String, Object?>(),
-        ),
-        isDestination: json['is_destination'] as bool? ?? false,
-        days: (json['days'] as Map).map(
-          (key, value) => MapEntry(
-            key as String,
-            WeatherDay.fromJson((value as Map).cast<String, Object?>()),
-          ),
-        ),
-      );
-}
-
 class TripWeatherSnapshot {
   const TripWeatherSnapshot({
     required this.cacheKey,
     required this.location,
     required this.days,
-    required this.mapPoints,
     required this.updatedAt,
     this.forecastUpdatedAt,
     this.historicalUpdatedAt,
@@ -163,7 +126,6 @@ class TripWeatherSnapshot {
   final String cacheKey;
   final WeatherLocation location;
   final List<WeatherDay> days;
-  final List<WeatherMapPoint> mapPoints;
   final DateTime updatedAt;
   final DateTime? forecastUpdatedAt;
   final DateTime? historicalUpdatedAt;
@@ -172,7 +134,6 @@ class TripWeatherSnapshot {
 
   TripWeatherSnapshot copyWith({
     List<WeatherDay>? days,
-    List<WeatherMapPoint>? mapPoints,
     DateTime? updatedAt,
     DateTime? forecastUpdatedAt,
     DateTime? historicalUpdatedAt,
@@ -182,7 +143,6 @@ class TripWeatherSnapshot {
     cacheKey: cacheKey,
     location: location,
     days: days ?? this.days,
-    mapPoints: mapPoints ?? this.mapPoints,
     updatedAt: updatedAt ?? this.updatedAt,
     forecastUpdatedAt: forecastUpdatedAt ?? this.forecastUpdatedAt,
     historicalUpdatedAt: historicalUpdatedAt ?? this.historicalUpdatedAt,
@@ -194,35 +154,28 @@ class TripWeatherSnapshot {
     'cache_key': cacheKey,
     'location': location.toJson(),
     'days': days.map((day) => day.toJson()).toList(growable: false),
-    'map_points': mapPoints
-        .map((point) => point.toJson())
-        .toList(growable: false),
     'updated_at': updatedAt.toUtc().toIso8601String(),
     'forecast_updated_at': forecastUpdatedAt?.toUtc().toIso8601String(),
     'historical_updated_at': historicalUpdatedAt?.toUtc().toIso8601String(),
   };
 
-  factory TripWeatherSnapshot.fromJson(
-    Map<String, Object?> json,
-  ) => TripWeatherSnapshot(
-    cacheKey: json['cache_key'] as String,
-    location: WeatherLocation.fromJson(
-      (json['location'] as Map).cast<String, Object?>(),
-    ),
-    days: (json['days'] as List)
-        .map((day) => WeatherDay.fromJson((day as Map).cast<String, Object?>()))
-        .toList(growable: false),
-    mapPoints: (json['map_points'] as List)
-        .map(
-          (point) =>
-              WeatherMapPoint.fromJson((point as Map).cast<String, Object?>()),
-        )
-        .toList(growable: false),
-    updatedAt: DateTime.parse(json['updated_at'] as String),
-    forecastUpdatedAt: _optionalDate(json['forecast_updated_at']),
-    historicalUpdatedAt: _optionalDate(json['historical_updated_at']),
-    fromCache: true,
-  );
+  factory TripWeatherSnapshot.fromJson(Map<String, Object?> json) =>
+      TripWeatherSnapshot(
+        cacheKey: json['cache_key'] as String,
+        location: WeatherLocation.fromJson(
+          (json['location'] as Map).cast<String, Object?>(),
+        ),
+        days: (json['days'] as List)
+            .map(
+              (day) =>
+                  WeatherDay.fromJson((day as Map).cast<String, Object?>()),
+            )
+            .toList(growable: false),
+        updatedAt: DateTime.parse(json['updated_at'] as String),
+        forecastUpdatedAt: _optionalDate(json['forecast_updated_at']),
+        historicalUpdatedAt: _optionalDate(json['historical_updated_at']),
+        fromCache: true,
+      );
 }
 
 class WeatherTripRequest {

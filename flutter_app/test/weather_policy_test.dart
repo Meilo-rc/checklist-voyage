@@ -51,18 +51,4 @@ void main() {
       WeatherDataSource.historical,
     );
   });
-
-  test('la grille régionale contient neuf points autour du centre', () {
-    const center = WeatherCoordinates(latitude: 33.8076, longitude: 10.8451);
-    final grid = const WeatherGridCalculator().around(center);
-
-    expect(grid.points, hasLength(9));
-    expect(grid.points[4].latitude, center.latitude);
-    expect(grid.points[4].longitude, center.longitude);
-    expect(grid.points.first.latitude, lessThan(center.latitude));
-    expect(grid.points.last.latitude, greaterThan(center.latitude));
-    expect(grid.points.first.longitude, lessThan(center.longitude));
-    expect(grid.points.last.longitude, greaterThan(center.longitude));
-    expect(grid.zoom, 4.6);
-  });
 }

@@ -6,13 +6,13 @@ import '../../domain/weather/weather_models.dart';
 abstract interface class WeatherRemoteGateway {
   Future<WeatherLocation> geocode(String destination);
 
-  Future<List<Map<String, WeatherDay>>> forecast({
-    required List<WeatherCoordinates> points,
+  Future<Map<String, WeatherDay>> forecast({
+    required WeatherCoordinates coordinates,
     required List<DateTime> dates,
   });
 
-  Future<List<Map<String, WeatherDay>>> historicalTrend({
-    required List<WeatherCoordinates> points,
+  Future<Map<String, WeatherDay>> historicalTrend({
+    required WeatherCoordinates coordinates,
     required List<DateTime> dates,
     required DateTime referenceDate,
   });
@@ -31,14 +31,14 @@ class UnavailableWeatherRemote implements WeatherRemoteGateway {
   Future<WeatherLocation> geocode(String destination) async => _unavailable();
 
   @override
-  Future<List<Map<String, WeatherDay>>> forecast({
-    required List<WeatherCoordinates> points,
+  Future<Map<String, WeatherDay>> forecast({
+    required WeatherCoordinates coordinates,
     required List<DateTime> dates,
   }) async => _unavailable();
 
   @override
-  Future<List<Map<String, WeatherDay>>> historicalTrend({
-    required List<WeatherCoordinates> points,
+  Future<Map<String, WeatherDay>> historicalTrend({
+    required WeatherCoordinates coordinates,
     required List<DateTime> dates,
     required DateTime referenceDate,
   }) async => _unavailable();
@@ -82,46 +82,38 @@ class OpenMeteoRemote implements WeatherRemoteGateway {
   }
 
   @override
-  Future<List<Map<String, WeatherDay>>> forecast({
-    required List<WeatherCoordinates> points,
+  Future<Map<String, WeatherDay>> forecast({
+    required WeatherCoordinates coordinates,
     required List<DateTime> dates,
   }) async {
-    if (dates.isEmpty) return List.generate(points.length, (_) => {});
+    if (dates.isEmpty) return {};
     final sorted = [...dates]..sort();
     final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
-      'latitude': points.map((point) => point.latitude).join(','),
-      'longitude': points.map((point) => point.longitude).join(','),
+      'latitude': coordinates.latitude.toString(),
+      'longitude': coordinates.longitude.toString(),
       'daily': '$_dailyVariables,precipitation_probability_max',
       'timezone': 'auto',
       'start_date': weatherDateKey(sorted.first),
       'end_date': weatherDateKey(sorted.last),
     });
-    final payloads = _locationPayloads(await _getDynamicJson(uri));
-    return _alignPayloads(payloads, points.length)
-        .map(
-          (payload) => _parseDaily(
-            payload,
-            source: WeatherDataSource.forecast,
-            allowedDates: dates,
-          ),
-        )
-        .toList(growable: false);
+    return _parseDaily(
+      await _getJson(uri),
+      source: WeatherDataSource.forecast,
+      allowedDates: dates,
+    );
   }
 
   @override
-  Future<List<Map<String, WeatherDay>>> historicalTrend({
-    required List<WeatherCoordinates> points,
+  Future<Map<String, WeatherDay>> historicalTrend({
+    required WeatherCoordinates coordinates,
     required List<DateTime> dates,
     required DateTime referenceDate,
   }) async {
-    if (dates.isEmpty) return List.generate(points.length, (_) => {});
+    if (dates.isEmpty) return {};
     final sortedDates = [...dates]..sort();
-    final samplesByPoint = List.generate(
-      points.length,
-      (_) => <Map<String, Object?>>[],
-    );
+    final samples = <Map<String, Object?>>[];
     // Five representative years, restricted to the trip's calendar period.
-    // This avoids downloading complete years for every regional point.
+    // This avoids downloading complete years for the destination.
     for (var offset = 5; offset >= 1; offset--) {
       final sampleYear = referenceDate.year - offset;
       final sampleStart = _historicalDate(
@@ -135,24 +127,16 @@ class OpenMeteoRemote implements WeatherRemoteGateway {
         sampleYear,
       );
       final uri = Uri.https('archive-api.open-meteo.com', '/v1/archive', {
-        'latitude': points.map((point) => point.latitude).join(','),
-        'longitude': points.map((point) => point.longitude).join(','),
+        'latitude': coordinates.latitude.toString(),
+        'longitude': coordinates.longitude.toString(),
         'daily': _dailyVariables,
         'timezone': 'auto',
         'start_date': weatherDateKey(sampleStart),
         'end_date': weatherDateKey(sampleEnd),
       });
-      final payloads = _alignPayloads(
-        _locationPayloads(await _getDynamicJson(uri)),
-        points.length,
-      );
-      for (var point = 0; point < payloads.length; point++) {
-        samplesByPoint[point].add(payloads[point]);
-      }
+      samples.add(await _getJson(uri));
     }
-    return samplesByPoint
-        .map((payloads) => _aggregateHistorical(payloads, dates))
-        .toList(growable: false);
+    return _aggregateHistorical(samples, dates);
   }
 
   Map<String, WeatherDay> _parseDaily(
@@ -298,27 +282,6 @@ class _HistoricalSample {
   final double max;
   final double? precipitation;
   final double? wind;
-}
-
-List<Map<String, Object?>> _locationPayloads(Object? decoded) {
-  if (decoded is List) {
-    return decoded
-        .whereType<Map>()
-        .map((value) => value.cast<String, Object?>())
-        .toList(growable: false);
-  }
-  if (decoded is Map) return [decoded.cast<String, Object?>()];
-  throw const FormatException('Réponse météo invalide.');
-}
-
-List<Map<String, Object?>> _alignPayloads(
-  List<Map<String, Object?>> payloads,
-  int count,
-) {
-  if (payloads.length != count) {
-    throw const FormatException('Nombre de points météo inattendu.');
-  }
-  return payloads;
 }
 
 List<Object?> _list(Object? value) => value is List ? value : const [];

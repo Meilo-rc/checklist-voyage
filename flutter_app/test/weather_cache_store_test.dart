@@ -5,7 +5,7 @@ import 'package:checklist_voyage_v1/domain/weather/weather_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('le cache JSON persiste géocodage, grille et timestamp', () async {
+  test('le cache JSON persiste géocodage, jours et timestamp', () async {
     final directory = await Directory.systemTemp.createTemp('cv-weather-');
     addTearDown(() => directory.delete(recursive: true));
     final first = JsonFileWeatherCacheStore(
@@ -27,14 +27,6 @@ void main() {
       cacheKey: 'cache-key',
       location: location,
       days: [day],
-      mapPoints: [
-        WeatherMapPoint(
-          id: 'grid-0',
-          coordinates: location.coordinates,
-          days: {weatherDateKey(day.date): day},
-          isDestination: true,
-        ),
-      ],
       updatedAt: DateTime.utc(2026, 8, 26),
       forecastUpdatedAt: DateTime.utc(2026, 8, 26),
     );
@@ -49,8 +41,35 @@ void main() {
 
     expect(restoredLocation?.coordinates.latitude, 33.8);
     expect(restored?.days.single.maxTemperature, 26);
-    expect(restored?.mapPoints.single.days, hasLength(1));
     expect(restored?.forecastUpdatedAt, DateTime.utc(2026, 8, 26));
     expect(restored?.fromCache, isTrue);
+  });
+
+  test('un ancien cache RC10 ignore ses données cartographiques', () {
+    final day = WeatherDay(
+      date: DateTime(2026, 9, 1),
+      source: WeatherDataSource.forecast,
+      condition: WeatherCondition.clear,
+      weatherCode: 0,
+      minTemperature: 18,
+      maxTemperature: 26,
+    );
+    final json = TripWeatherSnapshot(
+      cacheKey: 'ancien-cache',
+      location: const WeatherLocation(
+        name: 'Djerba',
+        coordinates: WeatherCoordinates(latitude: 33.8, longitude: 10.8),
+      ),
+      days: [day],
+      updatedAt: DateTime.utc(2026, 8, 26),
+    ).toJson();
+    json['map_points'] = [
+      {'id': 'ancienne-grille-devenue-inutile'},
+    ];
+
+    final restored = TripWeatherSnapshot.fromJson(json);
+
+    expect(restored.days.single.maxTemperature, 26);
+    expect(restored.cacheKey, 'ancien-cache');
   });
 }

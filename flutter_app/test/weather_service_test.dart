@@ -19,30 +19,25 @@ void main() {
     service = TripWeatherService(remote, cache, clock: () => now);
   });
 
-  test(
-    'géocode, groupe neuf points et conserve la source de chaque jour',
-    () async {
-      final result = await service.load(
-        _request(
-          start: now.add(const Duration(days: 14)),
-          end: now.add(const Duration(days: 18)),
-        ),
-      );
+  test('géocode la destination et conserve la source de chaque jour', () async {
+    final result = await service.load(
+      _request(
+        start: now.add(const Duration(days: 14)),
+        end: now.add(const Duration(days: 18)),
+      ),
+    );
 
-      expect(remote.geocodeCalls, 1);
-      expect(remote.forecastCalls, 1);
-      expect(remote.historicalCalls, 1);
-      expect(remote.lastPointCount, 9);
-      expect(result.mapPoints, hasLength(9));
-      expect(result.days.map((day) => day.source), [
-        WeatherDataSource.forecast,
-        WeatherDataSource.forecast,
-        WeatherDataSource.forecast,
-        WeatherDataSource.historical,
-        WeatherDataSource.historical,
-      ]);
-    },
-  );
+    expect(remote.geocodeCalls, 1);
+    expect(remote.forecastCalls, 1);
+    expect(remote.historicalCalls, 1);
+    expect(result.days.map((day) => day.source), [
+      WeatherDataSource.forecast,
+      WeatherDataSource.forecast,
+      WeatherDataSource.forecast,
+      WeatherDataSource.historical,
+      WeatherDataSource.historical,
+    ]);
+  });
 
   test('un second chargement frais utilise uniquement le cache', () async {
     final request = _request(
@@ -162,7 +157,6 @@ class _FakeWeatherRemote implements WeatherRemoteGateway {
   int geocodeCalls = 0;
   int forecastCalls = 0;
   int historicalCalls = 0;
-  int lastPointCount = 0;
   bool offline = false;
 
   @override
@@ -179,49 +173,43 @@ class _FakeWeatherRemote implements WeatherRemoteGateway {
   }
 
   @override
-  Future<List<Map<String, WeatherDay>>> forecast({
-    required List<WeatherCoordinates> points,
+  Future<Map<String, WeatherDay>> forecast({
+    required WeatherCoordinates coordinates,
     required List<DateTime> dates,
   }) async {
     _checkOnline();
     forecastCalls++;
-    lastPointCount = points.length;
-    return _values(points, dates, WeatherDataSource.forecast, 1);
+    return _values(dates, WeatherDataSource.forecast, 1);
   }
 
   @override
-  Future<List<Map<String, WeatherDay>>> historicalTrend({
-    required List<WeatherCoordinates> points,
+  Future<Map<String, WeatherDay>> historicalTrend({
+    required WeatherCoordinates coordinates,
     required List<DateTime> dates,
     required DateTime referenceDate,
   }) async {
     _checkOnline();
     historicalCalls++;
-    lastPointCount = points.length;
-    return _values(points, dates, WeatherDataSource.historical, 3);
+    return _values(dates, WeatherDataSource.historical, 3);
   }
 
-  List<Map<String, WeatherDay>> _values(
-    List<WeatherCoordinates> points,
+  Map<String, WeatherDay> _values(
     List<DateTime> dates,
     WeatherDataSource source,
     int code,
-  ) => List.generate(
-    points.length,
-    (point) => {
-      for (final date in dates)
-        weatherDateKey(date): WeatherDay(
-          date: date,
-          source: source,
-          condition: weatherConditionForWmo(code),
-          weatherCode: code,
-          minTemperature: 17.0 + point,
-          maxTemperature: 24.0 + point,
-          precipitationProbability: 10,
-          meanWindSpeed: 16,
-        ),
-    },
-  );
+  ) => {
+    for (final date in dates)
+      weatherDateKey(date): WeatherDay(
+        date: date,
+        source: source,
+        condition: weatherConditionForWmo(code),
+        weatherCode: code,
+        minTemperature: 17,
+        maxTemperature: 24,
+        precipitationProbability: 10,
+        meanWindSpeed: 16,
+      ),
+  };
 
   void _checkOnline() {
     if (offline) throw const SocketException('offline');

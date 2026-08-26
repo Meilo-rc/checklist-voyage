@@ -1,41 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../domain/weather/trip_weather_service.dart';
 import '../../domain/weather/weather_models.dart';
-
-enum WeatherView { map, forecast }
-
-typedef WeatherMapBuilder =
-    Widget Function(
-      BuildContext context,
-      TripWeatherSnapshot snapshot,
-      WeatherDay selectedDay,
-    );
-
-typedef WeatherMapBackgroundBuilder = Widget Function();
 
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({
     super.key,
     required this.request,
     required this.service,
-    this.mapBuilder,
   });
 
   final WeatherTripRequest request;
   final TripWeatherService service;
-  final WeatherMapBuilder? mapBuilder;
 
   @override
   State<WeatherScreen> createState() => _WeatherScreenState();
 }
 
 class _WeatherScreenState extends State<WeatherScreen> {
-  WeatherView _view = WeatherView.map;
-  int _selectedDay = 0;
   late Future<TripWeatherSnapshot> _future;
 
   @override
@@ -47,7 +30,13 @@ class _WeatherScreenState extends State<WeatherScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Météo — ${widget.request.destination}')),
+      appBar: AppBar(
+        title: Text(
+          'Météo — ${widget.request.destination}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
       body: FutureBuilder<TripWeatherSnapshot>(
         future: _future,
         builder: (context, snapshot) {
@@ -69,65 +58,35 @@ class _WeatherScreenState extends State<WeatherScreen> {
               message: 'Aucune donnée météo pour ce séjour.',
             );
           }
-          final selectedIndex = _selectedDay.clamp(0, weather.days.length - 1);
-          final selected = weather.days[selectedIndex];
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.xs,
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: SegmentedButton<WeatherView>(
-                        key: const Key('weather-view-selector'),
-                        showSelectedIcon: false,
-                        segments: const [
-                          ButtonSegment(
-                            value: WeatherView.map,
-                            label: Text('Carte'),
-                          ),
-                          ButtonSegment(
-                            value: WeatherView.forecast,
-                            label: Text('Prévisions'),
-                          ),
-                        ],
-                        selected: {_view},
-                        onSelectionChanged: (selection) =>
-                            setState(() => _view = selection.single),
+              if (weather.isStale)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.xs,
+                    AppSpacing.md,
+                    AppSpacing.xs,
+                  ),
+                  child: Row(
+                    key: const Key('weather-stale'),
+                    children: [
+                      Icon(
+                        Icons.cloud_off_outlined,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                    ),
-                    if (weather.isStale) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      Tooltip(
-                        message: 'Dernières données en cache',
-                        child: Icon(
-                          Icons.cloud_off_outlined,
-                          key: const Key('weather-stale'),
-                          size: 18,
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        'Dernières données en cache',
+                        style: AppTextScale.of(context).metadata.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _view == WeatherView.map
-                    ? _WeatherMapPane(
-                        snapshot: weather,
-                        selectedDay: selected,
-                        selectedIndex: selectedIndex,
-                        onDaySelected: (index) =>
-                            setState(() => _selectedDay = index),
-                        mapBuilder: widget.mapBuilder,
-                      )
-                    : _WeatherForecastList(snapshot: weather),
-              ),
+              Expanded(child: _WeatherForecastList(snapshot: weather)),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.md,
@@ -267,324 +226,6 @@ class _TripWeatherSummaryState extends State<TripWeatherSummary> {
   }
 }
 
-class _WeatherMapPane extends StatelessWidget {
-  const _WeatherMapPane({
-    required this.snapshot,
-    required this.selectedDay,
-    required this.selectedIndex,
-    required this.onDaySelected,
-    required this.mapBuilder,
-  });
-
-  final TripWeatherSnapshot snapshot;
-  final WeatherDay selectedDay;
-  final int selectedIndex;
-  final ValueChanged<int> onDaySelected;
-  final WeatherMapBuilder? mapBuilder;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _SelectedDaySummary(day: selectedDay),
-        const SizedBox(height: AppSpacing.xs),
-        Expanded(
-          child:
-              mapBuilder?.call(context, snapshot, selectedDay) ??
-              WeatherMapView(snapshot: snapshot, selectedDay: selectedDay),
-        ),
-        _DayStrip(
-          days: snapshot.days,
-          selectedIndex: selectedIndex,
-          onSelected: onDaySelected,
-        ),
-      ],
-    );
-  }
-}
-
-class WeatherMapView extends StatefulWidget {
-  const WeatherMapView({
-    super.key,
-    required this.snapshot,
-    required this.selectedDay,
-    this.backgroundBuilder,
-  });
-
-  final TripWeatherSnapshot snapshot;
-  final WeatherDay selectedDay;
-  final WeatherMapBackgroundBuilder? backgroundBuilder;
-
-  @override
-  State<WeatherMapView> createState() => _WeatherMapViewState();
-}
-
-class _WeatherMapViewState extends State<WeatherMapView> {
-  final MapController _controller = MapController();
-
-  LatLng get _center => LatLng(
-    widget.snapshot.location.coordinates.latitude,
-    widget.snapshot.location.coordinates.longitude,
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final dateKey = weatherDateKey(widget.selectedDay.date);
-    return Stack(
-      children: [
-        FlutterMap(
-          key: ValueKey('weather-map-${widget.snapshot.cacheKey}'),
-          mapController: _controller,
-          options: MapOptions(
-            initialCenter: _center,
-            initialZoom: 4.6,
-            minZoom: 2.5,
-            maxZoom: 9,
-          ),
-          children: [
-            widget.backgroundBuilder?.call() ??
-                TileLayer(
-                  key: const Key('weather-map-background'),
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'fr.checklistvoyage.app',
-                  maxZoom: 19,
-                ),
-            MarkerLayer(
-              key: ValueKey('weather-markers-$dateKey'),
-              markers: widget.snapshot.mapPoints
-                  .map((point) {
-                    final day = point.days[dateKey];
-                    if (day == null) {
-                      return Marker(
-                        point: LatLng(
-                          point.coordinates.latitude,
-                          point.coordinates.longitude,
-                        ),
-                        width: 1,
-                        height: 1,
-                        child: const SizedBox.shrink(),
-                      );
-                    }
-                    return Marker(
-                      point: LatLng(
-                        point.coordinates.latitude,
-                        point.coordinates.longitude,
-                      ),
-                      width: point.isDestination ? 52 : 42,
-                      height: point.isDestination ? 52 : 42,
-                      child: _MapWeatherMarker(
-                        day: day,
-                        destination: point.isDestination,
-                      ),
-                    );
-                  })
-                  .toList(growable: false),
-            ),
-            const RichAttributionWidget(
-              attributions: [
-                TextSourceAttribution('© OpenStreetMap contributors'),
-              ],
-            ),
-          ],
-        ),
-        Positioned(
-          right: AppSpacing.sm,
-          bottom: AppSpacing.sm,
-          child: Column(
-            children: [
-              _MapButton(
-                tooltip: 'Recentrer',
-                icon: Icons.my_location,
-                onPressed: () => _controller.move(_center, 4.6),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              _MapButton(
-                tooltip: 'Zoom avant',
-                icon: Icons.add,
-                onPressed: () => _controller.move(
-                  _controller.camera.center,
-                  (_controller.camera.zoom + 1).clamp(2.5, 9),
-                ),
-              ),
-              const SizedBox(height: 2),
-              _MapButton(
-                tooltip: 'Zoom arrière',
-                icon: Icons.remove,
-                onPressed: () => _controller.move(
-                  _controller.camera.center,
-                  (_controller.camera.zoom - 1).clamp(2.5, 9),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          left: AppSpacing.sm,
-          top: AppSpacing.sm,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.surface.withValues(alpha: 0.88),
-              borderRadius: BorderRadius.circular(AppRadius.field),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Text(
-                weatherSourceLabel(widget.selectedDay.source),
-                style: AppTextScale.of(
-                  context,
-                ).metadata.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MapWeatherMarker extends StatelessWidget {
-  const _MapWeatherMarker({required this.day, required this.destination});
-
-  final WeatherDay day;
-  final bool destination;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.88),
-        shape: BoxShape.circle,
-        border: destination
-            ? Border.all(color: colors.primary, width: 2)
-            : null,
-        boxShadow: const [BoxShadow(blurRadius: 3, color: Color(0x55000000))],
-      ),
-      child: Icon(
-        weatherIcon(day.condition),
-        size: destination ? 31 : 27,
-        color: weatherIconColor(day.condition, colors),
-      ),
-    );
-  }
-}
-
-class _MapButton extends StatelessWidget {
-  const _MapButton({
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.surface,
-    elevation: 2,
-    borderRadius: BorderRadius.circular(AppRadius.field),
-    child: IconButton(
-      visualDensity: VisualDensity.compact,
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 20),
-    ),
-  );
-}
-
-class _DayStrip extends StatelessWidget {
-  const _DayStrip({
-    required this.days,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final List<WeatherDay> days;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 62,
-    child: ListView.separated(
-      key: const Key('weather-day-strip'),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      scrollDirection: Axis.horizontal,
-      itemCount: days.length,
-      separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
-      itemBuilder: (context, index) {
-        final day = days[index];
-        final selected = index == selectedIndex;
-        return ChoiceChip(
-          key: Key('weather-day-$index'),
-          selected: selected,
-          onSelected: (_) => onSelected(index),
-          label: Text(
-            '${shortWeekday(day.date)}\n${day.date.day} ${shortMonth(day.date)}',
-          ),
-          labelStyle: AppTextScale.of(context).metadata.copyWith(
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-          ),
-        );
-      },
-    ),
-  );
-}
-
-class _SelectedDaySummary extends StatelessWidget {
-  const _SelectedDaySummary({required this.day});
-
-  final WeatherDay day;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Row(
-        key: const Key('weather-selected-summary'),
-        children: [
-          Icon(
-            weatherIcon(day.condition),
-            color: weatherIconColor(day.condition, colors),
-            size: 28,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${longWeekday(day.date)} ${day.date.day} ${shortMonth(day.date)} · '
-                  '${day.minTemperature.round()}–${day.maxTemperature.round()} °C',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextScale.of(context).filter,
-                ),
-                Text(
-                  '${weatherConditionLabel(day.condition)} · '
-                  '${weatherRainLabel(day)} · ${weatherWindLabel(day)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextScale.of(
-                    context,
-                  ).metadata.copyWith(color: colors.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _WeatherForecastList extends StatelessWidget {
   const _WeatherForecastList({required this.snapshot});
 
@@ -593,12 +234,7 @@ class _WeatherForecastList extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView.separated(
     key: const Key('weather-forecast-list'),
-    padding: const EdgeInsets.fromLTRB(
-      AppSpacing.md,
-      0,
-      AppSpacing.md,
-      AppSpacing.lg,
-    ),
+    padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, 12),
     itemCount: snapshot.days.length,
     separatorBuilder: (_, _) => const Divider(height: 1),
     itemBuilder: (context, index) => _ForecastRow(day: snapshot.days[index]),
@@ -613,69 +249,66 @@ class _ForecastRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return SizedBox(
+    return ConstrainedBox(
       key: Key('weather-forecast-${weatherDateKey(day.date)}'),
-      height: 58,
-      child: Row(
-        children: [
-          SizedBox(
-            width: 42,
-            child: Text(
-              '${shortWeekday(day.date)}\n${day.date.day}',
-              style: AppTextScale.of(context).metadata,
+      constraints: const BoxConstraints(minHeight: 66),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          children: [
+            Icon(
+              weatherIcon(day.condition),
+              size: 26,
+              color: weatherIconColor(day.condition, colors),
             ),
-          ),
-          Icon(
-            weatherIcon(day.condition),
-            size: 28,
-            color: weatherIconColor(day.condition, colors),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  weatherConditionLabel(day.condition),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextScale.of(context).body,
-                ),
-                Text(
-                  weatherSourceLabel(day.source),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextScale.of(context).metadata.copyWith(
-                    color: day.source == WeatherDataSource.forecast
-                        ? colors.primary
-                        : colors.onSurfaceVariant,
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${shortWeekday(day.date)} ${day.date.day} '
+                          '${shortMonth(day.date)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextScale.of(context).filter,
+                        ),
+                      ),
+                      Text(
+                        '${day.minTemperature.round()}–'
+                        '${day.maxTemperature.round()} °C',
+                        style: AppTextScale.of(context).filter,
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  Text(
+                    '${weatherConditionLabel(day.condition)} · '
+                    '${weatherRainLabel(day)} · ${weatherWindLabel(day)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextScale.of(
+                      context,
+                    ).metadata.copyWith(color: colors.onSurfaceVariant),
+                  ),
+                  Text(
+                    weatherSourceLabel(day.source),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextScale.of(context).metadata.copyWith(
+                      color: day.source == WeatherDataSource.forecast
+                          ? colors.primary
+                          : colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          SizedBox(
-            width: 105,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${day.minTemperature.round()}–${day.maxTemperature.round()} °C',
-                  style: AppTextScale.of(context).filter,
-                ),
-                Text(
-                  '${weatherRainLabel(day)} · ${weatherWindLabel(day)}',
-                  maxLines: 1,
-                  style: AppTextScale.of(
-                    context,
-                  ).metadata.copyWith(color: colors.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -766,7 +399,6 @@ String weatherWindLabel(WeatherDay day) => day.meanWindSpeed == null
     : 'Vent ${day.meanWindSpeed!.round()} km/h';
 
 const _shortWeekdays = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'];
-const _longWeekdays = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'];
 const _shortMonths = [
   'janv.',
   'févr.',
@@ -783,5 +415,4 @@ const _shortMonths = [
 ];
 
 String shortWeekday(DateTime date) => _shortWeekdays[date.weekday - 1];
-String longWeekday(DateTime date) => _longWeekdays[date.weekday - 1];
 String shortMonth(DateTime date) => _shortMonths[date.month - 1];

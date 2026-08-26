@@ -8,17 +8,12 @@ import 'weather_models.dart';
 import 'weather_policy.dart';
 
 class TripWeatherService {
-  TripWeatherService(
-    this._remote,
-    this._cache, {
-    WeatherClock? clock,
-    this._gridCalculator = const WeatherGridCalculator(),
-  }) : _clock = clock ?? DateTime.now;
+  TripWeatherService(this._remote, this._cache, {WeatherClock? clock})
+    : _clock = clock ?? DateTime.now;
 
   final WeatherRemoteGateway _remote;
   final WeatherCacheStore _cache;
   final WeatherClock _clock;
-  final WeatherGridCalculator _gridCalculator;
 
   static const forecastTtl = Duration(hours: 6);
   static const historicalTtl = Duration(days: 90);
@@ -54,31 +49,33 @@ class TripWeatherService {
 
     try {
       final location = await _resolveLocation(request, cached);
-      final grid = _gridCalculator.around(location.coordinates);
-      var points = _seedPoints(grid.points, cached);
+      var values = {
+        for (final day in cached?.days ?? const <WeatherDay>[])
+          weatherDateKey(day.date): day,
+      };
       var forecastUpdatedAt = cached?.forecastUpdatedAt;
       var historicalUpdatedAt = cached?.historicalUpdatedAt;
 
       if (!forecastFresh && forecastDates.isNotEmpty) {
         final fetched = await _remote.forecast(
-          points: grid.points,
+          coordinates: location.coordinates,
           dates: forecastDates,
         );
-        points = _merge(points, fetched, WeatherDataSource.forecast);
+        values = _merge(values, fetched, WeatherDataSource.forecast);
         forecastUpdatedAt = now;
       }
       if (!historicalFresh && historicalDates.isNotEmpty) {
         final fetched = await _remote.historicalTrend(
-          points: grid.points,
+          coordinates: location.coordinates,
           dates: historicalDates,
           referenceDate: now,
         );
-        points = _merge(points, fetched, WeatherDataSource.historical);
+        values = _merge(values, fetched, WeatherDataSource.historical);
         historicalUpdatedAt = now;
       }
 
       final destinationDays = _orderedDays(
-        points[4].days,
+        values,
         request.startDate,
         request.endDate,
       );
@@ -91,7 +88,6 @@ class TripWeatherService {
         cacheKey: cacheKey,
         location: location,
         days: destinationDays,
-        mapPoints: points,
         updatedAt: now,
         forecastUpdatedAt: forecastUpdatedAt,
         historicalUpdatedAt: historicalUpdatedAt,
@@ -126,40 +122,14 @@ class TripWeatherService {
     return location;
   }
 
-  List<WeatherMapPoint> _seedPoints(
-    List<WeatherCoordinates> coordinates,
-    TripWeatherSnapshot? cached,
-  ) => List.generate(coordinates.length, (index) {
-    final previous = cached?.mapPoints
-        .where((point) => point.id == 'grid-$index')
-        .firstOrNull;
-    return WeatherMapPoint(
-      id: 'grid-$index',
-      coordinates: coordinates[index],
-      days: Map<String, WeatherDay>.from(previous?.days ?? const {}),
-      isDestination: index == 4,
-    );
-  });
-
-  List<WeatherMapPoint> _merge(
-    List<WeatherMapPoint> points,
-    List<Map<String, WeatherDay>> fetched,
+  Map<String, WeatherDay> _merge(
+    Map<String, WeatherDay> current,
+    Map<String, WeatherDay> fetched,
     WeatherDataSource source,
   ) {
-    if (points.length != fetched.length) {
-      throw const WeatherUnavailable('Grille météo incomplète.');
-    }
-    return List.generate(points.length, (index) {
-      final merged = Map<String, WeatherDay>.from(points[index].days)
-        ..removeWhere((_, day) => day.source == source)
-        ..addAll(fetched[index]);
-      return WeatherMapPoint(
-        id: points[index].id,
-        coordinates: points[index].coordinates,
-        days: merged,
-        isDestination: points[index].isDestination,
-      );
-    });
+    return Map<String, WeatherDay>.from(current)
+      ..removeWhere((_, day) => day.source == source)
+      ..addAll(fetched);
   }
 
   bool _sourceIsFresh(
@@ -174,12 +144,10 @@ class TripWeatherService {
     if (snapshot == null || fetchedAt == null) return false;
     if (now.toUtc().difference(fetchedAt.toUtc()) > ttl) return false;
     final needed = dates.map(weatherDateKey).toSet();
-    for (final point in snapshot.mapPoints) {
-      if (!needed.every((key) => point.days[key]?.source == source)) {
-        return false;
-      }
-    }
-    return true;
+    final values = {
+      for (final day in snapshot.days) weatherDateKey(day.date): day,
+    };
+    return needed.every((key) => values[key]?.source == source);
   }
 
   bool _covers(TripWeatherSnapshot snapshot, WeatherTripRequest request) {

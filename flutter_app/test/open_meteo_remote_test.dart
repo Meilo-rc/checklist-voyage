@@ -67,11 +67,11 @@ void main() {
 
       final location = await remote.geocode('Djerba');
       final forecast = await remote.forecast(
-        points: [location.coordinates],
+        coordinates: location.coordinates,
         dates: [DateTime(2026, 9, 1)],
       );
       final historical = await remote.historicalTrend(
-        points: [location.coordinates],
+        coordinates: location.coordinates,
         dates: [DateTime(2026, 9, 1)],
         referenceDate: DateTime(2026, 8, 26),
       );
@@ -88,8 +88,8 @@ void main() {
         requested.expand((uri) => uri.queryParameters.keys),
         isNot(contains(anyOf('trip_id', 'installation_id', 'share_code'))),
       );
-      expect(forecast.single.values.single.source, WeatherDataSource.forecast);
-      final trend = historical.single.values.single;
+      expect(forecast.values.single.source, WeatherDataSource.forecast);
+      final trend = historical.values.single;
       expect(trend.source, WeatherDataSource.historical);
       expect(trend.minTemperature, 18);
       expect(trend.maxTemperature, 26);
@@ -110,4 +110,24 @@ void main() {
       );
     },
   );
+
+  test('une erreur Open-Meteo est remontée sans masquer sa cause', () async {
+    final remote = OpenMeteoRemote(
+      client: MockClient((_) async => http.Response('indisponible', 503)),
+    );
+
+    await expectLater(
+      remote.forecast(
+        coordinates: const WeatherCoordinates(latitude: 33.8, longitude: 10.8),
+        dates: [DateTime(2026, 9, 1)],
+      ),
+      throwsA(
+        isA<WeatherUnavailable>().having(
+          (error) => error.message,
+          'message',
+          'Open-Meteo a répondu 503.',
+        ),
+      ),
+    );
+  });
 }
