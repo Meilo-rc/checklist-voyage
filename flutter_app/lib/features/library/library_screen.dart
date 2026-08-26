@@ -259,7 +259,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   key: const ValueKey('personal-linked-participant'),
                   initialValue: linkedParticipantOwnerId,
                   decoration: const InputDecoration(
-                    labelText: 'Participant associé',
+                    labelText: 'Membre associé',
                     helperText: 'Nécessaire pour inclure Personnel au voyage',
                   ),
                   items: [

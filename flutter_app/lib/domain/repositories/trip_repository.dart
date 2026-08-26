@@ -26,6 +26,19 @@ abstract interface class TripRepository {
 
   Future<void> removeItem(String itemId);
 
+  Future<String> addGroup({
+    required String tripId,
+    required TripMemberGroupKind groupKind,
+    required String name,
+    String? icon,
+  });
+
+  Future<void> renameGroup(String groupId, String name);
+
+  Future<void> setGroupIcon(String groupId, String? icon);
+
+  Future<void> removeGroup(String groupId);
+
   Future<String> addItem({
     required String tripId,
     required String categoryId,

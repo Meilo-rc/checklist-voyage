@@ -56,6 +56,9 @@ void main() {
       final member = trip.members.singleWhere(
         (candidate) => candidate.groupKind == TripMemberGroupKind.family,
       );
+      final generalGroup = trip.members.firstWhere(
+        (candidate) => candidate.groupKind == TripMemberGroupKind.general,
+      );
       final category = member.categories.single;
       final shirt = category.items.singleWhere(
         (item) => item.sources.any(
@@ -81,6 +84,18 @@ void main() {
       expect(find.text('Membres'), findsOneWidget);
       expect(find.byKey(const Key('trip-level-general')), findsOneWidget);
       expect(find.byKey(const Key('trip-level-members')), findsOneWidget);
+      expect(
+        find.byKey(const Key('trip-add-group-general-collapsed')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('trip-add-group-family-collapsed')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(Key('trip-group-icon-${generalGroup.id}')),
+        findsOneWidget,
+      );
       final levelTitle = tester.widget<Text>(
         find.descendant(
           of: find.byKey(const Key('trip-level-members')),

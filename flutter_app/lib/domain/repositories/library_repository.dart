@@ -17,6 +17,8 @@ abstract interface class LibraryRepository {
 
   Future<void> renameOwner(String ownerId, String name);
 
+  Future<void> setOwnerIcon(String ownerId, String? icon);
+
   Future<void> setLinkedParticipantOwner(
     String ownerId,
     String? participantOwnerId,

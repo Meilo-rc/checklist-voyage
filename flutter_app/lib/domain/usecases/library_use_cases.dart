@@ -25,6 +25,9 @@ class LibraryUseCases {
   Future<void> renameOwner(String ownerId, String name) =>
       _repository.renameOwner(ownerId, name);
 
+  Future<void> setOwnerIcon(String ownerId, String? icon) =>
+      _repository.setOwnerIcon(ownerId, icon);
+
   Future<void> setLinkedParticipantOwner(
     String ownerId,
     String? participantOwnerId,

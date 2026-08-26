@@ -1024,6 +1024,158 @@ class DriftTripRepository implements TripRepository {
   }
 
   @override
+  Future<String> addGroup({
+    required String tripId,
+    required TripMemberGroupKind groupKind,
+    required String name,
+    String? icon,
+  }) async {
+    final clean = name.trim();
+    if (clean.isEmpty) throw ArgumentError.value(name, 'name', 'Nom requis');
+    final id = _uuid.v4();
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      await (_database.select(_database.trips)
+            ..where((row) => row.id.equals(tripId) & row.deletedAt.isNull()))
+          .getSingle();
+      await _database
+          .into(_database.tripMembers)
+          .insert(
+            TripMembersCompanion.insert(
+              id: id,
+              tripId: tripId,
+              sourceOwnerId: const Value(null),
+              groupKind: switch (groupKind) {
+                TripMemberGroupKind.general => 'general',
+                TripMemberGroupKind.family => 'family',
+                TripMemberGroupKind.personal => 'personal',
+              },
+              name: clean,
+              icon: Value(icon),
+              createdAt: now,
+              updatedAtLocal: now,
+            ),
+          );
+      await _touchTrip(tripId, now);
+      if (await _isShared(tripId)) {
+        await _sync.recordUpsert(tripId, 'trip_member', id);
+      }
+    });
+    return id;
+  }
+
+  @override
+  Future<void> renameGroup(String groupId, String name) async {
+    final clean = name.trim();
+    if (clean.isEmpty) throw ArgumentError.value(name, 'name', 'Nom requis');
+    await _database.transaction(() async {
+      final group =
+          await (_database.select(_database.tripMembers)..where(
+                (row) => row.id.equals(groupId) & row.deletedAt.isNull(),
+              ))
+              .getSingle();
+      final now = DateTime.now().toUtc();
+      await (_database.update(
+        _database.tripMembers,
+      )..where((row) => row.id.equals(groupId))).write(
+        TripMembersCompanion(name: Value(clean), updatedAtLocal: Value(now)),
+      );
+      await _touchTrip(group.tripId, now);
+      if (await _isShared(group.tripId)) {
+        await _sync.recordUpsert(group.tripId, 'trip_member', groupId);
+      }
+    });
+  }
+
+  @override
+  Future<void> setGroupIcon(String groupId, String? icon) async {
+    await _database.transaction(() async {
+      final group =
+          await (_database.select(_database.tripMembers)..where(
+                (row) => row.id.equals(groupId) & row.deletedAt.isNull(),
+              ))
+              .getSingle();
+      final now = DateTime.now().toUtc();
+      await (_database.update(
+        _database.tripMembers,
+      )..where((row) => row.id.equals(groupId))).write(
+        TripMembersCompanion(icon: Value(icon), updatedAtLocal: Value(now)),
+      );
+      await _touchTrip(group.tripId, now);
+      if (await _isShared(group.tripId)) {
+        await _sync.recordUpsert(group.tripId, 'trip_member', groupId);
+      }
+    });
+  }
+
+  @override
+  Future<void> removeGroup(String groupId) async {
+    final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      final group =
+          await (_database.select(_database.tripMembers)..where(
+                (row) => row.id.equals(groupId) & row.deletedAt.isNull(),
+              ))
+              .getSingle();
+      final categories =
+          await (_database.select(_database.tripCategories)..where(
+                (row) => row.memberId.equals(groupId) & row.deletedAt.isNull(),
+              ))
+              .get();
+      final categoryIds = categories
+          .map((category) => category.id)
+          .toList(growable: false);
+      final items = categoryIds.isEmpty
+          ? <TripItem>[]
+          : await (_database.select(_database.tripItems)..where(
+                  (row) =>
+                      row.categoryId.isIn(categoryIds) & row.deletedAt.isNull(),
+                ))
+                .get();
+      await (_database.update(
+        _database.tripMembers,
+      )..where((row) => row.id.equals(groupId))).write(
+        TripMembersCompanion(deletedAt: Value(now), updatedAtLocal: Value(now)),
+      );
+      if (categoryIds.isNotEmpty) {
+        await (_database.update(
+          _database.tripCategories,
+        )..where((row) => row.id.isIn(categoryIds))).write(
+          TripCategoriesCompanion(
+            deletedAt: Value(now),
+            updatedAtLocal: Value(now),
+          ),
+        );
+        await (_database.update(
+          _database.tripItems,
+        )..where((row) => row.categoryId.isIn(categoryIds))).write(
+          TripItemsCompanion(
+            deletedAt: Value(now),
+            updatedAtLocal: Value(now),
+          ),
+        );
+      }
+      await _touchTrip(group.tripId, now);
+      if (await _isShared(group.tripId)) {
+        for (final item in items) {
+          await _trackTombstone('trip_item', item.id, now);
+          await _sync.recordDelete(group.tripId, 'trip_item', item.id);
+        }
+        for (final category in categories) {
+          await _trackTombstone('trip_category', category.id, now);
+          await _sync.recordDelete(
+            group.tripId,
+            'trip_category',
+            category.id,
+          );
+        }
+        await _trackTombstone('trip_member', groupId, now);
+        await _sync.recordDelete(group.tripId, 'trip_member', groupId);
+      }
+    });
+  }
+
+  @override
   Future<String> addItem({
     required String tripId,
     required String categoryId,

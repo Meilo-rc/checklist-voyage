@@ -61,7 +61,7 @@ void main() {
 
     expect(find.byKey(const Key('library-root-general')), findsOneWidget);
     expect(
-      find.byKey(const Key('library-root-add-category-general')),
+      find.byKey(const Key('library-add-general-owner')),
       findsOneWidget,
     );
     expect(find.textContaining('23 items'), findsWidgets);
@@ -197,13 +197,13 @@ void main() {
     await _dispose(tester, dependencies);
   });
 
-  testWidgets('Général permet d’ajouter une catégorie depuis la racine', (
+  testWidgets('Général permet d’ajouter un groupe depuis la Section', (
     tester,
   ) async {
     await _narrowScreen(tester, Brightness.light);
     final database = AppDatabase(NativeDatabase.memory());
     final library = DriftLibraryRepository(database);
-    final generalId = await library.createOwner(
+    await library.createOwner(
       name: 'Général',
       kind: LibraryOwnerKind.general,
       generationRole: GenerationRole.general,
@@ -217,32 +217,28 @@ void main() {
     await _pumpData(tester);
     await tester.tap(find.text('Bibliothèque'));
     await _pumpData(tester);
-    await tester.tap(
-      find.byKey(const Key('library-root-add-category-general')),
-    );
+    await tester.tap(find.byKey(const Key('library-add-general-owner')));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.byKey(const Key('library-root-add-category-general-field')),
+      find.byKey(const Key('library-add-general-owner-field')),
       'Santé',
     );
-    await tester.tap(
-      find.byKey(const Key('library-root-add-category-general-submit')),
-    );
+    await tester.tap(find.byKey(const Key('library-add-general-owner-submit')));
     await tester.pumpAndSettle();
 
-    final category = (await database.select(database.libraryCategories).get())
+    final group = (await database.select(database.libraryOwners).get())
         .singleWhere(
-          (candidate) =>
-              candidate.ownerId == generalId && candidate.name == 'Santé',
+          (candidate) => candidate.name == 'Santé',
         );
-    expect(category.deletedAt, isNull);
+    expect(group.kind, 'general');
+    expect(group.deletedAt, isNull);
     expect(find.text('Santé'), findsOneWidget);
     final outbox = await database.select(database.syncOutbox).get();
     expect(
       outbox.where(
         (operation) =>
-            operation.entityType == 'library_category' &&
-            operation.entityId == category.id &&
+            operation.entityType == 'library_owner' &&
+            operation.entityId == group.id &&
             operation.operationType == 'upsert',
       ),
       hasLength(1),

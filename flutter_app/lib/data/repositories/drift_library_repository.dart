@@ -191,6 +191,25 @@ class DriftLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<void> setOwnerIcon(String ownerId, String? icon) async {
+    await _database.transaction(() async {
+      await (_database.update(
+        _database.libraryOwners,
+      )..where((row) => row.id.equals(ownerId) & row.deletedAt.isNull())).write(
+        LibraryOwnersCompanion(
+          icon: Value(icon),
+          updatedAtLocal: Value(DateTime.now().toUtc()),
+        ),
+      );
+      await _sync.recordUpsert(
+        'library_owner',
+        ownerId,
+        await _sync.payloadFor('library_owner', ownerId),
+      );
+    });
+  }
+
+  @override
   Future<void> setLinkedParticipantOwner(
     String ownerId,
     String? participantOwnerId,

@@ -40,6 +40,26 @@ class TripUseCases {
 
   Future<void> removeItem(String itemId) => _trips.removeItem(itemId);
 
+  Future<String> addGroup(
+    String tripId,
+    TripMemberGroupKind groupKind,
+    String name, {
+    String? icon,
+  }) => _trips.addGroup(
+    tripId: tripId,
+    groupKind: groupKind,
+    name: name,
+    icon: icon,
+  );
+
+  Future<void> renameGroup(String groupId, String name) =>
+      _trips.renameGroup(groupId, name);
+
+  Future<void> setGroupIcon(String groupId, String? icon) =>
+      _trips.setGroupIcon(groupId, icon);
+
+  Future<void> removeGroup(String groupId) => _trips.removeGroup(groupId);
+
   Future<Set<String>> loadContextIdsForLibraryItem(String itemId) =>
       _contexts.loadContextIdsForItem(itemId);
 

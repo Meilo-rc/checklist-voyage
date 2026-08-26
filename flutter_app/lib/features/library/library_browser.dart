@@ -64,13 +64,10 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
                     setState(() => _generalExpanded = !_generalExpanded),
                 children: [
                   ...general.map(_buildOwner),
-                  if (general.isNotEmpty)
-                    _rootCategoryAdder(general.first, 'general'),
-                  if (general.isEmpty)
-                    _ownerAdder(
-                      kind: LibraryOwnerKind.general,
-                      label: 'Ajouter un groupe général',
-                    ),
+                  _ownerAdder(
+                    kind: LibraryOwnerKind.general,
+                    label: 'Ajouter un groupe',
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -101,13 +98,10 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
                     setState(() => _personalExpanded = !_personalExpanded),
                 children: [
                   ...personal.map(_buildOwner),
-                  if (personal.isNotEmpty)
-                    _rootCategoryAdder(personal.first, 'personal'),
-                  if (personal.isEmpty)
-                    _ownerAdder(
-                      kind: LibraryOwnerKind.personal,
-                      label: 'Ajouter un espace personnel',
-                    ),
+                  _ownerAdder(
+                    kind: LibraryOwnerKind.personal,
+                    label: 'Ajouter un groupe',
+                  ),
                 ],
               ),
             ],
@@ -136,23 +130,6 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
         ),
       );
 
-  Widget _rootCategoryAdder(LibraryOwnerModel owner, String scope) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-    child: _InlineLibraryAdder(
-      key: Key('library-root-add-category-$scope'),
-      label: 'Ajouter une catégorie',
-      fieldKey: Key('library-root-add-category-$scope-field'),
-      submitKey: Key('library-root-add-category-$scope-submit'),
-      onSubmit: (name) => _createRootCategory(owner, name),
-      onSuccess: () => _openOwner(owner),
-      onError: widget.onMessage,
-    ),
-  );
-
-  Future<void> _createRootCategory(LibraryOwnerModel owner, String name) async {
-    await widget.useCases.createCategory(owner.id, name);
-  }
-
   Widget _buildOwner(LibraryOwnerModel owner) {
     if (_editingOwnerId == owner.id) {
       return Padding(
@@ -172,15 +149,10 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
       key: Key('library-member-${owner.id}'),
       owner: owner,
       onTap: () => _openOwner(owner),
-      onLongPress: owner.isPersonal
-          ? () => widget.onLinkPersonalOwner(owner)
-          : owner.kind == LibraryOwnerKind.familyMember
-          ? () => setState(() => _editingOwnerId = owner.id)
-          : null,
+      onLongPress: () => _openGroupActions(owner),
     );
-    if (owner.kind != LibraryOwnerKind.familyMember) return row;
     return Dismissible(
-      key: Key('library-member-dismiss-${owner.id}'),
+      key: Key('library-group-dismiss-${owner.id}'),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           setState(() => _editingOwnerId = owner.id);
@@ -208,6 +180,29 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
       child: row,
     );
   }
+
+  Future<void> _openGroupActions(LibraryOwnerModel owner) =>
+      showHierarchyEntityActionsSheet(
+        context,
+        entityId: owner.id,
+        entityLabel: owner.kind == LibraryOwnerKind.familyMember
+            ? 'Membre'
+            : 'Groupe',
+        initialName: owner.name,
+        initialIcon: owner.icon,
+        onRename: (name) => widget.useCases.renameOwner(owner.id, name),
+        onIconChanged: (icon) => widget.useCases.setOwnerIcon(owner.id, icon),
+        onDelete: () => widget.useCases.deleteOwner(owner.id),
+        extraActions: owner.isPersonal
+            ? [
+                HierarchyEntityAction(
+                  label: 'Associer à un membre',
+                  icon: Icons.link_outlined,
+                  onPressed: () => widget.onLinkPersonalOwner(owner),
+                ),
+              ]
+            : const [],
+      );
 
   void _openOwner(LibraryOwnerModel owner) {
     Navigator.of(context).push(
@@ -337,20 +332,25 @@ class _LibraryOwnerRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
               children: [
-                if (owner.kind == LibraryOwnerKind.familyMember) ...[
-                  SizedBox.square(
-                    key: Key('library-member-icon-${owner.id}'),
-                    dimension: 32,
-                    child: Center(
-                      child: CategoryIconView(
-                        icon: owner.icon,
-                        size: 22,
-                        fallbackIcon: Icons.person_outline,
-                      ),
+                SizedBox.square(
+                  key: Key(
+                    owner.kind == LibraryOwnerKind.familyMember
+                        ? 'library-member-icon-${owner.id}'
+                        : 'library-group-icon-${owner.id}',
+                  ),
+                  dimension: 32,
+                  child: Center(
+                    child: CategoryIconView(
+                      icon: owner.icon,
+                      size: 22,
+                      fallbackIcon:
+                          owner.kind == LibraryOwnerKind.familyMember
+                          ? Icons.person_outline
+                          : Icons.folder_outlined,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                ],
+                ),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     owner.name,
@@ -406,23 +406,21 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
   String? _editingItemId;
 
   Future<void> _openCategoryDetails(LibraryCategoryModel category) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => CategoryDetailsPage(
-          categoryId: category.id,
-          initialName: category.name,
-          initialIcon: category.icon,
-          onRename: (name) => widget.useCases.renameCategory(category.id, name),
-          onIconChanged: (icon) =>
-              widget.useCases.setCategoryIcon(category.id, icon),
-          onDelete: () async {
-            await widget.useCases.deleteCategory(category.id);
-            if (_expandedCategoryId == category.id && mounted) {
-              setState(() => _expandedCategoryId = null);
-            }
-          },
-        ),
-      ),
+    await showHierarchyEntityActionsSheet(
+      context,
+      entityId: category.id,
+      entityLabel: 'Catégorie',
+      initialName: category.name,
+      initialIcon: category.icon,
+      onRename: (name) => widget.useCases.renameCategory(category.id, name),
+      onIconChanged: (icon) =>
+          widget.useCases.setCategoryIcon(category.id, icon),
+      onDelete: () async {
+        await widget.useCases.deleteCategory(category.id);
+        if (_expandedCategoryId == category.id && mounted) {
+          setState(() => _expandedCategoryId = null);
+        }
+      },
     );
   }
 
@@ -452,14 +450,33 @@ class _LibraryUniversePageState extends State<_LibraryUniversePage> {
                         (widget.ownerId == null || owner.id == widget.ownerId),
                   )
                   .toList(growable: false);
+              final currentOwner = owners.isEmpty ? null : owners.first;
               final rows = _buildRows(owners);
               return CustomScrollView(
                 slivers: [
                   SliverAppBar(
                     pinned: true,
-                    title: Text(
-                      widget.title,
-                      style: AppTextScale.of(context).pageTitle,
+                    title: Row(
+                      children: [
+                        CategoryIconView(
+                          key: Key('library-group-page-icon-${widget.ownerId}'),
+                          icon: currentOwner?.icon,
+                          size: 23,
+                          fallbackIcon:
+                              widget.kind == LibraryOwnerKind.familyMember
+                              ? Icons.person_outline
+                              : Icons.folder_outlined,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            currentOwner?.name ?? widget.title,
+                            style: AppTextScale.of(context).pageTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   SliverPadding(
@@ -867,7 +884,6 @@ class _InlineLibraryAdder extends StatefulWidget {
     required this.onSubmit,
     required this.onError,
     this.contentIndent = 0,
-    this.onSuccess,
   });
 
   final String label;
@@ -876,7 +892,6 @@ class _InlineLibraryAdder extends StatefulWidget {
   final Future<void> Function(String) onSubmit;
   final void Function(String) onError;
   final double contentIndent;
-  final VoidCallback? onSuccess;
 
   @override
   State<_InlineLibraryAdder> createState() => _InlineLibraryAdderState();
@@ -921,13 +936,9 @@ class _InlineLibraryAdderState extends State<_InlineLibraryAdder> {
       await widget.onSubmit(value);
       _controller.clear();
       if (mounted) {
-        if (widget.onSuccess case final onSuccess?) {
-          onSuccess();
-        } else {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _focus.requestFocus();
-          });
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focus.requestFocus();
+        });
       }
     } on Object catch (error) {
       widget.onError(userMessageFor(error));
@@ -1158,9 +1169,9 @@ class _EmptyUniverse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = kind == LibraryOwnerKind.personal
-        ? 'Ajouter un espace personnel'
-        : 'Ajouter un groupe général';
+    final label = kind == LibraryOwnerKind.familyMember
+        ? 'Ajouter un membre'
+        : 'Ajouter un groupe';
     return Column(
       children: [
         const Padding(
