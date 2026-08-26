@@ -48,8 +48,10 @@ aucun changement de backend ou de PWA ne sont introduits.
 - certificat SHA-256 :
   `73EDA51FF7111FBB2DD70AE00DB7EB36322480AAE1B71A56091DA2A81DD85D48` ;
 - package : `fr.checklistvoyage.app` ;
-- installation téléphone : en attente, aucun appareil ADB détecté lors de la
-  génération.
+- installation en mise à jour réussie sur le Samsung `SM-S921B` ;
+- `firstInstallTime` inchangé (`2026-08-24 15:49:40`), donc aucune
+  désinstallation et conservation de la base locale ;
+- démarrage réussi, sans erreur fatale détectée dans les journaux du processus.
 
 ## Protocole de validation sur téléphone
 
