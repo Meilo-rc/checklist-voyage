@@ -58,5 +58,6 @@ n’apparaît dans les journaux immédiats.
 9. Vérifier que la synchronisation habituelle se termine sans nouvelle erreur
    et que l’outbox reste saine.
 
-RC11 reste le dernier jalon validé jusqu’à confirmation explicite de ce
-protocole RC12.
+Validation téléphone confirmée le 26 août 2026 : l’ensemble du protocole RC12
+est validé. RC12 devient la référence fonctionnelle et le dernier backup
+validé ; RC11 n’est plus le backup courant.
