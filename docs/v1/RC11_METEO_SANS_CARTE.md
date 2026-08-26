@@ -53,8 +53,13 @@ partagé, capacité ou élément d’outbox n’est modifié.
 - certificat SHA-256 :
   `73EDA51FF7111FBB2DD70AE00DB7EB36322480AAE1B71A56091DA2A81DD85D48`.
 
-Le Samsung n’était pas connecté à la fin de la construction. L’installation
-et la validation réelle n’ont donc pas été revendiquées.
+RC11 a ensuite été installée sur le Samsung SM-S921B comme mise à jour de RC10,
+sans désinstallation. Android confirme le code `25` et la date d’installation
+initiale est restée `2026-08-24 15:49:40`, ce qui confirme la conservation du
+paquet et de son espace de données. L’activité principale démarre et aucun
+plantage Flutter, Android, Drift ou SQLite n’apparaît dans les journaux
+immédiats. Le téléphone étant verrouillé pendant ce contrôle, le smoke test
+visuel et métier reste à confirmer manuellement avec le protocole ci-dessous.
 
 ## Protocole de validation sur téléphone
 
