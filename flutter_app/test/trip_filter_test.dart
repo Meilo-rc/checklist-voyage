@@ -28,6 +28,32 @@ void main() {
     }
   });
 
+  test('Tout trie strictement todo puis checked puis done', () {
+    final trip = _trip(
+      members: [
+        _member('member-order', 'Jenna', TripMemberGroupKind.family, [
+          _item('done-z', 'Zulu rangé', TripItemStatus.done),
+          _item('todo-z', 'Zulu à préparer', TripItemStatus.todo),
+          _item('checked-z', 'Zulu prêt', TripItemStatus.checked),
+          _item('done-a', 'Alpha rangé', TripItemStatus.done),
+          _item('todo-a', 'Alpha à préparer', TripItemStatus.todo),
+          _item('checked-a', 'Alpha prêt', TripItemStatus.checked),
+          _item('todo-m', 'Milieu à préparer', TripItemStatus.todo),
+        ]),
+      ],
+    );
+
+    expect(_itemNames(TripFilterEngine.apply(trip, const TripFilter())), [
+      'Alpha à préparer',
+      'Milieu à préparer',
+      'Zulu à préparer',
+      'Alpha prêt',
+      'Zulu prêt',
+      'Alpha rangé',
+      'Zulu rangé',
+    ]);
+  });
+
   test('options personne ordonnées et fondées sur les UUID du voyage', () {
     final options = TripFilterEngine.personOptions(_trip());
 

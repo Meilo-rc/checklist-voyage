@@ -20,6 +20,10 @@ void main() {
       final database = AppDatabase(NativeDatabase.memory());
       final library = DriftLibraryRepository(database);
       final ids = await seedReferenceLibrary(library);
+      await database.customStatement(
+        'UPDATE library_owners SET icon = ? WHERE id = ?',
+        ['female', ids.participantOwner],
+      );
       final participant = (await library.loadLibrary()).singleWhere(
         (owner) => owner.id == ids.participantOwner,
       );
@@ -93,6 +97,8 @@ void main() {
       );
       expect(memberRowText.style?.fontSize, 16);
       expect(memberRowText.style?.fontWeight, FontWeight.w700);
+      expect(find.byKey(Key('trip-member-icon-${member.id}')), findsOneWidget);
+      expect(find.byKey(const Key('trip-person-filters')), findsNothing);
       final filterText = tester.widget<Text>(
         find.descendant(
           of: find.byKey(const Key('trip-state-all')),
@@ -139,7 +145,7 @@ void main() {
               find.byKey(Key('trip-category-header-surface-${category.id}')),
             )
             .color,
-        colors.surfaceContainer,
+        isNot(colors.surfaceContainer),
       );
       expect(
         tester
@@ -234,7 +240,6 @@ void main() {
       await tester.pumpAndSettle();
       _expectNoFlutterError(tester, 'filtres appliqués');
       await tester.tap(find.byKey(const Key('trip-state-todo')));
-      await tester.tap(find.byKey(Key('trip-person-${member.id}')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(Key('trip-member-${member.id}')));
       await tester.pumpAndSettle();

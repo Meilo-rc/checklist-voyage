@@ -73,18 +73,20 @@ class CategoryIconView extends StatelessWidget {
     required this.icon,
     this.size = 22,
     this.color,
+    this.fallbackIcon = Icons.folder_outlined,
   });
 
   final String? icon;
   final double size;
   final Color? color;
+  final IconData fallbackIcon;
 
   @override
   Widget build(BuildContext context) {
     final name = icon?.replaceAll('.svg', '');
     final foreground = color ?? Theme.of(context).colorScheme.onSurfaceVariant;
     if (name == null || !categoryIconNames.contains(name)) {
-      return Icon(Icons.folder_outlined, size: size, color: foreground);
+      return Icon(fallbackIcon, size: size, color: foreground);
     }
     return SvgPicture.asset(
       'assets/category-icons/$name.svg',

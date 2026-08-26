@@ -57,6 +57,7 @@ class LibraryOwnerModel {
     required this.generationRole,
     required this.linkedParticipantOwnerId,
     required this.categories,
+    this.icon,
   });
 
   final String id;
@@ -65,6 +66,7 @@ class LibraryOwnerModel {
   final GenerationRole generationRole;
   final String? linkedParticipantOwnerId;
   final List<LibraryCategoryModel> categories;
+  final String? icon;
 
   bool get isPersonal => kind == LibraryOwnerKind.personal;
 }
@@ -183,6 +185,7 @@ class TripMemberModel {
     required this.sourceOwnerId,
     required this.groupKind,
     required this.categories,
+    this.icon,
   });
 
   final String id;
@@ -190,6 +193,7 @@ class TripMemberModel {
   final String? sourceOwnerId;
   final TripMemberGroupKind groupKind;
   final List<TripCategoryModel> categories;
+  final String? icon;
 }
 
 enum TripMemberGroupKind { general, family, personal }

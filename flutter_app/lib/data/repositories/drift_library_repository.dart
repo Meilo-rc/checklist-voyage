@@ -83,6 +83,7 @@ class DriftLibraryRepository implements LibraryRepository {
           (owner) => LibraryOwnerModel(
             id: owner.id,
             name: owner.name,
+            icon: owner.icon,
             kind: _ownerKind(owner.kind),
             generationRole: _generationRole(owner.generationRole),
             linkedParticipantOwnerId: owner.linkedParticipantOwnerId,

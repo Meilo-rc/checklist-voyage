@@ -77,9 +77,20 @@ abstract final class TripFilterEngine {
       if (!filter.person.selects(member)) continue;
       final categories = <TripCategoryModel>[];
       for (final category in member.categories) {
-        final items = category.items
-            .where((item) => _matchesState(item.status, filter.state))
-            .toList(growable: false);
+        final items =
+            category.items
+                .where((item) => _matchesState(item.status, filter.state))
+                .toList(growable: false)
+              ..sort((a, b) {
+                final byState = _statusRank(
+                  a.status,
+                ).compareTo(_statusRank(b.status));
+                if (byState != 0) return byState;
+                final byName = a.name.toLowerCase().compareTo(
+                  b.name.toLowerCase(),
+                );
+                return byName != 0 ? byName : a.id.compareTo(b.id);
+              });
         if (items.isEmpty &&
             !(filter.state == TripStateFilter.all && category.items.isEmpty)) {
           continue;
@@ -101,6 +112,7 @@ abstract final class TripFilterEngine {
         TripMemberModel(
           id: member.id,
           name: member.name,
+          icon: member.icon,
           sourceOwnerId: member.sourceOwnerId,
           groupKind: member.groupKind,
           categories: categories,
@@ -117,4 +129,10 @@ abstract final class TripFilterEngine {
         TripStateFilter.checked => status == TripItemStatus.checked,
         TripStateFilter.done => status == TripItemStatus.done,
       };
+
+  static int _statusRank(TripItemStatus status) => switch (status) {
+    TripItemStatus.todo => 0,
+    TripItemStatus.checked => 1,
+    TripItemStatus.done => 2,
+  };
 }

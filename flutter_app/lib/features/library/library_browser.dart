@@ -143,10 +143,15 @@ class _LibraryBrowserState extends State<LibraryBrowser> {
       label: 'Ajouter une catégorie',
       fieldKey: Key('library-root-add-category-$scope-field'),
       submitKey: Key('library-root-add-category-$scope-submit'),
-      onSubmit: (name) => widget.useCases.createCategory(owner.id, name),
+      onSubmit: (name) => _createRootCategory(owner, name),
+      onSuccess: () => _openOwner(owner),
       onError: widget.onMessage,
     ),
   );
+
+  Future<void> _createRootCategory(LibraryOwnerModel owner, String name) async {
+    await widget.useCases.createCategory(owner.id, name);
+  }
 
   Widget _buildOwner(LibraryOwnerModel owner) {
     if (_editingOwnerId == owner.id) {
@@ -332,6 +337,20 @@ class _LibraryOwnerRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
               children: [
+                if (owner.kind == LibraryOwnerKind.familyMember) ...[
+                  SizedBox.square(
+                    key: Key('library-member-icon-${owner.id}'),
+                    dimension: 32,
+                    child: Center(
+                      child: CategoryIconView(
+                        icon: owner.icon,
+                        size: 22,
+                        fallbackIcon: Icons.person_outline,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
                 Expanded(
                   child: Text(
                     owner.name,
@@ -677,45 +696,59 @@ class _CategoryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final headerColor = Color.alphaBlend(
+      AppColors.primary.withValues(alpha: dark ? 0.24 : 0.20),
+      colors.surfaceContainer,
+    );
     return Material(
       key: Key('library-category-header-surface-${category.id}'),
-      color: Theme.of(context).colorScheme.surfaceContainer,
+      color: headerColor,
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),
-          child: Row(
-            children: [
-              InkWell(
-                key: Key('library-category-icon-${category.id}'),
-                onTap: onIconTap,
-                borderRadius: BorderRadius.circular(AppRadius.field),
-                child: SizedBox.square(
-                  dimension: 40,
-                  child: Center(
-                    child: CategoryIconView(icon: category.icon, size: 22),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                if (category.icon != null) ...[
+                  InkWell(
+                    key: Key('library-category-icon-${category.id}'),
+                    onTap: onIconTap,
+                    borderRadius: BorderRadius.circular(AppRadius.field),
+                    child: SizedBox.square(
+                      dimension: 32,
+                      child: Center(
+                        child: CategoryIconView(icon: category.icon, size: 22),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Expanded(
+                  child: Text(
+                    category.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextScale.of(context).sectionTitle,
                   ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  category.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextScale.of(context).sectionTitle,
+                Text(
+                  '${category.items.length}',
+                  style: AppTextScale.of(
+                    context,
+                  ).metadata.copyWith(color: colors.onSurfaceVariant),
                 ),
-              ),
-              Text(
-                '${category.items.length}',
-                style: AppTextScale.of(context).metadata.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                const SizedBox(width: 4),
+                Icon(
+                  expanded ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
                 ),
-              ),
-              const SizedBox(width: 4),
-              Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 20),
-              const SizedBox(width: 4),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -739,7 +772,7 @@ class _LibraryItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final quantity = item.defaultQuantity;
     return Material(
-      color: Theme.of(context).colorScheme.surface,
+      color: Theme.of(context).colorScheme.surfaceContainerLowest,
       child: InkWell(
         onLongPress: onLongPress,
         child: ConstrainedBox(
@@ -834,6 +867,7 @@ class _InlineLibraryAdder extends StatefulWidget {
     required this.onSubmit,
     required this.onError,
     this.contentIndent = 0,
+    this.onSuccess,
   });
 
   final String label;
@@ -842,6 +876,7 @@ class _InlineLibraryAdder extends StatefulWidget {
   final Future<void> Function(String) onSubmit;
   final void Function(String) onError;
   final double contentIndent;
+  final VoidCallback? onSuccess;
 
   @override
   State<_InlineLibraryAdder> createState() => _InlineLibraryAdderState();
@@ -886,9 +921,13 @@ class _InlineLibraryAdderState extends State<_InlineLibraryAdder> {
       await widget.onSubmit(value);
       _controller.clear();
       if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _focus.requestFocus();
-        });
+        if (widget.onSuccess case final onSuccess?) {
+          onSuccess();
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _focus.requestFocus();
+          });
+        }
       }
     } on Object catch (error) {
       widget.onError(userMessageFor(error));

@@ -245,6 +245,7 @@ class DriftTripRepository implements TripRepository {
           (member) => TripMemberModel(
             id: member.id,
             name: member.name,
+            icon: member.icon,
             sourceOwnerId: member.sourceOwnerId,
             groupKind: switch (member.groupKind) {
               'family' => TripMemberGroupKind.family,

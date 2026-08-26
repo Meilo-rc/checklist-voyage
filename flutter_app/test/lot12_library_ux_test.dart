@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,7 @@ import 'package:checklist_voyage_v1/app/checklist_app.dart';
 import 'package:checklist_voyage_v1/data/local/app_database.dart';
 import 'package:checklist_voyage_v1/data/repositories/drift_library_repository.dart';
 import 'package:checklist_voyage_v1/domain/models/checklist_models.dart';
+import 'package:checklist_voyage_v1/sync/library_sync_store.dart';
 
 void main() {
   testWidgets('Général reste hiérarchique, compact et paresseux à 360 px', (
@@ -103,7 +106,7 @@ void main() {
             find.byKey(Key('library-category-header-surface-$firstCategory')),
           )
           .color,
-      colors.surfaceContainer,
+      isNot(colors.surfaceContainer),
     );
     expect(
       tester
@@ -163,6 +166,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(Key('library-item-${itemIds.first}')), findsNothing);
     expect(find.byKey(Key('library-item-$documentItem')), findsOneWidget);
+    final categoryBlock = find.byKey(
+      Key('library-category-items-surface-$secondCategory'),
+    );
+    expect(
+      find.descendant(
+        of: categoryBlock,
+        matching: find.byKey(Key('library-category-$secondCategory')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: categoryBlock,
+        matching: find.byKey(Key('library-item-$documentItem')),
+      ),
+      findsOneWidget,
+    );
     await tester.scrollUntilVisible(
       find.byKey(Key('library-add-item-collapsed-$secondCategory')),
       120,
@@ -216,11 +236,67 @@ void main() {
               candidate.ownerId == generalId && candidate.name == 'Santé',
         );
     expect(category.deletedAt, isNull);
+    expect(find.text('Santé'), findsOneWidget);
+    final outbox = await database.select(database.syncOutbox).get();
+    expect(
+      outbox.where(
+        (operation) =>
+            operation.entityType == 'library_category' &&
+            operation.entityId == category.id &&
+            operation.operationType == 'upsert',
+      ),
+      hasLength(1),
+    );
     expect(find.byType(AlertDialog), findsNothing);
     expect(tester.takeException(), isNull);
 
     await _dispose(tester, dependencies);
   });
+
+  test(
+    'catégorie Général persiste et produit une opération partagée',
+    () async {
+      final temp = await Directory.systemTemp.createTemp('cv-rc8-general-');
+      addTearDown(() => temp.delete(recursive: true));
+      final file = File(
+        '${temp.path}${Platform.pathSeparator}checklist.sqlite',
+      );
+      var database = AppDatabase(NativeDatabase(file));
+      final library = DriftLibraryRepository(
+        database,
+        syncStore: LibrarySyncStore(database),
+      );
+      final generalId = await library.createOwner(
+        name: 'Général',
+        kind: LibraryOwnerKind.general,
+        generationRole: GenerationRole.general,
+      );
+      await database.delete(database.syncOutbox).go();
+      final categoryId = await library.createCategory(generalId, 'Santé');
+      final outbox = await database.select(database.syncOutbox).get();
+      expect(
+        outbox.where(
+          (operation) =>
+              operation.entityType == 'library_category' &&
+              operation.entityId == categoryId &&
+              operation.operationType == 'upsert',
+        ),
+        hasLength(1),
+      );
+      await database.close();
+
+      database = AppDatabase(NativeDatabase(file));
+      final reloaded = await DriftLibraryRepository(database).loadLibrary();
+      expect(
+        reloaded
+            .singleWhere((owner) => owner.id == generalId)
+            .categories
+            .any((candidate) => candidate.id == categoryId),
+        isTrue,
+      );
+      await database.close();
+    },
+  );
 
   testWidgets('Personnel ajoute inline sans produire d’opération distante', (
     tester,
@@ -285,6 +361,10 @@ void main() {
       kind: LibraryOwnerKind.familyMember,
       generationRole: GenerationRole.participant,
     );
+    await database.customStatement(
+      'UPDATE library_owners SET icon = ? WHERE id = ?',
+      ['male', memberId],
+    );
     await library.createCategory(memberId, 'Vêtements');
     final dependencies = await AppDependencies.create(
       database: database,
@@ -295,6 +375,7 @@ void main() {
     await _pumpData(tester);
     await tester.tap(find.text('Bibliothèque'));
     await _pumpData(tester);
+    expect(find.byKey(Key('library-member-icon-$memberId')), findsOneWidget);
     await tester.tap(find.byKey(const Key('library-add-familyMember-owner')));
     await tester.pumpAndSettle();
     await tester.enterText(
