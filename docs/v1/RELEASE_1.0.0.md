@@ -12,9 +12,9 @@
 - baseline de repli : `1.0.0-rc.12+26`.
 
 La release a été installée par mise à jour sur le Samsung de référence, sans
-désinstallation. Le `firstInstallTime` Android est resté inchangé. La validation
-fonctionnelle par l'utilisateur et le tag Git `v1.0.0` restent en attente du
-protocole téléphone.
+désinstallation. Le `firstInstallTime` Android est resté inchangé. Le protocole
+téléphone a été validé par l'utilisateur le 26 août 2026. Le tag Git `v1.0.0`
+est créé uniquement après cette validation.
 
 ## Contrôles finaux
 
