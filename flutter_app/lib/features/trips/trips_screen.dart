@@ -12,22 +12,27 @@ import '../../domain/models/trip_filters.dart';
 import '../../domain/usecases/trip_use_cases.dart';
 import '../../domain/usecases/shared_document_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
+import '../../domain/weather/trip_weather_service.dart';
+import '../../domain/weather/weather_models.dart';
 import '../shared/date_range_label.dart';
 import '../shared/category_details_page.dart';
 import '../shared/destination_scaffold.dart';
 import '../shared/item_contexts_sheet.dart';
 import 'trip_form.dart';
+import 'weather_screen.dart';
 
 class TripsScreen extends StatefulWidget {
   const TripsScreen({
     super.key,
     required this.watchTrips,
     required this.useCases,
+    required this.weather,
     this.sharedDocuments,
   });
 
   final WatchTrips watchTrips;
   final TripUseCases useCases;
+  final TripWeatherService weather;
   final SharedDocumentUseCases? sharedDocuments;
 
   @override
@@ -181,6 +186,7 @@ class _TripsScreenState extends State<TripsScreen> {
         onEdit: _editTrip,
         onDuplicate: _duplicateTrip,
         sharedDocuments: widget.sharedDocuments,
+        weather: widget.weather,
       );
     }
     return PopScope(
@@ -728,6 +734,7 @@ class _TripDetail extends StatefulWidget {
     required this.onEdit,
     required this.onDuplicate,
     required this.sharedDocuments,
+    required this.weather,
   });
 
   final String tripId;
@@ -736,6 +743,7 @@ class _TripDetail extends StatefulWidget {
   final Future<void> Function(TripDetailModel) onEdit;
   final Future<void> Function(TripDetailModel) onDuplicate;
   final SharedDocumentUseCases? sharedDocuments;
+  final TripWeatherService weather;
 
   @override
   State<_TripDetail> createState() => _TripDetailState();
@@ -868,6 +876,7 @@ class _TripDetailState extends State<_TripDetail> {
             filter: effectiveFilter,
             visibleMembers: visibleMembers,
             useCases: widget.useCases,
+            weather: widget.weather,
             onBack: _goBack,
             actions: _actions(trip),
             onStateChanged: (state) =>
@@ -896,6 +905,7 @@ class _TripOverview extends StatefulWidget {
     required this.filter,
     required this.visibleMembers,
     required this.useCases,
+    required this.weather,
     required this.onBack,
     required this.actions,
     required this.onStateChanged,
@@ -907,6 +917,7 @@ class _TripOverview extends StatefulWidget {
   final TripFilter filter;
   final List<TripMemberModel> visibleMembers;
   final TripUseCases useCases;
+  final TripWeatherService weather;
   final VoidCallback onBack;
   final List<Widget> actions;
   final ValueChanged<TripStateFilter> onStateChanged;
@@ -921,16 +932,43 @@ class _TripOverviewState extends State<_TripOverview> {
   bool _membersExpanded = true;
   bool _personalExpanded = true;
 
+  WeatherTripRequest? get _weatherRequest {
+    final start = widget.trip.startDate;
+    final end = widget.trip.endDate;
+    if (start == null ||
+        end == null ||
+        widget.trip.destination.trim().isEmpty) {
+      return null;
+    }
+    final latitude = widget.trip.destinationLatitude;
+    final longitude = widget.trip.destinationLongitude;
+    return WeatherTripRequest(
+      tripId: widget.trip.id,
+      destination: widget.trip.destination,
+      startDate: start,
+      endDate: end,
+      coordinates: latitude != null && longitude != null
+          ? WeatherCoordinates(latitude: latitude, longitude: longitude)
+          : null,
+    );
+  }
+
+  Future<void> _openWeather(WeatherTripRequest request) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) =>
+            WeatherScreen(request: request, service: widget.weather),
+      ),
+    );
+  }
+
   void _message(Object error) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(userMessageFor(error))));
   }
 
-  Future<void> _addGroup(
-    TripMemberGroupKind groupKind,
-    String name,
-  ) async {
+  Future<void> _addGroup(TripMemberGroupKind groupKind, String name) async {
     try {
       await widget.useCases.addGroup(widget.trip.id, groupKind, name);
       widget.onStateChanged(TripStateFilter.all);
@@ -1036,6 +1074,14 @@ class _TripOverviewState extends State<_TripOverview> {
                 const SizedBox(height: AppSpacing.sm),
               ],
               _CompactProgress(progress: widget.progress),
+              if (_weatherRequest case final request?) ...[
+                const SizedBox(height: AppSpacing.sm),
+                TripWeatherSummary(
+                  request: request,
+                  service: widget.weather,
+                  onOpen: () => _openWeather(request),
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               _TripFilters(
                 filter: widget.filter,
@@ -1056,8 +1102,7 @@ class _TripOverviewState extends State<_TripOverview> {
                 completeMembers: allGeneral,
                 expanded: _generalExpanded,
                 addLabel: 'Ajouter un groupe',
-                onAdd: (name) =>
-                    _addGroup(TripMemberGroupKind.general, name),
+                onAdd: (name) => _addGroup(TripMemberGroupKind.general, name),
                 onToggle: () =>
                     setState(() => _generalExpanded = !_generalExpanded),
                 onSelected: widget.onMemberSelected,
@@ -1072,8 +1117,7 @@ class _TripOverviewState extends State<_TripOverview> {
                 completeMembers: allFamily,
                 expanded: _membersExpanded,
                 addLabel: 'Ajouter un membre',
-                onAdd: (name) =>
-                    _addGroup(TripMemberGroupKind.family, name),
+                onAdd: (name) => _addGroup(TripMemberGroupKind.family, name),
                 onToggle: () =>
                     setState(() => _membersExpanded = !_membersExpanded),
                 onSelected: widget.onMemberSelected,
@@ -1091,9 +1135,8 @@ class _TripOverviewState extends State<_TripOverview> {
                   addLabel: 'Ajouter un groupe',
                   onAdd: (name) =>
                       _addGroup(TripMemberGroupKind.personal, name),
-                  onToggle: () => setState(
-                    () => _personalExpanded = !_personalExpanded,
-                  ),
+                  onToggle: () =>
+                      setState(() => _personalExpanded = !_personalExpanded),
                   onSelected: widget.onMemberSelected,
                   onManage: _openGroupActions,
                 ),
@@ -2315,9 +2358,7 @@ class _InlineTripGroupAdderState extends State<_InlineTripGroupAdder> {
   }
 
   void _collapseWhenEmpty() {
-    if (!_focusNode.hasFocus &&
-        _editing &&
-        _controller.text.trim().isEmpty) {
+    if (!_focusNode.hasFocus && _editing && _controller.text.trim().isEmpty) {
       setState(() => _editing = false);
     }
   }
@@ -2346,9 +2387,9 @@ class _InlineTripGroupAdderState extends State<_InlineTripGroupAdder> {
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = AppTextScale.of(context).body.copyWith(
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    );
+    final textStyle = AppTextScale.of(
+      context,
+    ).body.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
     if (!_editing) {
       return InkWell(
         key: Key('trip-add-group-${widget.sectionKey}-collapsed'),

@@ -10,6 +10,8 @@ import '../data/repositories/drift_local_data_repository.dart';
 import '../data/repositories/drift_context_repository.dart';
 import '../data/repositories/drift_quick_list_repository.dart';
 import '../data/repositories/drift_trip_repository.dart';
+import '../data/weather/open_meteo_remote.dart';
+import '../data/weather/weather_cache_store.dart';
 import '../domain/repositories/local_data_repository.dart';
 import '../domain/usecases/import_web_backup.dart';
 import '../domain/usecases/context_use_cases.dart';
@@ -17,6 +19,7 @@ import '../domain/usecases/library_use_cases.dart';
 import '../domain/usecases/quick_list_use_cases.dart';
 import '../domain/usecases/trip_use_cases.dart';
 import '../domain/usecases/watch_destinations.dart';
+import '../domain/weather/trip_weather_service.dart';
 import '../domain/usecases/shared_document_use_cases.dart';
 import '../sync/library_sync_coordinator.dart';
 import '../sync/library_sync_store.dart';
@@ -43,6 +46,7 @@ class AppDependencies {
     required this.sharedDocuments,
     required this.safetyBackup,
     required this.safetyBackupFiles,
+    required this.weather,
   });
 
   final AppDatabase database;
@@ -59,12 +63,14 @@ class AppDependencies {
   final SharedDocumentUseCases sharedDocuments;
   final V1SafetyBackupService safetyBackup;
   final SafetyBackupFileGateway safetyBackupFiles;
+  final TripWeatherService weather;
 
   static Future<AppDependencies> create({
     AppDatabase? database,
     SyncRemoteGateway? syncRemote,
     SharedDocumentRemoteGateway? documentRemote,
     bool? autoSync,
+    TripWeatherService? weather,
   }) async {
     final db = database ?? openAppDatabase();
     final localData = DriftLocalDataRepository(db);
@@ -86,6 +92,14 @@ class AppDependencies {
       db,
       syncStore: documentStore,
     );
+    final weatherService =
+        weather ??
+        (database == null
+            ? TripWeatherService(OpenMeteoRemote(), JsonFileWeatherCacheStore())
+            : TripWeatherService(
+                const UnavailableWeatherRemote(),
+                MemoryWeatherCacheStore(),
+              ));
     final dependencies = AppDependencies._(
       database: db,
       localData: localData,
@@ -101,6 +115,7 @@ class AppDependencies {
       sharedDocuments: SharedDocumentUseCases(documentSync),
       safetyBackup: V1SafetyBackupService(db),
       safetyBackupFiles: const SafetyBackupFileGateway(),
+      weather: weatherService,
     );
     if (autoSync ?? database == null) {
       unawaited(librarySync.syncNow());
@@ -109,5 +124,8 @@ class AppDependencies {
     return dependencies;
   }
 
-  Future<void> close() => database.close();
+  Future<void> close() async {
+    weather.close();
+    await database.close();
+  }
 }

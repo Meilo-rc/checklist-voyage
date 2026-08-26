@@ -280,6 +280,14 @@ class DriftTripRepository implements TripRepository {
       id: trip.id,
       name: trip.name,
       destination: _destinationName(trip.destinationJson),
+      destinationLatitude: _destinationCoordinate(
+        trip.destinationJson,
+        'latitude',
+      ),
+      destinationLongitude: _destinationCoordinate(
+        trip.destinationJson,
+        'longitude',
+      ),
       startDate: trip.startDate,
       endDate: trip.endDate,
       selectedContextIds: choices
@@ -1149,10 +1157,7 @@ class DriftTripRepository implements TripRepository {
         await (_database.update(
           _database.tripItems,
         )..where((row) => row.categoryId.isIn(categoryIds))).write(
-          TripItemsCompanion(
-            deletedAt: Value(now),
-            updatedAtLocal: Value(now),
-          ),
+          TripItemsCompanion(deletedAt: Value(now), updatedAtLocal: Value(now)),
         );
       }
       await _touchTrip(group.tripId, now);
@@ -1163,11 +1168,7 @@ class DriftTripRepository implements TripRepository {
         }
         for (final category in categories) {
           await _trackTombstone('trip_category', category.id, now);
-          await _sync.recordDelete(
-            group.tripId,
-            'trip_category',
-            category.id,
-          );
+          await _sync.recordDelete(group.tripId, 'trip_category', category.id);
         }
         await _trackTombstone('trip_member', groupId, now);
         await _sync.recordDelete(group.tripId, 'trip_member', groupId);
@@ -1515,4 +1516,22 @@ String _destinationName(String? destinationJson) {
     return destinationJson;
   }
   return '';
+}
+
+double? _destinationCoordinate(String? destinationJson, String key) {
+  if (destinationJson == null || destinationJson.isEmpty) return null;
+  try {
+    final value = jsonDecode(destinationJson);
+    if (value is Map) {
+      final coordinate =
+          value[key] ??
+          value[key == 'latitude' ? 'lat' : 'lon'] ??
+          value[key == 'latitude' ? 'latitudeDeg' : 'longitudeDeg'];
+      if (coordinate is num) return coordinate.toDouble();
+      return double.tryParse(coordinate?.toString() ?? '');
+    }
+  } on FormatException {
+    return null;
+  }
+  return null;
 }

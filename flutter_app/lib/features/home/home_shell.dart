@@ -45,6 +45,7 @@ class _HomeShellState extends State<HomeShell> {
         watchTrips: widget.dependencies.watchTrips,
         useCases: widget.dependencies.trips,
         sharedDocuments: widget.dependencies.sharedDocuments,
+        weather: widget.dependencies.weather,
       ),
       LibraryScreen(
         watchOwners: widget.dependencies.watchLibraryOwners,

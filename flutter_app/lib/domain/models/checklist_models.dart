@@ -207,6 +207,8 @@ class TripDetailModel {
     required this.endDate,
     required this.selectedContextIds,
     required this.members,
+    this.destinationLatitude,
+    this.destinationLongitude,
     this.selectedParticipantOwnerIds = const {},
     this.selectedTransportOwnerIds = const {},
     this.selectedLodgingOwnerIds = const {},
@@ -220,6 +222,8 @@ class TripDetailModel {
   final String id;
   final String name;
   final String destination;
+  final double? destinationLatitude;
+  final double? destinationLongitude;
   final DateTime? startDate;
   final DateTime? endDate;
   final Set<String> selectedContextIds;
