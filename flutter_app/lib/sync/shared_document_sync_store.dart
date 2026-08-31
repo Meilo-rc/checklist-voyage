@@ -14,6 +14,10 @@ class SharedDocumentSyncStore {
   final bool enabled;
   final Uuid _uuid = const Uuid();
 
+  /// Déclencheur opportuniste branché uniquement par l'application réelle.
+  /// L'appelant doit différer le réseau jusqu'après la transaction Drift.
+  void Function(String documentId)? onTripOperationQueued;
+
   Future<InstallationSetting> installation() =>
       database.select(database.installationSettings).getSingle();
 
@@ -105,6 +109,10 @@ class SharedDocumentSyncStore {
   Future<SyncDocument> document(String documentId) => (database.select(
     database.syncDocuments,
   )..where((row) => row.documentId.equals(documentId))).getSingle();
+
+  Future<SyncDocument?> documentOrNull(String documentId) => (database.select(
+    database.syncDocuments,
+  )..where((row) => row.documentId.equals(documentId))).getSingleOrNull();
 
   Future<void> ensureBootstrapQueued(String documentId) async {
     if (!enabled) return;
@@ -272,6 +280,9 @@ class SharedDocumentSyncStore {
         updatedAtLocal: Value(now),
       ),
     );
+    if (document.documentType == 'trip') {
+      onTripOperationQueued?.call(documentId);
+    }
     return true;
   }
 

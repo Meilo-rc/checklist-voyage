@@ -749,7 +749,7 @@ class _TripDetail extends StatefulWidget {
   State<_TripDetail> createState() => _TripDetailState();
 }
 
-class _TripDetailState extends State<_TripDetail> {
+class _TripDetailState extends State<_TripDetail> with WidgetsBindingObserver {
   TripFilter _filter = const TripFilter();
   String? _selectedMemberId;
   late final Stream<TripDetailModel?> _tripStream;
@@ -757,7 +757,30 @@ class _TripDetailState extends State<_TripDetail> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tripStream = widget.useCases.watchTrip(widget.tripId);
+    unawaited(_syncDocument());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_syncDocument());
+    }
+  }
+
+  Future<void> _syncDocument() async {
+    try {
+      await widget.sharedDocuments?.syncDocument(widget.tripId);
+    } on Object {
+      // Le store conserve l'erreur. L'ouverture du voyage reste local-first.
+    }
   }
 
   void _goBack() {

@@ -14,5 +14,8 @@ class SharedDocumentUseCases {
 
   Future<SharedDocumentAccess> join(String code) => _repository.join(code);
 
+  Future<void> syncDocument(String documentId) =>
+      _repository.syncDocument(documentId);
+
   Future<void> syncAll() => _repository.syncAll();
 }

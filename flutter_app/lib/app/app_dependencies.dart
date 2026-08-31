@@ -85,6 +85,7 @@ class AppDependencies {
       documentStore,
       documentRemote ?? PocketBaseSharedDocumentRemote(),
     );
+    documentStore.onTripOperationQueued = documentSync.scheduleDocumentSync;
     final tripRepository = DriftTripRepository(db, syncStore: documentStore);
     final libraryRepository = DriftLibraryRepository(db, syncStore: syncStore);
     final contextRepository = DriftContextRepository(db, syncStore: syncStore);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../domain/models/checklist_models.dart';
 import '../domain/repositories/shared_document_repository.dart';
 import 'shared_document_remote.dart';
@@ -8,6 +10,8 @@ class SharedDocumentSyncCoordinator implements SharedDocumentRepository {
 
   final SharedDocumentSyncStore _store;
   final SharedDocumentRemoteGateway _remote;
+  final Map<String, Future<void>> _syncTails = {};
+  final Set<String> _scheduledDocuments = {};
 
   @override
   Future<SharedDocumentAccess> shareTrip(String tripId) =>
@@ -26,7 +30,7 @@ class SharedDocumentSyncCoordinator implements SharedDocumentRepository {
     );
     await _store.registerCreator(access);
     await _store.ensureBootstrapQueued(id);
-    await _syncDocument(id);
+    await syncDocument(id);
     return _access(access);
   }
 
@@ -42,19 +46,44 @@ class SharedDocumentSyncCoordinator implements SharedDocumentRepository {
       deviceId: installation.installationId,
     );
     await _store.registerJoin(access);
-    await _syncDocument(access.documentId);
+    await syncDocument(access.documentId);
     return _access(access);
   }
 
   @override
   Future<void> syncAll() async {
     for (final document in await _store.sharedDocuments()) {
-      await _syncDocument(document.documentId);
+      await syncDocument(document.documentId);
     }
   }
 
+  @override
+  Future<void> syncDocument(String documentId) {
+    final previous = _syncTails[documentId] ?? Future<void>.value();
+    final next = previous
+        .catchError((Object _) {})
+        .then<void>((_) => _syncDocument(documentId));
+    _syncTails[documentId] = next;
+    return next.whenComplete(() {
+      if (identical(_syncTails[documentId], next)) {
+        _syncTails.remove(documentId);
+      }
+    });
+  }
+
+  /// Regroupe les mutations d'une même boucle d'événements, puis tente une
+  /// synchronisation sans bloquer l'écriture locale ni propager l'erreur à l'UI.
+  void scheduleDocumentSync(String documentId) {
+    if (!_scheduledDocuments.add(documentId)) return;
+    Timer.run(() {
+      _scheduledDocuments.remove(documentId);
+      unawaited(syncDocument(documentId).catchError((Object _) {}));
+    });
+  }
+
   Future<void> _syncDocument(String documentId) async {
-    final document = await _store.document(documentId);
+    final document = await _store.documentOrNull(documentId);
+    if (document == null) return;
     final token = document.capabilityToken;
     if (token == null || token.isEmpty) return;
     final installation = await _store.installation();

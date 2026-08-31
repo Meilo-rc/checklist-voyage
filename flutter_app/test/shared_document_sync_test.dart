@@ -6,6 +6,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:checklist_voyage_v1/app/app_dependencies.dart';
 import 'package:checklist_voyage_v1/data/local/app_database.dart';
 import 'package:checklist_voyage_v1/data/repositories/drift_library_repository.dart';
 import 'package:checklist_voyage_v1/data/repositories/drift_quick_list_repository.dart';
@@ -236,6 +237,86 @@ void main() {
       );
     },
   );
+
+  test(
+    'voyage partagé converge dans les deux sens sur les trois états',
+    () async {
+      final remote = InMemorySharedDocumentRemote();
+      final a = await _Installation.memory(
+        remote,
+        '10000000-0000-4000-8000-000000000101',
+      );
+      final b = await _Installation.memory(
+        remote,
+        '20000000-0000-4000-8000-000000000202',
+      );
+      addTearDown(a.close);
+      addTearDown(b.close);
+
+      final fixture = await _seedSimpleTrip(a.database);
+      final access = await a.sync.shareTrip(fixture.tripId);
+      await b.sync.join(access.shareCode);
+      expect(await _status(a, fixture), TripItemStatus.todo);
+      expect(await _status(b, fixture), TripItemStatus.todo);
+
+      await a.trips.cycleItemStatus(fixture.itemId);
+      expect(await a.store.pendingOperations(fixture.tripId), hasLength(1));
+      await a.sync.syncAll();
+      expect(await a.store.pendingOperations(fixture.tripId), isEmpty);
+      await b.sync.syncAll();
+      expect(await _status(b, fixture), TripItemStatus.checked);
+      await _expectSameRevision(a, b, fixture.tripId);
+
+      await b.trips.cycleItemStatus(fixture.itemId);
+      expect(await b.store.pendingOperations(fixture.tripId), hasLength(1));
+      await b.sync.syncAll();
+      expect(await b.store.pendingOperations(fixture.tripId), isEmpty);
+      await a.sync.syncAll();
+      expect(await _status(a, fixture), TripItemStatus.done);
+      await _expectSameRevision(a, b, fixture.tripId);
+
+      await a.trips.cycleItemStatus(fixture.itemId);
+      await a.sync.syncAll();
+      await b.sync.syncAll();
+      expect(await _status(a, fixture), TripItemStatus.todo);
+      expect(await _status(b, fixture), TripItemStatus.todo);
+      await _expectSameRevision(a, b, fixture.tripId);
+
+      remote.online = false;
+      await b.trips.cycleItemStatus(fixture.itemId);
+      expect(await _status(b, fixture), TripItemStatus.checked);
+      expect(await b.store.pendingOperations(fixture.tripId), hasLength(1));
+      remote.online = true;
+      await b.sync.syncAll();
+      await a.sync.syncAll();
+      expect(await _status(a, fixture), TripItemStatus.checked);
+      expect(await _status(b, fixture), TripItemStatus.checked);
+      expect(await b.store.pendingOperations(fixture.tripId), isEmpty);
+      await _expectSameRevision(a, b, fixture.tripId);
+    },
+  );
+
+  test('une mutation de voyage partagé déclenche son envoi', () async {
+    final remote = InMemorySharedDocumentRemote();
+    final database = AppDatabase(NativeDatabase.memory());
+    final app = await AppDependencies.create(
+      database: database,
+      documentRemote: remote,
+      autoSync: false,
+    );
+    addTearDown(app.close);
+
+    final fixture = await _seedSimpleTrip(database);
+    await app.sharedDocuments.shareTrip(fixture.tripId);
+    await app.trips.cycleItemStatus(fixture.itemId);
+
+    await _waitForOutboxToDrain(database, fixture.tripId);
+    final lastItemOperation = remote
+        .operations(fixture.tripId)
+        .where((entry) => entry.operation.entityId == fixture.itemId)
+        .last;
+    expect(lastItemOperation.operation.payload['status'], 'checked');
+  });
 
   test('liste rapide partagée synchronise états, quantités et reset', () async {
     final remote = InMemorySharedDocumentRemote();
@@ -530,6 +611,39 @@ Future<_TripFixture> _seedSimpleTrip(AppDatabase db) async {
         );
   });
   return _TripFixture(tripId: tripId, itemId: itemId);
+}
+
+Future<TripItemStatus> _status(
+  _Installation installation,
+  _TripFixture fixture,
+) async => (await installation.trips.loadTrip(
+  fixture.tripId,
+))!.members.single.categories.single.items.single.status;
+
+Future<void> _expectSameRevision(
+  _Installation a,
+  _Installation b,
+  String tripId,
+) async {
+  final documentA = await a.store.document(tripId);
+  final documentB = await b.store.document(tripId);
+  expect(documentA.pullCursor, documentA.confirmedRevision);
+  expect(documentB.pullCursor, documentB.confirmedRevision);
+  expect(documentB.pullCursor, documentA.pullCursor);
+}
+
+Future<void> _waitForOutboxToDrain(
+  AppDatabase database,
+  String documentId,
+) async {
+  for (var attempt = 0; attempt < 100; attempt += 1) {
+    final pending = await (database.select(
+      database.syncOutbox,
+    )..where((row) => row.documentId.equals(documentId))).get();
+    if (pending.isEmpty) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('La file d’envoi du voyage n’a pas été vidée.');
 }
 
 Future<_PersonalTripFixture> _seedPersonalTrip(AppDatabase db) async {
