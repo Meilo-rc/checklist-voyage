@@ -4,6 +4,7 @@
 !pocketbase/pb_hooks/
 !pocketbase/pb_hooks/cv1_sync.pb.js
 !pocketbase/pb_hooks/cv1_documents.pb.js
+!pocketbase/pb_hooks/cv1_links.pb.js
 !pocketbase/pb_migrations/
 !pocketbase/pb_migrations/2026081701_cv1_library_sync.js
 !pocketbase/pb_migrations/2026082001_cv1_shared_documents.js

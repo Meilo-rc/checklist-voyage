@@ -6,6 +6,7 @@ const migrationPath = new URL("../../pocketbase/pb_migrations/2026081701_cv1_lib
 const hookPath = new URL("../../pocketbase/pb_hooks/cv1_sync.pb.js", import.meta.url);
 const documentsMigrationPath = new URL("../../pocketbase/pb_migrations/2026082001_cv1_shared_documents.js", import.meta.url);
 const documentsHookPath = new URL("../../pocketbase/pb_hooks/cv1_documents.pb.js", import.meta.url);
+const linksHookPath = new URL("../../pocketbase/pb_hooks/cv1_links.pb.js", import.meta.url);
 const contractPath = new URL("../../flutter_app/lib/sync/pocketbase_v1_contract.dart", import.meta.url);
 
 test("Flutter V1 cible uniquement le backend Checklist dédié", async () => {
@@ -63,4 +64,15 @@ test("le hook V1 bloque Personnel et ne cible jamais le legacy", async () => {
   assert.match(hook, /operation_uuid/);
   assert.match(hook, /runInTransaction/);
   assert.doesNotMatch(hook, /travel_checklists/);
+});
+
+test("le hook de liens expose App Links et un fallback sans secret", async () => {
+  const hook = await readFile(linksHookPath, "utf8");
+  assert.match(hook, /\/\.well-known\/assetlinks\.json/);
+  assert.match(hook, /fr\.checklistvoyage\.app/);
+  assert.match(hook, /routerAdd\("GET", "\/join"/);
+  assert.match(hook, /routerAdd\("GET", "\/join", \(context\) => \{\s+const linkTypes/);
+  assert.match(hook, /checklistvoyage:\/\/join\?type=/);
+  assert.doesNotMatch(hook, /capability_token/);
+  assert.doesNotMatch(hook, /device_uuid/);
 });

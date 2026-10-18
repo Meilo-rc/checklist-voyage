@@ -11,6 +11,7 @@ RUN apk add --no-cache ca-certificates sqlite unzip wget \
 
 COPY pocketbase/pb_hooks/cv1_sync.pb.js /pb/pb_hooks/cv1_sync.pb.js
 COPY pocketbase/pb_hooks/cv1_documents.pb.js /pb/pb_hooks/cv1_documents.pb.js
+COPY pocketbase/pb_hooks/cv1_links.pb.js /pb/pb_hooks/cv1_links.pb.js
 COPY pocketbase/pb_migrations/2026081701_cv1_library_sync.js /pb/pb_migrations/2026081701_cv1_library_sync.js
 COPY pocketbase/pb_migrations/2026082001_cv1_shared_documents.js /pb/pb_migrations/2026082001_cv1_shared_documents.js
 

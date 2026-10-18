@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/presentation/user_message.dart';
+import '../../core/sharing/share_invitation.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/version/app_version.dart';
 import '../../domain/models/checklist_models.dart';
@@ -10,6 +11,7 @@ import '../../domain/usecases/quick_list_use_cases.dart';
 import '../../domain/usecases/shared_document_use_cases.dart';
 import '../../domain/usecases/watch_destinations.dart';
 import '../shared/category_details_page.dart';
+import '../shared/join_code_dialog.dart';
 
 part 'quick_list_widgets.dart';
 
@@ -18,12 +20,18 @@ class QuickListsScreen extends StatefulWidget {
     super.key,
     required this.watchQuickLists,
     required this.useCases,
+    required this.shareInvitations,
+    required this.pendingJoinRequest,
+    required this.onJoinRequestHandled,
     this.sharedDocuments,
   });
 
   final WatchQuickLists watchQuickLists;
   final QuickListUseCases useCases;
   final SharedDocumentUseCases? sharedDocuments;
+  final ShareInvitationGateway shareInvitations;
+  final ShareJoinRequest? pendingJoinRequest;
+  final ValueChanged<ShareJoinRequest> onJoinRequestHandled;
 
   @override
   State<QuickListsScreen> createState() => _QuickListsScreenState();
@@ -32,15 +40,57 @@ class QuickListsScreen extends StatefulWidget {
 class _QuickListsScreenState extends State<QuickListsScreen> {
   String? _selectedListId;
   bool _showArchives = false;
+  bool _handlingJoinRequest = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedulePendingJoinRequest();
+  }
+
+  @override
+  void didUpdateWidget(covariant QuickListsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.pendingJoinRequest, widget.pendingJoinRequest)) {
+      _schedulePendingJoinRequest();
+    }
+  }
+
+  void _schedulePendingJoinRequest() {
+    final request = widget.pendingJoinRequest;
+    if (request == null || _handlingJoinRequest) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _handlingJoinRequest) return;
+      _handlingJoinRequest = true;
+      try {
+        await _join(
+          initialCode: request.code,
+          dialogTitle: 'Rejoindre une liste rapide',
+        );
+      } finally {
+        if (mounted) {
+          _handlingJoinRequest = false;
+          widget.onJoinRequestHandled(request);
+        }
+      }
+    });
+  }
 
   void _message(String value) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
   }
 
-  Future<void> _join() async {
+  Future<void> _join({
+    String initialCode = '',
+    String dialogTitle = 'Rejoindre avec un code',
+  }) async {
     final sharing = widget.sharedDocuments;
     if (sharing == null) return;
-    final code = await _askQuickCode(context);
+    final code = await _askQuickCode(
+      context,
+      initialCode: initialCode,
+      title: dialogTitle,
+    );
     if (code == null) return;
     try {
       final access = await sharing.join(code);
@@ -81,7 +131,14 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
       final code = list.v1ShareReady
           ? list.shareCode
           : (await sharing.shareQuickList(list.id)).shareCode;
-      if (mounted && code != null) await _showQuickCode(context, code);
+      if (code == null) return;
+      await widget.shareInvitations.share(
+        ShareInvitation(
+          type: ShareableDocumentType.quickList,
+          displayName: list.name,
+          code: code,
+        ),
+      );
     } on Object catch (error) {
       if (mounted) _message(userMessageFor(error));
     }
@@ -133,6 +190,7 @@ class _QuickListsScreenState extends State<QuickListsScreen> {
         onBack: () => setState(() => _selectedListId = null),
         onDuplicate: _duplicate,
         sharedDocuments: widget.sharedDocuments,
+        shareInvitations: widget.shareInvitations,
       );
     }
     return PopScope(
@@ -278,6 +336,7 @@ class _QuickListDetail extends StatefulWidget {
     required this.onBack,
     required this.onDuplicate,
     required this.sharedDocuments,
+    required this.shareInvitations,
   });
 
   final String listId;
@@ -285,6 +344,7 @@ class _QuickListDetail extends StatefulWidget {
   final VoidCallback onBack;
   final Future<void> Function(String) onDuplicate;
   final SharedDocumentUseCases? sharedDocuments;
+  final ShareInvitationGateway shareInvitations;
 
   @override
   State<_QuickListDetail> createState() => _QuickListDetailState();
@@ -304,7 +364,14 @@ class _QuickListDetailState extends State<_QuickListDetail> {
       final code = list.v1ShareReady
           ? list.shareCode
           : (await sharing.shareQuickList(list.id)).shareCode;
-      if (mounted && code != null) await _showQuickCode(context, code);
+      if (code == null) return;
+      await widget.shareInvitations.share(
+        ShareInvitation(
+          type: ShareableDocumentType.quickList,
+          displayName: list.name,
+          code: code,
+        ),
+      );
     } on Object catch (error) {
       if (mounted) _message(userMessageFor(error));
     }
@@ -419,9 +486,7 @@ class _QuickListDetailState extends State<_QuickListDetail> {
                       key: Key(
                         list.v1ShareReady ? 'quick-show-code' : 'quick-share',
                       ),
-                      tooltip: list.v1ShareReady
-                          ? 'Afficher le code'
-                          : 'Partager',
+                      tooltip: 'Partager',
                       icon: const Icon(Icons.share_outlined),
                       onPressed: () => _share(list),
                     ),
@@ -512,50 +577,16 @@ class _QuickListDetailState extends State<_QuickListDetail> {
   }
 }
 
-Future<String?> _askQuickCode(BuildContext context) {
-  final controller = TextEditingController();
-  return showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Rejoindre avec un code'),
-      content: TextField(
-        key: const Key('quick-share-code-input'),
-        controller: controller,
-        autofocus: true,
-        textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(labelText: 'Code à 8 caractères'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        FilledButton(
-          key: const Key('quick-share-code-submit'),
-          onPressed: () => Navigator.pop(context, controller.text),
-          child: const Text('Rejoindre'),
-        ),
-      ],
-    ),
-  ).whenComplete(controller.dispose);
+Future<String?> _askQuickCode(
+  BuildContext context, {
+  String initialCode = '',
+  String title = 'Rejoindre avec un code',
+}) {
+  return showJoinCodeDialog(
+    context,
+    title: title,
+    initialCode: initialCode,
+    inputKey: const Key('quick-share-code-input'),
+    submitKey: const Key('quick-share-code-submit'),
+  );
 }
-
-Future<void> _showQuickCode(BuildContext context, String code) =>
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Partager'),
-        content: SelectableText(
-          code,
-          key: const Key('quick-shared-code'),
-          style: Theme.of(context).textTheme.headlineMedium,
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );

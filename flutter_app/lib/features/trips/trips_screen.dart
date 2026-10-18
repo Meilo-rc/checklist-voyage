@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/presentation/user_message.dart';
+import '../../core/sharing/share_invitation.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
@@ -18,6 +19,7 @@ import '../shared/date_range_label.dart';
 import '../shared/category_details_page.dart';
 import '../shared/destination_scaffold.dart';
 import '../shared/item_contexts_sheet.dart';
+import '../shared/join_code_dialog.dart';
 import 'trip_form.dart';
 import 'weather_screen.dart';
 
@@ -27,6 +29,9 @@ class TripsScreen extends StatefulWidget {
     required this.watchTrips,
     required this.useCases,
     required this.weather,
+    required this.shareInvitations,
+    required this.pendingJoinRequest,
+    required this.onJoinRequestHandled,
     this.sharedDocuments,
   });
 
@@ -34,6 +39,9 @@ class TripsScreen extends StatefulWidget {
   final TripUseCases useCases;
   final TripWeatherService weather;
   final SharedDocumentUseCases? sharedDocuments;
+  final ShareInvitationGateway shareInvitations;
+  final ShareJoinRequest? pendingJoinRequest;
+  final ValueChanged<ShareJoinRequest> onJoinRequestHandled;
 
   @override
   State<TripsScreen> createState() => _TripsScreenState();
@@ -42,11 +50,53 @@ class TripsScreen extends StatefulWidget {
 class _TripsScreenState extends State<TripsScreen> {
   String? _selectedTripId;
   bool _showArchives = false;
+  bool _handlingJoinRequest = false;
 
-  Future<void> _join() async {
+  @override
+  void initState() {
+    super.initState();
+    _schedulePendingJoinRequest();
+  }
+
+  @override
+  void didUpdateWidget(covariant TripsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.pendingJoinRequest, widget.pendingJoinRequest)) {
+      _schedulePendingJoinRequest();
+    }
+  }
+
+  void _schedulePendingJoinRequest() {
+    final request = widget.pendingJoinRequest;
+    if (request == null || _handlingJoinRequest) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _handlingJoinRequest) return;
+      _handlingJoinRequest = true;
+      try {
+        await _join(
+          initialCode: request.code,
+          dialogTitle: 'Rejoindre un voyage',
+        );
+      } finally {
+        if (mounted) {
+          _handlingJoinRequest = false;
+          widget.onJoinRequestHandled(request);
+        }
+      }
+    });
+  }
+
+  Future<void> _join({
+    String initialCode = '',
+    String dialogTitle = 'Rejoindre avec un code',
+  }) async {
     final sharing = widget.sharedDocuments;
     if (sharing == null) return;
-    final code = await _askCode(context);
+    final code = await _askCode(
+      context,
+      initialCode: initialCode,
+      title: dialogTitle,
+    );
     if (code == null) return;
     try {
       final access = await sharing.join(code);
@@ -186,6 +236,7 @@ class _TripsScreenState extends State<TripsScreen> {
         onEdit: _editTrip,
         onDuplicate: _duplicateTrip,
         sharedDocuments: widget.sharedDocuments,
+        shareInvitations: widget.shareInvitations,
         weather: widget.weather,
       );
     }
@@ -734,6 +785,7 @@ class _TripDetail extends StatefulWidget {
     required this.onEdit,
     required this.onDuplicate,
     required this.sharedDocuments,
+    required this.shareInvitations,
     required this.weather,
   });
 
@@ -743,6 +795,7 @@ class _TripDetail extends StatefulWidget {
   final Future<void> Function(TripDetailModel) onEdit;
   final Future<void> Function(TripDetailModel) onDuplicate;
   final SharedDocumentUseCases? sharedDocuments;
+  final ShareInvitationGateway shareInvitations;
   final TripWeatherService weather;
 
   @override
@@ -798,7 +851,14 @@ class _TripDetailState extends State<_TripDetail> with WidgetsBindingObserver {
       final code = trip.v1ShareReady
           ? trip.shareCode
           : (await sharing.shareTrip(trip.id)).shareCode;
-      if (mounted && code != null) await _showCode(context, code);
+      if (code == null) return;
+      await widget.shareInvitations.share(
+        ShareInvitation(
+          type: ShareableDocumentType.trip,
+          displayName: _tripShareName(trip),
+          code: code,
+        ),
+      );
     } on Object catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -811,7 +871,7 @@ class _TripDetailState extends State<_TripDetail> with WidgetsBindingObserver {
     if (widget.sharedDocuments != null)
       IconButton(
         key: Key(trip.v1ShareReady ? 'trip-show-code' : 'trip-share'),
-        tooltip: trip.v1ShareReady ? 'Afficher le code' : 'Partager',
+        tooltip: 'Partager',
         icon: const Icon(Icons.share_outlined),
         onPressed: () => _share(trip),
       ),
@@ -1491,52 +1551,26 @@ class _EmptyTripFilter extends StatelessWidget {
   }
 }
 
-Future<String?> _askCode(BuildContext context) {
-  final controller = TextEditingController();
-  return showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Rejoindre avec un code'),
-      content: TextField(
-        key: const Key('share-code-input'),
-        controller: controller,
-        autofocus: true,
-        textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(labelText: 'Code à 8 caractères'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        FilledButton(
-          key: const Key('share-code-submit'),
-          onPressed: () => Navigator.pop(context, controller.text),
-          child: const Text('Rejoindre'),
-        ),
-      ],
-    ),
-  ).whenComplete(controller.dispose);
+Future<String?> _askCode(
+  BuildContext context, {
+  String initialCode = '',
+  String title = 'Rejoindre avec un code',
+}) {
+  return showJoinCodeDialog(
+    context,
+    title: title,
+    initialCode: initialCode,
+    inputKey: const Key('share-code-input'),
+    submitKey: const Key('share-code-submit'),
+  );
 }
 
-Future<void> _showCode(BuildContext context, String code) => showDialog<void>(
-  context: context,
-  builder: (context) => AlertDialog(
-    title: const Text('Partager'),
-    content: SelectableText(
-      code,
-      key: const Key('shared-code'),
-      style: Theme.of(context).textTheme.headlineMedium,
-      textAlign: TextAlign.center,
-    ),
-    actions: [
-      FilledButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Fermer'),
-      ),
-    ],
-  ),
-);
+String _tripShareName(TripDetailModel trip) {
+  final name = trip.name.trim();
+  if (name.isNotEmpty) return name;
+  final destination = trip.destination.trim();
+  return destination.isEmpty ? 'Voyage' : destination;
+}
 
 class _TripMemberPage extends StatefulWidget {
   const _TripMemberPage({

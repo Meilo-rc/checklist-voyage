@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../core/sharing/share_invitation.dart';
 import '../data/backup/safety_backup_file_gateway.dart';
 import '../data/backup/v1_safety_backup_service.dart';
 import '../data/import/web_v263_importer.dart';
@@ -44,6 +45,7 @@ class AppDependencies {
     required this.contexts,
     required this.librarySync,
     required this.sharedDocuments,
+    required this.shareInvitations,
     required this.safetyBackup,
     required this.safetyBackupFiles,
     required this.weather,
@@ -61,6 +63,7 @@ class AppDependencies {
   final ContextUseCases contexts;
   final LibrarySyncCoordinator librarySync;
   final SharedDocumentUseCases sharedDocuments;
+  final ShareInvitationGateway shareInvitations;
   final V1SafetyBackupService safetyBackup;
   final SafetyBackupFileGateway safetyBackupFiles;
   final TripWeatherService weather;
@@ -69,6 +72,7 @@ class AppDependencies {
     AppDatabase? database,
     SyncRemoteGateway? syncRemote,
     SharedDocumentRemoteGateway? documentRemote,
+    ShareInvitationGateway? shareInvitations,
     bool? autoSync,
     TripWeatherService? weather,
   }) async {
@@ -114,6 +118,11 @@ class AppDependencies {
       contexts: ContextUseCases(contextRepository),
       librarySync: librarySync,
       sharedDocuments: SharedDocumentUseCases(documentSync),
+      shareInvitations:
+          shareInvitations ??
+          (database == null
+              ? AndroidShareInvitationGateway()
+              : const UnavailableShareInvitationGateway()),
       safetyBackup: V1SafetyBackupService(db),
       safetyBackupFiles: const SafetyBackupFileGateway(),
       weather: weatherService,
@@ -127,6 +136,7 @@ class AppDependencies {
 
   Future<void> close() async {
     weather.close();
+    await shareInvitations.close();
     await database.close();
   }
 }

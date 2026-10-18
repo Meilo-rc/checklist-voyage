@@ -10,9 +10,50 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private var pendingBackup: ByteArray? = null
     private var pendingResult: MethodChannel.Result? = null
+    private var pendingJoinLink: String? = null
+    private var shareInvitationChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        pendingJoinLink = joinLinkFrom(intent)
+        shareInvitationChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "fr.checklistvoyage.app/share_invitation",
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "takeInitialJoinLink" -> {
+                        val link = pendingJoinLink
+                        pendingJoinLink = null
+                        result.success(link)
+                    }
+                    "shareText" -> {
+                        val subject = call.argument<String>("subject")
+                        val text = call.argument<String>("text")
+                        if (subject.isNullOrBlank() || text.isNullOrBlank()) {
+                            result.error("invalid_share", "Message de partage invalide.", null)
+                            return@setMethodCallHandler
+                        }
+                        try {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, subject)
+                                putExtra(Intent.EXTRA_TEXT, text)
+                            }
+                            startActivity(Intent.createChooser(shareIntent, "Partager avec"))
+                            result.success(null)
+                        } catch (error: Exception) {
+                            result.error(
+                                "share_unavailable",
+                                "Aucune application de partage n'est disponible.",
+                                null,
+                            )
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "fr.checklistvoyage.app/safety_backup",
@@ -64,6 +105,23 @@ class MainActivity : FlutterActivity() {
                 ),
             )
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val link = joinLinkFrom(intent) ?: return
+        val channel = shareInvitationChannel
+        if (channel == null) {
+            pendingJoinLink = link
+        } else {
+            channel.invokeMethod("onJoinLink", link)
+        }
+    }
+
+    private fun joinLinkFrom(intent: Intent?): String? {
+        if (intent?.action != Intent.ACTION_VIEW) return null
+        return intent.dataString
     }
 
     @Deprecated("Deprecated in Android; retained for FlutterActivity compatibility")

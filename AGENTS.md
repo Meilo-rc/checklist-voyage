@@ -1,5 +1,11 @@
 # Consignes du projet Checklist Voyage
 
+## Communication avec l'utilisateur
+
+- Toujours tutoyer l'utilisateur.
+- Toujours répondre en français.
+- Utiliser un ton naturel, direct et concis, sans formulations administratives.
+
 ## Validation des versions Android
 
 Après chaque nouvelle version Android (debug, RC ou release), fournir systématiquement à l'utilisateur un protocole de test sur téléphone adapté aux modifications réellement livrées.
