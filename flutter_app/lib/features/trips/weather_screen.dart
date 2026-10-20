@@ -4,6 +4,10 @@ import '../../core/theme/app_theme.dart';
 import '../../domain/weather/trip_weather_service.dart';
 import '../../domain/weather/weather_models.dart';
 
+String _weatherErrorMessage(Object? error) => error is WeatherUnavailable
+    ? error.message
+    : 'Données météo indisponibles. Réessaie plus tard.';
+
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({
     super.key,
@@ -45,9 +49,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
           }
           if (snapshot.hasError || snapshot.data == null) {
             return _WeatherUnavailable(
-              message: snapshot.error is WeatherUnavailable
-                  ? (snapshot.error! as WeatherUnavailable).message
-                  : 'Météo indisponible hors ligne.',
+              message: _weatherErrorMessage(snapshot.error),
               onRetry: () =>
                   setState(() => _future = widget.service.load(widget.request)),
             );
@@ -151,7 +153,8 @@ class _TripWeatherSummaryState extends State<TripWeatherSummary> {
     return FutureBuilder<TripWeatherSnapshot>(
       future: _future,
       builder: (context, snapshot) {
-        final weather = snapshot.data;
+        final loading = snapshot.connectionState != ConnectionState.done;
+        final weather = loading ? null : snapshot.data;
         final day = weather == null ? null : _summaryDay(weather.days);
         return Material(
           key: const Key('trip-weather-summary'),
@@ -171,7 +174,7 @@ class _TripWeatherSummaryState extends State<TripWeatherSummary> {
                   children: [
                     Icon(
                       day == null
-                          ? (snapshot.hasError
+                          ? (!loading && snapshot.hasError
                                 ? Icons.cloud_off_outlined
                                 : Icons.cloud_sync_outlined)
                           : weatherIcon(day.condition),
@@ -190,13 +193,13 @@ class _TripWeatherSummaryState extends State<TripWeatherSummary> {
                           const SizedBox(height: 2),
                           Text(
                             day == null
-                                ? (snapshot.hasError
-                                      ? 'Météo indisponible hors ligne'
+                                ? (!loading && snapshot.hasError
+                                      ? _weatherErrorMessage(snapshot.error)
                                       : 'Chargement…')
                                 : '${day.minTemperature.round()}–'
                                       '${day.maxTemperature.round()} °C · '
                                       '${weatherSourceLabel(day.source)}',
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: AppTextScale.of(
                               context,

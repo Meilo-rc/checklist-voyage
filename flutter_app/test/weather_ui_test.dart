@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:checklist_voyage_v1/core/theme/app_theme.dart';
 import 'package:checklist_voyage_v1/data/weather/open_meteo_remote.dart';
 import 'package:checklist_voyage_v1/data/weather/weather_cache_store.dart';
@@ -9,6 +11,55 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   final now = DateTime(2026, 8, 26);
+
+  testWidgets('le résumé masque la météo précédente et distingue les erreurs', (
+    tester,
+  ) async {
+    final service = _ControlledWeatherService(now);
+    Future<void> show(String destination) => tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: TripWeatherSummary(
+            request: WeatherTripRequest(
+              tripId: 'trip',
+              destination: destination,
+              coordinates: const WeatherCoordinates(
+                latitude: 48.85,
+                longitude: 2.35,
+              ),
+              startDate: now,
+              endDate: now,
+            ),
+            service: service,
+            onOpen: () {},
+          ),
+        ),
+      ),
+    );
+    await show('Paris');
+    await tester.pumpAndSettle();
+    expect(find.text('18–25 °C · Prévision'), findsOneWidget);
+    await show('Rome');
+    await tester.pump();
+    expect(find.text('Chargement…'), findsOneWidget);
+    expect(find.text('18–25 °C · Prévision'), findsNothing);
+    service.pending.completeError(
+      const WeatherUnavailable('Connexion réseau indisponible.'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Connexion réseau indisponible.'), findsOneWidget);
+    service.pending = Completer<TripWeatherSnapshot>();
+    await show('Lyon');
+    await tester.pump();
+    expect(find.text('Connexion réseau indisponible.'), findsNothing);
+    service.pending.completeError(
+      const WeatherUnavailable('Open-Meteo a répondu 503.'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Open-Meteo a répondu 503.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('affiche directement trois jours sans carte à 360 px', (
     tester,
@@ -64,6 +115,36 @@ void main() {
   });
 }
 
+class _ControlledWeatherService extends TripWeatherService {
+  _ControlledWeatherService(this.now)
+    : super(_UiWeatherRemote(), MemoryWeatherCacheStore());
+  final DateTime now;
+  Completer<TripWeatherSnapshot> pending = Completer<TripWeatherSnapshot>();
+
+  @override
+  Future<TripWeatherSnapshot> load(WeatherTripRequest request) async {
+    if (request.destination != 'Paris') return pending.future;
+    return TripWeatherSnapshot(
+      cacheKey: 'initial',
+      location: const WeatherLocation(
+        name: 'Paris',
+        coordinates: WeatherCoordinates(latitude: 48.85, longitude: 2.35),
+      ),
+      days: [
+        WeatherDay(
+          date: now,
+          source: WeatherDataSource.forecast,
+          condition: WeatherCondition.clear,
+          weatherCode: 0,
+          minTemperature: 18,
+          maxTemperature: 25,
+        ),
+      ],
+      updatedAt: now,
+    );
+  }
+}
+
 void _setPhoneSize(WidgetTester tester) {
   tester.view.physicalSize = const Size(360, 800);
   tester.view.devicePixelRatio = 1;
@@ -93,6 +174,10 @@ Future<void> _pumpWeather(
         request: WeatherTripRequest(
           tripId: 'trip-ui-$days',
           destination: destination,
+          coordinates: const WeatherCoordinates(
+            latitude: 33.8,
+            longitude: 10.8,
+          ),
           startDate: now.add(const Duration(days: 1)),
           endDate: now.add(Duration(days: days)),
         ),
@@ -105,10 +190,15 @@ Future<void> _pumpWeather(
 
 class _UiWeatherRemote implements WeatherRemoteGateway {
   @override
-  Future<WeatherLocation> geocode(String destination) async => WeatherLocation(
-    name: destination,
-    coordinates: const WeatherCoordinates(latitude: 33.8, longitude: 10.8),
-  );
+  Future<List<WeatherLocation>> searchCities(String query) async => [
+    await _location(query),
+  ];
+
+  Future<WeatherLocation> _location(String destination) async =>
+      WeatherLocation(
+        name: destination,
+        coordinates: const WeatherCoordinates(latitude: 33.8, longitude: 10.8),
+      );
 
   @override
   Future<Map<String, WeatherDay>> forecast({

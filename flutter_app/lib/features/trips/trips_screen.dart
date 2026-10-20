@@ -21,6 +21,7 @@ import '../shared/destination_scaffold.dart';
 import '../shared/item_contexts_sheet.dart';
 import '../shared/join_code_dialog.dart';
 import 'trip_form.dart';
+import 'city_destination_field.dart';
 import 'weather_screen.dart';
 
 class TripsScreen extends StatefulWidget {
@@ -120,6 +121,7 @@ class _TripsScreenState extends State<TripsScreen> {
       MaterialPageRoute(
         builder: (context) => TripForm(
           title: 'Nouveau voyage',
+          searchCities: widget.weather.searchCities,
           submitLabel: 'Créer le voyage',
           owners: owners,
           contexts: contexts,
@@ -132,6 +134,7 @@ class _TripsScreenState extends State<TripsScreen> {
         CreateTripRequest(
           name: result.name,
           destination: result.destination,
+          destinationLocation: result.destinationLocation,
           startDate: result.startDate,
           endDate: result.endDate,
           participantOwnerIds: result.participantOwnerIds,
@@ -166,6 +169,7 @@ class _TripsScreenState extends State<TripsScreen> {
       MaterialPageRoute(
         builder: (context) => TripForm(
           title: 'Modifier le voyage',
+          searchCities: widget.weather.searchCities,
           submitLabel: 'Enregistrer',
           owners: owners,
           contexts: contexts,
@@ -173,6 +177,7 @@ class _TripsScreenState extends State<TripsScreen> {
           initialData: TripFormInitialData(
             name: trip.name,
             destination: trip.destination,
+            destinationLocation: trip.destinationLocation,
             startDate: trip.startDate,
             endDate: trip.endDate,
             participantOwnerIds: trip.selectedParticipantOwnerIds,
@@ -191,6 +196,7 @@ class _TripsScreenState extends State<TripsScreen> {
           tripId: trip.id,
           name: result.name,
           destination: result.destination,
+          destinationLocation: result.destinationLocation,
           startDate: result.startDate,
           endDate: result.endDate,
         ),
@@ -206,7 +212,10 @@ class _TripsScreenState extends State<TripsScreen> {
   Future<void> _duplicateTrip(TripDetailModel source) async {
     final request = await showDialog<DuplicateTripRequest>(
       context: context,
-      builder: (context) => _DuplicateTripDialog(source: source),
+      builder: (context) => _DuplicateTripDialog(
+        source: source,
+        searchCities: widget.weather.searchCities,
+      ),
     );
     if (request == null) return;
     try {
@@ -603,17 +612,21 @@ class _TripSummaryCard extends StatelessWidget {
 }
 
 class _DuplicateTripDialog extends StatefulWidget {
-  const _DuplicateTripDialog({required this.source});
+  const _DuplicateTripDialog({
+    required this.source,
+    required this.searchCities,
+  });
 
   final TripDetailModel source;
+  final Future<List<WeatherLocation>> Function(String) searchCities;
 
   @override
   State<_DuplicateTripDialog> createState() => _DuplicateTripDialogState();
 }
 
 class _DuplicateTripDialogState extends State<_DuplicateTripDialog> {
-  late final TextEditingController _name;
   late final TextEditingController _destination;
+  WeatherLocation? _selectedLocation;
   DateTime? _startDate;
   DateTime? _endDate;
   String? _error;
@@ -621,13 +634,11 @@ class _DuplicateTripDialogState extends State<_DuplicateTripDialog> {
   @override
   void initState() {
     super.initState();
-    _name = TextEditingController(text: 'Copie de ${widget.source.name}');
     _destination = TextEditingController(text: widget.source.destination);
   }
 
   @override
   void dispose() {
-    _name.dispose();
     _destination.dispose();
     super.dispose();
   }
@@ -653,8 +664,16 @@ class _DuplicateTripDialogState extends State<_DuplicateTripDialog> {
   }
 
   void _submit() {
-    if (_name.text.trim().isEmpty || _startDate == null || _endDate == null) {
-      setState(() => _error = 'Nom et nouvelles dates requis.');
+    final destination = _destination.text.trim();
+    final keepsLocation =
+        destination == widget.source.destination.trim() &&
+        widget.source.destinationLocation != null;
+    if (_selectedLocation == null && !keepsLocation) {
+      setState(() => _error = 'Sélectionne une ville dans les suggestions.');
+      return;
+    }
+    if (_startDate == null || _endDate == null) {
+      setState(() => _error = 'Nouvelles dates requises.');
       return;
     }
     if (_endDate!.isBefore(_startDate!)) {
@@ -665,8 +684,9 @@ class _DuplicateTripDialogState extends State<_DuplicateTripDialog> {
       context,
       DuplicateTripRequest(
         sourceTripId: widget.source.id,
-        name: _name.text,
-        destination: _destination.text,
+        name: destination,
+        destination: destination,
+        destinationLocation: _selectedLocation,
         startDate: _startDate!,
         endDate: _endDate!,
       ),
@@ -687,15 +707,15 @@ class _DuplicateTripDialogState extends State<_DuplicateTripDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextField(
-                key: const Key('trip-duplicate-name'),
-                controller: _name,
-                decoration: const InputDecoration(labelText: 'Nom'),
-              ),
-              TextField(
-                key: const Key('trip-duplicate-destination'),
+              CityDestinationField(
+                fieldKey: const Key('trip-duplicate-destination'),
                 controller: _destination,
-                decoration: const InputDecoration(labelText: 'Destination'),
+                initialLocation: widget.source.destinationLocation,
+                search: widget.searchCities,
+                onSelected: (location) => setState(() {
+                  _selectedLocation = location;
+                  _error = null;
+                }),
               ),
               const SizedBox(height: 8),
               Column(
@@ -1566,10 +1586,10 @@ Future<String?> _askCode(
 }
 
 String _tripShareName(TripDetailModel trip) {
-  final name = trip.name.trim();
-  if (name.isNotEmpty) return name;
   final destination = trip.destination.trim();
-  return destination.isEmpty ? 'Voyage' : destination;
+  if (destination.isNotEmpty) return destination;
+  final name = trip.name.trim();
+  return name.isEmpty ? 'Voyage' : name;
 }
 
 class _TripMemberPage extends StatefulWidget {

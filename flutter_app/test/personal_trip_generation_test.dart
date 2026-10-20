@@ -91,6 +91,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: TripForm(
+            searchCities: (query) async => const [],
             title: 'Nouveau voyage',
             submitLabel: 'Créer',
             owners: owners,

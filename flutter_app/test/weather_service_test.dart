@@ -19,25 +19,28 @@ void main() {
     service = TripWeatherService(remote, cache, clock: () => now);
   });
 
-  test('géocode la destination et conserve la source de chaque jour', () async {
-    final result = await service.load(
-      _request(
-        start: now.add(const Duration(days: 14)),
-        end: now.add(const Duration(days: 18)),
-      ),
-    );
+  test(
+    'utilise les coordonnées enregistrées et conserve la source de chaque jour',
+    () async {
+      final result = await service.load(
+        _request(
+          start: now.add(const Duration(days: 14)),
+          end: now.add(const Duration(days: 18)),
+        ),
+      );
 
-    expect(remote.geocodeCalls, 1);
-    expect(remote.forecastCalls, 1);
-    expect(remote.historicalCalls, 1);
-    expect(result.days.map((day) => day.source), [
-      WeatherDataSource.forecast,
-      WeatherDataSource.forecast,
-      WeatherDataSource.forecast,
-      WeatherDataSource.historical,
-      WeatherDataSource.historical,
-    ]);
-  });
+      expect(remote.geocodeCalls, 0);
+      expect(remote.forecastCalls, 1);
+      expect(remote.historicalCalls, 1);
+      expect(result.days.map((day) => day.source), [
+        WeatherDataSource.forecast,
+        WeatherDataSource.forecast,
+        WeatherDataSource.historical,
+        WeatherDataSource.historical,
+        WeatherDataSource.historical,
+      ]);
+    },
+  );
 
   test('un second chargement frais utilise uniquement le cache', () async {
     final request = _request(
@@ -52,7 +55,7 @@ void main() {
     expect(result.fromCache, isTrue);
     expect(result.isStale, isFalse);
     expect(remote.forecastCalls, forecastCalls);
-    expect(remote.geocodeCalls, 1);
+    expect(remote.geocodeCalls, 0);
   });
 
   test('hors ligne, le cache expiré reste disponible et est signalé', () async {
@@ -85,7 +88,7 @@ void main() {
         isA<WeatherUnavailable>().having(
           (error) => error.message,
           'message',
-          'Météo indisponible hors ligne.',
+          'Connexion au service météo impossible.',
         ),
       ),
     );
@@ -106,6 +109,10 @@ void main() {
           WeatherTripRequest(
             tripId: first.tripId,
             destination: 'Rome',
+            coordinates: const WeatherCoordinates(
+              latitude: 41.9,
+              longitude: 12.5,
+            ),
             startDate: first.startDate,
             endDate: first.endDate,
           ),
@@ -117,6 +124,7 @@ void main() {
           WeatherTripRequest(
             tripId: first.tripId,
             destination: first.destination,
+            coordinates: first.coordinates,
             startDate: first.startDate.add(const Duration(days: 1)),
             endDate: first.endDate.add(const Duration(days: 1)),
           ),
@@ -143,24 +151,65 @@ void main() {
     expect(remote.geocodeCalls, 0);
     expect(result.location.coordinates.latitude, 33.8076);
   });
+
+  test(
+    'ancien voyage sans coordonnées demande une sélection sans appel réseau',
+    () async {
+      await cache.writeGeocoding(
+        'djerba',
+        const WeatherLocation(
+          name: 'Ancien premier résultat',
+          coordinates: WeatherCoordinates(latitude: 1, longitude: 2),
+        ),
+      );
+      await expectLater(
+        service.load(
+          WeatherTripRequest(
+            tripId: 'legacy',
+            destination: 'Djerba',
+            startDate: now,
+            endDate: now,
+          ),
+        ),
+        throwsA(
+          isA<WeatherUnavailable>().having(
+            (error) => error.message,
+            'message',
+            contains('Sélectionne une ville'),
+          ),
+        ),
+      );
+      expect(remote.geocodeCalls, 0);
+      expect(remote.forecastCalls, 0);
+      expect(remote.historicalCalls, 0);
+    },
+  );
 }
 
 WeatherTripRequest _request({required DateTime start, required DateTime end}) =>
     WeatherTripRequest(
       tripId: 'trip-1',
       destination: 'Djerba',
+      coordinates: const WeatherCoordinates(
+        latitude: 33.8076,
+        longitude: 10.8451,
+      ),
       startDate: start,
       endDate: end,
     );
 
 class _FakeWeatherRemote implements WeatherRemoteGateway {
+  @override
+  Future<List<WeatherLocation>> searchCities(String query) async => [
+    await _location(query),
+  ];
+
   int geocodeCalls = 0;
   int forecastCalls = 0;
   int historicalCalls = 0;
   bool offline = false;
 
-  @override
-  Future<WeatherLocation> geocode(String destination) async {
+  Future<WeatherLocation> _location(String destination) async {
     _checkOnline();
     geocodeCalls++;
     return WeatherLocation(

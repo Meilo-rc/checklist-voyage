@@ -35,18 +35,26 @@ class WeatherLocation {
     required this.name,
     required this.coordinates,
     this.country,
+    this.region,
     this.timezone,
   });
 
   final String name;
   final WeatherCoordinates coordinates;
   final String? country;
+  final String? region;
   final String? timezone;
+
+  String get detailLabel => [
+    region,
+    country,
+  ].whereType<String>().where((part) => part.isNotEmpty).join(', ');
 
   Map<String, Object?> toJson() => {
     'name': name,
     'coordinates': coordinates.toJson(),
     'country': country,
+    'region': region,
     'timezone': timezone,
   };
 
@@ -57,6 +65,7 @@ class WeatherLocation {
           (json['coordinates'] as Map).cast<String, Object?>(),
         ),
         country: json['country'] as String?,
+        region: json['region'] as String?,
         timezone: json['timezone'] as String?,
       );
 }

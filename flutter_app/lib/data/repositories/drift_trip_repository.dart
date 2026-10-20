@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/checklist_models.dart';
 import '../../domain/models/destination_summaries.dart';
 import '../../domain/models/progress.dart';
+import '../../domain/weather/weather_models.dart';
 import '../../domain/repositories/trip_repository.dart';
 import '../local/app_database.dart';
 import '../../sync/shared_document_sync_store.dart';
@@ -280,14 +281,7 @@ class DriftTripRepository implements TripRepository {
       id: trip.id,
       name: trip.name,
       destination: _destinationName(trip.destinationJson),
-      destinationLatitude: _destinationCoordinate(
-        trip.destinationJson,
-        'latitude',
-      ),
-      destinationLongitude: _destinationCoordinate(
-        trip.destinationJson,
-        'longitude',
-      ),
+      destinationLocation: _destinationLocation(trip.destinationJson),
       startDate: trip.startDate,
       endDate: trip.endDate,
       selectedContextIds: choices
@@ -339,9 +333,10 @@ class DriftTripRepository implements TripRepository {
               id: tripId,
               name: _tripName(request),
               destinationJson: Value(
-                request.destination.trim().isEmpty
-                    ? null
-                    : jsonEncode({'name': request.destination.trim()}),
+                _destinationJson(
+                  request.destination,
+                  request.destinationLocation,
+                ),
               ),
               startDate: Value(request.startDate?.toUtc()),
               endDate: Value(request.endDate?.toUtc()),
@@ -393,7 +388,11 @@ class DriftTripRepository implements TripRepository {
         TripsCompanion(
           name: Value(name),
           destinationJson: Value(
-            destination.isEmpty ? null : jsonEncode({'name': destination}),
+            _destinationJson(
+              destination,
+              request.destinationLocation,
+              previousJson: trip.destinationJson,
+            ),
           ),
           startDate: Value(request.startDate?.toUtc()),
           endDate: Value(request.endDate?.toUtc()),
@@ -418,11 +417,13 @@ class DriftTripRepository implements TripRepository {
     final duplicateId = _uuid.v4();
     final now = DateTime.now().toUtc();
     await _database.transaction(() async {
-      await (_database.select(_database.trips)..where(
-            (row) =>
-                row.id.equals(request.sourceTripId) & row.deletedAt.isNull(),
-          ))
-          .getSingle();
+      final source =
+          await (_database.select(_database.trips)..where(
+                (row) =>
+                    row.id.equals(request.sourceTripId) &
+                    row.deletedAt.isNull(),
+              ))
+              .getSingle();
       final members =
           await (_database.select(_database.tripMembers)..where(
                 (row) =>
@@ -465,9 +466,11 @@ class DriftTripRepository implements TripRepository {
               id: duplicateId,
               name: cleanName,
               destinationJson: Value(
-                request.destination.trim().isEmpty
-                    ? null
-                    : jsonEncode({'name': request.destination.trim()}),
+                _destinationJson(
+                  request.destination,
+                  request.destinationLocation,
+                  previousJson: source.destinationJson,
+                ),
               ),
               startDate: Value(request.startDate.toUtc()),
               endDate: Value(request.endDate.toUtc()),
@@ -1516,6 +1519,57 @@ String _destinationName(String? destinationJson) {
     return destinationJson;
   }
   return '';
+}
+
+String? _destinationJson(
+  String destination,
+  WeatherLocation? location, {
+  String? previousJson,
+}) {
+  final name = destination.trim();
+  if (location != null) {
+    final coordinates = location.coordinates;
+    if (location.name != name ||
+        !coordinates.latitude.isFinite ||
+        !coordinates.longitude.isFinite ||
+        coordinates.latitude.abs() > 90 ||
+        coordinates.longitude.abs() > 180) {
+      throw ArgumentError('Localisation de destination invalide.');
+    }
+    return jsonEncode({
+      'name': name,
+      ...coordinates.toJson(),
+      'region': location.region,
+      'country': location.country,
+      'timezone': location.timezone,
+    });
+  }
+  // Preserve the complete legacy JSON, including unknown metadata, unchanged.
+  if (previousJson != null && name == _destinationName(previousJson)) {
+    return previousJson;
+  }
+  return name.isEmpty ? null : jsonEncode({'name': name});
+}
+
+WeatherLocation? _destinationLocation(String? destinationJson) {
+  final latitude = _destinationCoordinate(destinationJson, 'latitude');
+  final longitude = _destinationCoordinate(destinationJson, 'longitude');
+  if (latitude == null ||
+      longitude == null ||
+      !latitude.isFinite ||
+      !longitude.isFinite ||
+      latitude.abs() > 90 ||
+      longitude.abs() > 180) {
+    return null;
+  }
+  final value = jsonDecode(destinationJson!) as Map;
+  return WeatherLocation(
+    name: _destinationName(destinationJson),
+    coordinates: WeatherCoordinates(latitude: latitude, longitude: longitude),
+    region: value['region']?.toString(),
+    country: value['country']?.toString(),
+    timezone: value['timezone']?.toString(),
+  );
 }
 
 double? _destinationCoordinate(String? destinationJson, String key) {

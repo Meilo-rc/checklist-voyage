@@ -15,6 +15,7 @@ import 'package:checklist_voyage_v1/sync/in_memory_shared_document_remote.dart';
 import 'package:checklist_voyage_v1/sync/in_memory_sync_remote.dart';
 
 import 'helpers/seed_reference_library.dart';
+import 'helpers/city_test_weather.dart';
 
 void main() {
   testWidgets('socle V1 et état Voyages vide restent compacts à 360 px', (
@@ -233,6 +234,7 @@ void main() {
         'Découverte des sentiers côtiers au coucher du soleil',
       );
       final dependencies = await AppDependencies.create(
+        weather: cityTestWeather(),
         database: database,
         autoSync: false,
       );
@@ -263,6 +265,10 @@ void main() {
         find.byKey(const Key('trip-destination')),
         'La Rochelle',
       );
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('city-suggestion-0')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('trip-date-range')));
       await tester.pumpAndSettle();
       expect(find.byType(DateRangePickerDialog), findsOneWidget);
@@ -374,6 +380,10 @@ void main() {
         find.byKey(const Key('trip-destination')),
         'Île de Ré',
       );
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('city-suggestion-0')));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.byKey(const Key('trip-submit')));
       await tester.tap(find.byKey(const Key('trip-submit')));
       await _pumpData(tester);

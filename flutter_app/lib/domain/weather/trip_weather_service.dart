@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
@@ -17,6 +19,9 @@ class TripWeatherService {
 
   static const forecastTtl = Duration(hours: 6);
   static const historicalTtl = Duration(days: 90);
+
+  Future<List<WeatherLocation>> searchCities(String query) =>
+      _remote.searchCities(query);
 
   Future<TripWeatherSnapshot> load(WeatherTripRequest request) async {
     _validate(request);
@@ -48,7 +53,10 @@ class TripWeatherService {
     }
 
     try {
-      final location = await _resolveLocation(request, cached);
+      final location = WeatherLocation(
+        name: request.destination,
+        coordinates: request.coordinates!,
+      );
       var values = {
         for (final day in cached?.days ?? const <WeatherDay>[])
           weatherDateKey(day.date): day,
@@ -99,27 +107,15 @@ class TripWeatherService {
         return cached.copyWith(isStale: true, fromCache: true);
       }
       if (error is WeatherUnavailable) rethrow;
-      throw const WeatherUnavailable('Météo indisponible hors ligne.');
-    }
-  }
-
-  Future<WeatherLocation> _resolveLocation(
-    WeatherTripRequest request,
-    TripWeatherSnapshot? cached,
-  ) async {
-    if (request.coordinates case final coordinates?) {
-      return WeatherLocation(
-        name: request.destination,
-        coordinates: coordinates,
+      if (error is SocketException || error is TimeoutException) {
+        throw const WeatherUnavailable(
+          'Connexion au service météo impossible.',
+        );
+      }
+      throw const WeatherUnavailable(
+        'Données météo indisponibles. Réessaie plus tard.',
       );
     }
-    if (cached != null) return cached.location;
-    final destinationKey = normalizeWeatherDestination(request.destination);
-    final geocoded = await _cache.readGeocoding(destinationKey);
-    if (geocoded != null) return geocoded;
-    final location = await _remote.geocode(request.destination);
-    await _cache.writeGeocoding(destinationKey, location);
-    return location;
   }
 
   Map<String, WeatherDay> _merge(
@@ -205,6 +201,11 @@ void _validate(WeatherTripRequest request) {
   }
   if (request.endDate.isBefore(request.startDate)) {
     throw const WeatherUnavailable('Dates du voyage invalides.');
+  }
+  if (request.coordinates == null) {
+    throw const WeatherUnavailable(
+      'Sélectionne une ville dans Modifier pour afficher la météo.',
+    );
   }
 }
 

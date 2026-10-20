@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/checklist_models.dart';
+import '../../domain/weather/weather_models.dart';
 import '../shared/date_range_label.dart';
 import '../shared/selection_chip_group.dart';
+import 'city_destination_field.dart';
 
 class TripFormInitialData {
   const TripFormInitialData({
     this.name = '',
     this.destination = '',
+    this.destinationLocation,
     this.startDate,
     this.endDate,
     this.participantOwnerIds = const {},
@@ -20,6 +23,7 @@ class TripFormInitialData {
 
   final String name;
   final String destination;
+  final WeatherLocation? destinationLocation;
   final DateTime? startDate;
   final DateTime? endDate;
   final Set<String> participantOwnerIds;
@@ -40,10 +44,12 @@ class TripFormResult {
     required this.lodgingOwnerIds,
     required this.contextIds,
     required this.personalCategoryIds,
+    this.destinationLocation,
   });
 
   final String name;
   final String destination;
+  final WeatherLocation? destinationLocation;
   final DateTime? startDate;
   final DateTime? endDate;
   final Set<String> participantOwnerIds;
@@ -60,6 +66,7 @@ class TripForm extends StatefulWidget {
     required this.submitLabel,
     required this.owners,
     required this.contexts,
+    required this.searchCities,
     this.initialData = const TripFormInitialData(),
     this.selectionsEditable = true,
   });
@@ -68,6 +75,7 @@ class TripForm extends StatefulWidget {
   final String submitLabel;
   final List<LibraryOwnerModel> owners;
   final List<ContextModel> contexts;
+  final Future<List<WeatherLocation>> Function(String) searchCities;
   final TripFormInitialData initialData;
   final bool selectionsEditable;
 
@@ -85,6 +93,7 @@ class _TripFormState extends State<TripForm> {
   DateTime? _startDate;
   DateTime? _endDate;
   String? _error;
+  WeatherLocation? _selectedLocation;
 
   @override
   void initState() {
@@ -148,6 +157,13 @@ class _TripFormState extends State<TripForm> {
       setState(() => _error = 'Indiquez une destination.');
       return;
     }
+    final unchanged =
+        widget.initialData.destination.isNotEmpty &&
+        destination == widget.initialData.destination.trim();
+    if (_selectedLocation == null && !unchanged) {
+      setState(() => _error = 'Sélectionne une ville dans les suggestions.');
+      return;
+    }
     Navigator.pop(
       context,
       TripFormResult(
@@ -155,6 +171,7 @@ class _TripFormState extends State<TripForm> {
             ? destination
             : widget.initialData.name,
         destination: destination,
+        destinationLocation: _selectedLocation,
         startDate: _startDate,
         endDate: _endDate,
         participantOwnerIds: Set.unmodifiable(_participants),
@@ -224,14 +241,14 @@ class _TripFormState extends State<TripForm> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextField(
-                      key: const Key('trip-destination'),
+                    CityDestinationField(
                       controller: _destination,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Destination',
-                        hintText: 'Ex. Annecy',
-                      ),
+                      initialLocation: widget.initialData.destinationLocation,
+                      search: widget.searchCities,
+                      onSelected: (location) => setState(() {
+                        _selectedLocation = location;
+                        _error = null;
+                      }),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     OutlinedButton(

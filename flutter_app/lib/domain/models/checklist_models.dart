@@ -1,3 +1,5 @@
+import '../weather/weather_models.dart';
+
 enum LibraryOwnerKind { general, familyMember, personal }
 
 enum GenerationRole { general, essential, participant, transport, lodging }
@@ -83,6 +85,7 @@ class CreateTripRequest {
     this.contextIds = const {},
     this.personalCategoryIds = const {},
     this.includeEssentials = true,
+    this.destinationLocation,
   });
 
   final String name;
@@ -95,6 +98,7 @@ class CreateTripRequest {
   final Set<String> contextIds;
   final Set<String> personalCategoryIds;
   final bool includeEssentials;
+  final WeatherLocation? destinationLocation;
 }
 
 class UpdateTripDetailsRequest {
@@ -104,6 +108,7 @@ class UpdateTripDetailsRequest {
     required this.destination,
     required this.startDate,
     required this.endDate,
+    this.destinationLocation,
   });
 
   final String tripId;
@@ -111,6 +116,7 @@ class UpdateTripDetailsRequest {
   final String destination;
   final DateTime? startDate;
   final DateTime? endDate;
+  final WeatherLocation? destinationLocation;
 }
 
 class DuplicateTripRequest {
@@ -120,6 +126,7 @@ class DuplicateTripRequest {
     required this.destination,
     required this.startDate,
     required this.endDate,
+    this.destinationLocation,
   });
 
   final String sourceTripId;
@@ -127,6 +134,7 @@ class DuplicateTripRequest {
   final String destination;
   final DateTime startDate;
   final DateTime endDate;
+  final WeatherLocation? destinationLocation;
 }
 
 class TripItemSourceModel {
@@ -207,8 +215,7 @@ class TripDetailModel {
     required this.endDate,
     required this.selectedContextIds,
     required this.members,
-    this.destinationLatitude,
-    this.destinationLongitude,
+    this.destinationLocation,
     this.selectedParticipantOwnerIds = const {},
     this.selectedTransportOwnerIds = const {},
     this.selectedLodgingOwnerIds = const {},
@@ -222,8 +229,10 @@ class TripDetailModel {
   final String id;
   final String name;
   final String destination;
-  final double? destinationLatitude;
-  final double? destinationLongitude;
+  final WeatherLocation? destinationLocation;
+  double? get destinationLatitude => destinationLocation?.coordinates.latitude;
+  double? get destinationLongitude =>
+      destinationLocation?.coordinates.longitude;
   final DateTime? startDate;
   final DateTime? endDate;
   final Set<String> selectedContextIds;

@@ -6,7 +6,7 @@ void main() {
   final now = DateTime(2026, 8, 26, 14);
   final policy = WeatherWindowPolicy(clock: () => now);
 
-  test('la frontière J-16 est une prévision réelle', () {
+  test('J+15 est en prévision, J+16 en tendance habituelle', () {
     expect(
       policy.sourceFor(now.add(const Duration(days: 30))),
       WeatherDataSource.historical,
@@ -17,6 +17,10 @@ void main() {
     );
     expect(
       policy.sourceFor(now.add(const Duration(days: 16))),
+      WeatherDataSource.historical,
+    );
+    expect(
+      policy.sourceFor(now.add(const Duration(days: 15))),
       WeatherDataSource.forecast,
     );
     expect(
@@ -31,8 +35,8 @@ void main() {
       now.add(const Duration(days: 20)),
     );
 
-    expect(split[WeatherDataSource.forecast], hasLength(5));
-    expect(split[WeatherDataSource.historical], hasLength(4));
+    expect(split[WeatherDataSource.forecast], hasLength(4));
+    expect(split[WeatherDataSource.historical], hasLength(5));
   });
 
   test('un séjour entièrement couvert reste en prévision', () {

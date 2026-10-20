@@ -9,6 +9,7 @@ import 'package:checklist_voyage_v1/data/repositories/drift_context_repository.d
 import 'package:checklist_voyage_v1/data/repositories/drift_library_repository.dart';
 
 import 'helpers/seed_reference_library.dart';
+import 'helpers/city_test_weather.dart';
 
 void main() {
   testWidgets(
@@ -25,7 +26,10 @@ void main() {
       final contexts = DriftContextRepository(database);
       final beach = await contexts.createContext('Plage');
       await contexts.setItemContexts(ids.passportItem, {beach});
-      final dependencies = await AppDependencies.create(database: database);
+      final dependencies = await AppDependencies.create(
+        database: database,
+        weather: cityTestWeather(),
+      );
 
       await tester.pumpWidget(ChecklistApp(dependencies: dependencies));
       await tester.pumpAndSettle();
@@ -39,6 +43,10 @@ void main() {
         find.byKey(const Key('trip-destination')),
         'Grenoble',
       );
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('city-suggestion-0')));
+      await tester.pumpAndSettle();
       final choices = <String>[
         'Alex',
         'Trajet - Avion',

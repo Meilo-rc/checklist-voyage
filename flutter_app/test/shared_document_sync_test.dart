@@ -12,6 +12,7 @@ import 'package:checklist_voyage_v1/data/repositories/drift_library_repository.d
 import 'package:checklist_voyage_v1/data/repositories/drift_quick_list_repository.dart';
 import 'package:checklist_voyage_v1/data/repositories/drift_trip_repository.dart';
 import 'package:checklist_voyage_v1/domain/models/checklist_models.dart';
+import 'package:checklist_voyage_v1/domain/weather/weather_models.dart';
 import 'package:checklist_voyage_v1/sync/in_memory_shared_document_remote.dart';
 import 'package:checklist_voyage_v1/sync/shared_document_remote.dart';
 import 'package:checklist_voyage_v1/sync/shared_document_sync_coordinator.dart';
@@ -20,6 +21,48 @@ import 'package:checklist_voyage_v1/sync/shared_document_sync_store.dart';
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   const uuid = Uuid();
+
+  test(
+    'destination géolocalisée converge après édition hors ligne et conserve le partage',
+    () async {
+      final remote = InMemorySharedDocumentRemote();
+      final a = await _Installation.memory(remote, uuid.v4());
+      final b = await _Installation.memory(remote, uuid.v4());
+      addTearDown(a.close);
+      addTearDown(b.close);
+      final id = await a.trips.createTrip(_emptyTrip('Ancienne ville'));
+      final access = await a.sync.shareTrip(id);
+      await b.sync.join(access.shareCode);
+      final before = await a.store.document(id);
+      await a.trips.updateTripDetails(
+        UpdateTripDetailsRequest(
+          tripId: id,
+          name: 'Ancien nom',
+          destination: 'Paris',
+          destinationLocation: const WeatherLocation(
+            name: 'Paris',
+            region: 'Texas',
+            country: 'États-Unis',
+            coordinates: WeatherCoordinates(latitude: 33.66, longitude: -95.55),
+          ),
+          startDate: DateTime(2027, 1, 1),
+          endDate: DateTime(2027, 1, 3),
+        ),
+      );
+      expect(await a.store.pendingOperations(id), hasLength(1));
+      expect((await b.trips.loadTrip(id))!.destination, 'Ancienne ville');
+      await a.sync.syncAll();
+      await b.sync.syncAll();
+      final received = (await b.trips.loadTrip(id))!;
+      expect(received.destination, 'Paris');
+      expect(received.destinationLatitude, 33.66);
+      expect(received.destinationLocation!.region, 'Texas');
+      final after = await a.store.document(id);
+      expect(after.capabilityToken, before.capabilityToken);
+      expect(after.shareCode, before.shareCode);
+      expect(await a.store.pendingOperations(id), isEmpty);
+    },
+  );
 
   test(
     'voyage et liste restent locaux tant que Partager n’est pas appelé',

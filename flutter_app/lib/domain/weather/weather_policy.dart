@@ -10,7 +10,8 @@ class WeatherWindowPolicy {
   WeatherDataSource sourceFor(DateTime date) {
     final today = _day(clock());
     final target = _day(date);
-    final lastForecastDay = today.add(const Duration(days: 16));
+    // Open-Meteo's 16-day range includes today and excludes today + 16.
+    final lastForecastDay = today.add(const Duration(days: 15));
     return !target.isBefore(today) && !target.isAfter(lastForecastDay)
         ? WeatherDataSource.forecast
         : WeatherDataSource.historical;

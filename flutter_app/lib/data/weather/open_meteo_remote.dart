@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../../domain/weather/weather_models.dart';
 
 abstract interface class WeatherRemoteGateway {
-  Future<WeatherLocation> geocode(String destination);
+  Future<List<WeatherLocation>> searchCities(String query);
 
   Future<Map<String, WeatherDay>> forecast({
     required WeatherCoordinates coordinates,
@@ -28,7 +30,8 @@ class UnavailableWeatherRemote implements WeatherRemoteGateway {
   }
 
   @override
-  Future<WeatherLocation> geocode(String destination) async => _unavailable();
+  Future<List<WeatherLocation>> searchCities(String query) async =>
+      _unavailable();
 
   @override
   Future<Map<String, WeatherDay>> forecast({
@@ -57,28 +60,32 @@ class OpenMeteoRemote implements WeatherRemoteGateway {
       'precipitation_sum,wind_speed_10m_mean';
 
   @override
-  Future<WeatherLocation> geocode(String destination) async {
+  Future<List<WeatherLocation>> searchCities(String query) async {
+    if (query.trim().length < 2) return const [];
     final uri = Uri.https('geocoding-api.open-meteo.com', '/v1/search', {
-      'name': destination,
-      'count': '1',
+      'name': query.trim(),
+      'count': '5',
       'language': 'fr',
       'format': 'json',
     });
     final json = await _getJson(uri);
     final results = json['results'];
-    if (results is! List || results.isEmpty || results.first is! Map) {
-      throw const WeatherUnavailable('Destination météo introuvable.');
-    }
-    final result = (results.first as Map).cast<String, Object?>();
-    return WeatherLocation(
-      name: result['name']?.toString() ?? destination,
-      country: result['country']?.toString(),
-      timezone: result['timezone']?.toString(),
-      coordinates: WeatherCoordinates(
-        latitude: (result['latitude'] as num).toDouble(),
-        longitude: (result['longitude'] as num).toDouble(),
-      ),
-    );
+    if (results is! List) return const [];
+    return results
+        .whereType<Map>()
+        .map(
+          (result) => WeatherLocation(
+            name: result['name']?.toString() ?? query.trim(),
+            country: result['country']?.toString(),
+            region: (result['admin1'] ?? result['admin2'])?.toString(),
+            timezone: result['timezone']?.toString(),
+            coordinates: WeatherCoordinates(
+              latitude: (result['latitude'] as num).toDouble(),
+              longitude: (result['longitude'] as num).toDouble(),
+            ),
+          ),
+        )
+        .toList(growable: false);
   }
 
   @override
@@ -255,9 +262,18 @@ class OpenMeteoRemote implements WeatherRemoteGateway {
   }
 
   Future<Object?> _getDynamicJson(Uri uri) async {
-    final response = await _client
-        .get(uri)
-        .timeout(const Duration(seconds: 20));
+    final http.Response response;
+    try {
+      response = await _client.get(uri).timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      throw const WeatherUnavailable(
+        'Connexion au service météo trop lente. Réessaie.',
+      );
+    } on SocketException {
+      throw const WeatherUnavailable('Connexion réseau indisponible.');
+    } on http.ClientException {
+      throw const WeatherUnavailable('Connexion au service météo impossible.');
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw WeatherUnavailable('Open-Meteo a répondu ${response.statusCode}.');
     }

@@ -8,6 +8,67 @@ import 'package:http/testing.dart';
 
 void main() {
   test(
+    'recherche plusieurs homonymes avec région, pays et coordonnées',
+    () async {
+      final remote = OpenMeteoRemote(
+        client: MockClient((request) async {
+          expect(request.url.queryParameters['count'], '5');
+          expect(request.url.queryParameters['name'], 'Paris');
+          return http.Response(
+            jsonEncode({
+              'results': [
+                {
+                  'name': 'Paris',
+                  'admin1': 'Île-de-France',
+                  'country': 'France',
+                  'latitude': 48.85,
+                  'longitude': 2.35,
+                },
+                {
+                  'name': 'Paris',
+                  'admin1': 'Texas',
+                  'country': 'États-Unis',
+                  'latitude': 33.66,
+                  'longitude': -95.55,
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
+      );
+      addTearDown(remote.close);
+      final suggestions = await remote.searchCities(' Paris ');
+      expect(suggestions, hasLength(2));
+      expect(suggestions[0].detailLabel, 'Île-de-France, France');
+      expect(suggestions[1].coordinates.longitude, -95.55);
+    },
+  );
+
+  test('absence de résultat et panne réseau sont distinguées', () async {
+    final empty = OpenMeteoRemote(
+      client: MockClient((_) async => http.Response('{}', 200)),
+    );
+    final offline = OpenMeteoRemote(
+      client: MockClient((_) async => throw http.ClientException('offline')),
+    );
+    addTearDown(empty.close);
+    addTearDown(offline.close);
+    expect(await empty.searchCities('Introuvable'), isEmpty);
+    await expectLater(
+      offline.searchCities('Paris'),
+      throwsA(
+        isA<WeatherUnavailable>().having(
+          (error) => error.message,
+          'message',
+          'Connexion au service météo impossible.',
+        ),
+      ),
+    );
+  });
+
+  test(
     'utilise uniquement Open-Meteo et agrège cinq périodes ciblées',
     () async {
       final requested = <Uri>[];
@@ -65,7 +126,7 @@ void main() {
       });
       final remote = OpenMeteoRemote(client: client);
 
-      final location = await remote.geocode('Djerba');
+      final location = (await remote.searchCities('Djerba')).single;
       final forecast = await remote.forecast(
         coordinates: location.coordinates,
         dates: [DateTime(2026, 9, 1)],
