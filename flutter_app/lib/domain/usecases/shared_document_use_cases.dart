@@ -18,4 +18,7 @@ class SharedDocumentUseCases {
       _repository.syncDocument(documentId);
 
   Future<void> syncAll() => _repository.syncAll();
+
+  Stream<String?> watchError(String documentId) =>
+      _repository.watchError(documentId);
 }

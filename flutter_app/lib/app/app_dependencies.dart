@@ -32,7 +32,8 @@ import '../sync/shared_document_sync_coordinator.dart';
 import '../sync/shared_document_sync_store.dart';
 
 class AppDependencies {
-  AppDependencies._({
+  AppDependencies._(
+    this._documentSync, {
     required this.database,
     required this.localData,
     required this.importWebBackup,
@@ -67,6 +68,10 @@ class AppDependencies {
   final V1SafetyBackupService safetyBackup;
   final SafetyBackupFileGateway safetyBackupFiles;
   final TripWeatherService weather;
+  final SharedDocumentSyncCoordinator _documentSync;
+
+  void setDocumentSyncForeground(bool foreground) =>
+      _documentSync.setForeground(foreground);
 
   static Future<AppDependencies> create({
     AppDatabase? database,
@@ -106,6 +111,7 @@ class AppDependencies {
                 MemoryWeatherCacheStore(),
               ));
     final dependencies = AppDependencies._(
+      documentSync,
       database: db,
       localData: localData,
       importWebBackup: ImportWebBackup(WebV263Importer(db)),
@@ -129,12 +135,13 @@ class AppDependencies {
     );
     if (autoSync ?? database == null) {
       unawaited(librarySync.syncNow());
-      unawaited(documentSync.syncAll());
+      unawaited(documentSync.syncAll().catchError((Object _) {}));
     }
     return dependencies;
   }
 
   Future<void> close() async {
+    await _documentSync.close();
     weather.close();
     await shareInvitations.close();
     await database.close();

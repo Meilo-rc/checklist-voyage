@@ -19,7 +19,7 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   late final HomeViewModel _homeViewModel;
   late final ImportViewModel _importViewModel;
   StreamSubscription<ShareJoinRequest>? _joinLinkSubscription;
@@ -28,9 +28,17 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    widget.dependencies.setDocumentSyncForeground(
+      lifecycle == null || lifecycle == AppLifecycleState.resumed,
+    );
     _homeViewModel = HomeViewModel()..addListener(_refresh);
     _importViewModel = ImportViewModel(widget.dependencies.importWebBackup);
-    _joinLinkSubscription = widget.dependencies.shareInvitations.incomingRequests
+    _joinLinkSubscription = widget
+        .dependencies
+        .shareInvitations
+        .incomingRequests
         .listen(_routeJoinRequest);
     unawaited(_loadInitialJoinRequest());
   }
@@ -47,9 +55,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _routeJoinRequest(ShareJoinRequest request) {
     if (!mounted) return;
-    _homeViewModel.select(
-      request.type == ShareableDocumentType.trip ? 0 : 2,
-    );
+    _homeViewModel.select(request.type == ShareableDocumentType.trip ? 0 : 2);
     setState(() => _pendingJoinRequest = request);
   }
 
@@ -61,12 +67,21 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.dependencies.setDocumentSyncForeground(false);
     unawaited(_joinLinkSubscription?.cancel());
     _homeViewModel
       ..removeListener(_refresh)
       ..dispose();
     _importViewModel.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    widget.dependencies.setDocumentSyncForeground(
+      state == AppLifecycleState.resumed,
+    );
   }
 
   void _refresh() => setState(() {});

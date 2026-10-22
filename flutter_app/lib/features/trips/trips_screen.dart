@@ -18,6 +18,7 @@ import '../../domain/weather/weather_models.dart';
 import '../shared/date_range_label.dart';
 import '../shared/category_details_page.dart';
 import '../shared/destination_scaffold.dart';
+import '../shared/document_sync_notice.dart';
 import '../shared/item_contexts_sheet.dart';
 import '../shared/join_code_dialog.dart';
 import 'trip_form.dart';
@@ -822,30 +823,32 @@ class _TripDetail extends StatefulWidget {
   State<_TripDetail> createState() => _TripDetailState();
 }
 
-class _TripDetailState extends State<_TripDetail> with WidgetsBindingObserver {
+class _TripDetailState extends State<_TripDetail> {
   TripFilter _filter = const TripFilter();
   String? _selectedMemberId;
   late final Stream<TripDetailModel?> _tripStream;
+  late final Stream<String?> _syncErrors;
+  Timer? _receiveTimer;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _tripStream = widget.useCases.watchTrip(widget.tripId);
+    _syncErrors =
+        widget.sharedDocuments?.watchError(widget.tripId) ??
+        Stream<String?>.value(null);
     unawaited(_syncDocument());
+    // Réception pendant l'utilisation du voyage, sans service en arrière-plan.
+    // Le coordinateur suspend aussi ces appels lorsque l'app n'est plus active.
+    _receiveTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      unawaited(_syncDocument());
+    });
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _receiveTimer?.cancel();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      unawaited(_syncDocument());
-    }
   }
 
   Future<void> _syncDocument() async {
@@ -994,7 +997,15 @@ class _TripDetailState extends State<_TripDetail> with WidgetsBindingObserver {
           onPopInvokedWithResult: (didPop, result) {
             if (!didPop) _goBack();
           },
-          child: page,
+          child: Column(
+            children: [
+              Expanded(child: page),
+              DocumentSyncNotice(
+                errors: _syncErrors,
+                onRetry: () => unawaited(_syncDocument()),
+              ),
+            ],
+          ),
         );
       },
     );

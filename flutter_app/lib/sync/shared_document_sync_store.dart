@@ -114,6 +114,13 @@ class SharedDocumentSyncStore {
     database.syncDocuments,
   )..where((row) => row.documentId.equals(documentId))).getSingleOrNull();
 
+  Stream<String?> watchError(String documentId) =>
+      (database.select(database.syncDocuments)
+            ..where((row) => row.documentId.equals(documentId)))
+          .watchSingleOrNull()
+          .map((document) => document?.lastError)
+          .distinct();
+
   Future<void> ensureBootstrapQueued(String documentId) async {
     if (!enabled) return;
     final document = await this.document(documentId);
@@ -513,8 +520,16 @@ class SharedDocumentSyncStore {
     });
   }
 
-  Future<void> applyPullPage(String documentId, SyncPullPage page) async {
-    await database.transaction(() async {
+  Future<bool> applyPullPage(String documentId, SyncPullPage page) async {
+    return database.transaction(() async {
+      // Une mutation peut arriver pendant le réseau. Ne pas l'écraser ni avancer
+      // le curseur : envoyer son opération, puis relire cette même page.
+      final pending =
+          await (database.select(database.syncOutbox)
+                ..where((row) => row.documentId.equals(documentId))
+                ..limit(1))
+              .get();
+      if (pending.isNotEmpty) return false;
       for (final remote in page.operations) {
         if (remote.applied) await _apply(remote.operation);
         await _recordRemoteMetadata(remote);
@@ -530,6 +545,7 @@ class SharedDocumentSyncStore {
           lastError: const Value(null),
         ),
       );
+      return true;
     });
   }
 

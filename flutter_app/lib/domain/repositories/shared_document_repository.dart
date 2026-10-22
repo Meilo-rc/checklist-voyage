@@ -10,4 +10,6 @@ abstract interface class SharedDocumentRepository {
   Future<void> syncDocument(String documentId);
 
   Future<void> syncAll();
+
+  Stream<String?> watchError(String documentId);
 }
